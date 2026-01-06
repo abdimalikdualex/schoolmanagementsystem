@@ -1,0 +1,52 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Search Students</h3>
+                    </div>
+                    <div class="card-body">
+                        <form method="get" class="form-inline mb-3">
+                            <input type="text" name="q" class="form-control mr-2" placeholder="Search by admission number or name" value="{{ query }}">
+                            <button class="btn btn-primary">Search</button>
+                        </form>
+
+                        {% if students %}
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr><th>#</th><th>Admission</th><th>Name</th><th>Course</th><th>Actions</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for s in students %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ s.admission_number }}</td>
+                                    <td>{{ s.admin.last_name }}, {{ s.admin.first_name }}</td>
+                                    <td>
+                                        {% if s.course %}
+                                            {{ s.course.name }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                    <td><a href="{% url 'student_profile' s.id %}" class="btn btn-sm btn-info">View Profile</a></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% elif query %}
+                        <div class="alert alert-warning">No students matched your query.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

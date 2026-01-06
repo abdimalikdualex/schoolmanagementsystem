@@ -1,0 +1,171 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row justify-content-center">
+            <div class="col-lg-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Search Student Results (Superadmin Only)</h3>
+                    </div>
+                    <div class="card-body">
+                        <!-- Search Form -->
+                        <div class="mb-3">
+                            <form method="get" class="form-inline">
+                                <input type="text" name="q" class="form-control mr-2" placeholder="Search by admission number (e.g., ADM1000)" value="{{ query }}" style="width: 400px;">
+                                <button type="submit" class="btn btn-primary">Search</button>
+                            </form>
+                        </div>
+
+                        <!-- Student Details Section -->
+                        {% if student %}
+                        <div class="alert alert-info mb-3">
+                            <strong>Student Found:</strong> {{ student.admin.last_name }}, {{ student.admin.first_name }}
+                            <br><strong>Admission:</strong> {{ student.admission_number }}
+                            <br><strong>Course:</strong> {% if student.course %}{{ student.course.name }}{% else %}N/A{% endif %}
+                            <br><strong>Session:</strong> {% if student.session %}{{ student.session }}{% else %}N/A{% endif %}
+                        </div>
+
+                        <!-- Results Table (Editable) -->
+                        <h5 class="mt-4">Student Results</h5>
+                        <table class="table table-bordered table-sm">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Subject</th>
+                                    <th>Test (40)</th>
+                                    <th>Exam (60)</th>
+                                    <th>Total</th>
+                                    <th>Grade</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for subject in subjects %}
+                                {% with result=subject.studentresult_set.first %}
+                                <tr data-subject-id="{{ subject.id }}">
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ subject.name }}</td>
+                                    <td>
+                                        <input type="number" class="form-control form-control-sm test-input" 
+                                            value="{% if result %}{{ result.test }}{% else %}0{% endif %}" 
+                                            step="0.1" min="0" max="40" placeholder="0">
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control form-control-sm exam-input" 
+                                            value="{% if result %}{{ result.exam }}{% else %}0{% endif %}" 
+                                            step="0.1" min="0" max="60" placeholder="0">
+                                    </td>
+                                    <td><span class="total-display">{% if result %}{{ result.test|add:result.exam|stringformat:"0.0f" }}{% else %}0{% endif %}</span></td>
+                                    <td><span class="grade-display">
+                                        {% if result %}
+                                            {% if result.test|add:result.exam >= 70 %}A
+                                            {% elif result.test|add:result.exam >= 60 %}B
+                                            {% elif result.test|add:result.exam >= 50 %}C
+                                            {% elif result.test|add:result.exam >= 40 %}D
+                                            {% else %}F{% endif %}
+                                        {% else %}-{% endif %}
+                                    </span></td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-success save-result" data-student-id="{{ student.id }}">Save</button>
+                                    </td>
+                                </tr>
+                                {% endwith %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+
+                        <div class="alert alert-warning mt-3">
+                            <strong>Note:</strong> Results are editable only by superadmin. Changes are saved immediately when you click the Save button.
+                        </div>
+
+                        {% elif query %}
+                        <div class="alert alert-danger">No student found with admission number: <strong>{{ query }}</strong></div>
+                        {% else %}
+                        <div class="alert alert-secondary">Enter an admission number to search for a student.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Calculate total and grade on input change
+    const testInputs = document.querySelectorAll('.test-input');
+    const examInputs = document.querySelectorAll('.exam-input');
+    
+    function updateTotal(row) {
+        const testVal = parseFloat(row.querySelector('.test-input').value) || 0;
+        const examVal = parseFloat(row.querySelector('.exam-input').value) || 0;
+        const total = testVal + examVal;
+        
+                        row.querySelector('.total-display').textContent = Math.round(total);
+        
+        // Calculate grade
+        let grade = 'F';
+        if (total >= 70) grade = 'A';
+        else if (total >= 60) grade = 'B';
+        else if (total >= 50) grade = 'C';
+        else if (total >= 40) grade = 'D';
+        
+        row.querySelector('.grade-display').textContent = grade;
+    }
+    
+    testInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            updateTotal(this.closest('tr'));
+        });
+    });
+    
+    examInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            updateTotal(this.closest('tr'));
+        });
+    });
+    
+    // Save result
+    const saveButtons = document.querySelectorAll('.save-result');
+    saveButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const row = this.closest('tr');
+            const studentId = this.dataset.studentId;
+            const subjectId = row.dataset.subjectId;
+            const test = row.querySelector('.test-input').value;
+            const exam = row.querySelector('.exam-input').value;
+            
+            // Get CSRF token
+            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                            document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+            
+            fetch('{% url "superadmin_update_result" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrftoken
+                },
+                body: `student_id=${studentId}&subject_id=${subjectId}&test=${test}&exam=${exam}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Result saved successfully!');
+                    row.querySelector('.total-display').textContent = Math.round(data.total);
+                    row.querySelector('.grade-display').textContent = data.grade;
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Error saving result: ' + error);
+            });
+        });
+    });
+});
+</script>
+{% endblock content %}

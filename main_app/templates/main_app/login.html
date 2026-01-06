@@ -1,0 +1,296 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Elevate College Portal | Log In</title>
+    <!-- Tell the browser to be responsive to screen width -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="{% static 'plugins/fontawesome-free/css/all.min.css' %}">
+    <!-- Ionicons -->
+    <link rel="stylesheet" href="{% static 'https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css' %}">
+    <!-- icheck bootstrap -->
+    <link rel="stylesheet" href="{% static 'plugins/icheck-bootstrap/icheck-bootstrap.min.css' %}">
+    <!-- Theme style -->
+    <link rel="stylesheet" href="{% static 'dist/css/adminlte.min.css' %}">
+    <!-- Google Font: Source Sans Pro -->
+    <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700" rel="stylesheet">
+    <!-- Google Recaptcha     -->
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <style>
+        @keyframes slideInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+        @keyframes glow {
+            0%, 100% {
+                box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            }
+            50% {
+                box-shadow: 0 15px 50px rgba(102, 126, 234, 0.3);
+            }
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        .login-page {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.8s ease-in;
+        }
+        .login-box {
+            width: 100%;
+            max-width: 420px;
+            animation: slideInUp 0.6s ease-out;
+        }
+        .login-logo a {
+            color: white;
+            font-size: 28px;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            display: block;
+            text-align: center;
+            animation: slideInDown 0.7s ease-out 0.1s both;
+        }
+        .login-logo a b {
+            color: #ffc107;
+        }
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+            animation: glow 3s ease-in-out infinite;
+        }
+        .login-card-body {
+            padding: 35px 30px;
+            background: white;
+            animation: slideInDown 0.7s ease-out 0.2s both;
+        }
+        .form-control {
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            padding: 12px 15px;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            animation: slideInUp 0.6s ease-out backwards;
+        }
+        .input-group:nth-child(1) .form-control {
+            animation-delay: 0.3s;
+        }
+        .input-group:nth-child(2) .form-control {
+            animation-delay: 0.4s;
+        }
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+            background-color: white;
+            transform: translateY(-2px);
+        }
+        .form-control:hover {
+            border-color: #667eea;
+        }
+        .input-group-text {
+            background: transparent;
+            border: none;
+            color: #667eea;
+            transition: all 0.3s ease;
+        }
+        .form-control:focus + .input-group-append .input-group-text,
+        .form-control:hover + .input-group-append .input-group-text {
+            color: #764ba2;
+            transform: scale(1.2);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 6px;
+            padding: 12px 20px;
+            font-weight: 600;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            animation: slideInUp 0.6s ease-out 0.5s both;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-success::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: left 0.5s ease;
+            z-index: 0;
+        }
+        .btn-success:hover {
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn-success:hover::before {
+            left: 100%;
+        }
+        .btn-success span {
+            position: relative;
+            z-index: 1;
+        }
+        .icheck-primary input:checked + label {
+            color: #667eea;
+            animation: pulse 0.5s ease;
+        }
+        .icheck-primary label {
+            transition: all 0.3s ease;
+        }
+        .mb-1 a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: inline-block;
+            animation: slideInUp 0.6s ease-out 0.6s both;
+        }
+        .mb-1 a:hover {
+            color: #764ba2;
+            text-decoration: underline;
+            transform: translateY(-2px);
+        }
+        .alert {
+            border-radius: 6px;
+            border: none;
+            margin-bottom: 20px;
+            animation: slideInDown 0.5s ease-out;
+        }
+        .g-recaptcha {
+            margin: 15px 0;
+            transform: scale(0.95);
+            transform-origin: 0 0;
+            animation: slideInUp 0.6s ease-out 0.45s both;
+        }
+        .row {
+            animation: slideInUp 0.6s ease-out 0.5s both;
+        }
+        hr {
+            animation: slideInUp 0.6s ease-out 0.55s both;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+
+<body class="hold-transition login-page">
+    <div class="login-box">
+        <div class="login-logo">
+            <a href=""><i class="fas fa-graduation-cap" style="color: #ffc107; margin-right: 10px;"></i><b>Elevate College</b> Portal</a>
+        </div>
+        <!-- /.login-logo -->
+        <div class="card">
+            <div class="card-body login-card-body">
+                {% if messages %}
+                <div class="col-12">
+                    {% for message in messages %}
+                    {% if message.tags == 'error' %}
+                    <div class="alert alert-danger text-center">
+                        <i class="fas fa-exclamation-circle"></i> {{message }}
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <form action="doLogin/" method="post">
+                    {% csrf_token %}
+                    <div class="input-group mb-3">
+                        <input required type="email" name='email' class="form-control" placeholder="Enter your email">
+                        <div class="input-group-append">
+                            <div class="input-group-text">
+                                <span class="fas fa-envelope"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="input-group mb-3">
+                        <input required type="password" name='password' class="form-control" placeholder="Enter your password">
+                        <div class="input-group-append">
+                            <div class="input-group-text">
+                                <span class="fas fa-lock"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="input-group mb-3">
+                        <div class="g-recaptcha" data-sitekey="6LfswtgZAAAAAJ7bhwqZZtDpBsc75ekH6FWA4Fnt"></div>
+                    </div>
+                    <div class="row">
+                        <div class="col-8">
+                            <div class="icheck-primary">
+                                <input type="checkbox" id="remember">
+                                <label for="remember" style="margin-bottom: 0;">
+                                    Remember Me
+                                </label>
+                            </div>
+                        </div>
+                        <!-- /.col -->
+                        <div class="col-4">
+                            <button type="submit" class="btn btn-success btn-block">
+                                <i class="fas fa-sign-in-alt"></i> Log In
+                            </button>
+                        </div>
+                        <!-- /.col -->
+                    </div>
+                </form>
+                <hr style="margin: 20px 0;">
+                <p class="mb-1" style="text-align: center;">
+                    <a href="{% url 'password_reset' %}">
+                        <i class="fas fa-key"></i> Forgot Password?
+                    </a>
+                </p>
+            </div>
+            <!-- /.login-card-body -->
+        </div>
+    </div>
+    <!-- /.login-box -->
+
+    <!-- jQuery -->
+    <script src="{% static 'plugins/jquery/jquery.min.js' %}"></script>
+    <!-- Bootstrap 4 -->
+    <script src="{% static 'plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+    <!-- AdminLTE App -->
+    <script src="{% static 'dist/js/adminlte.min.js' %}"></script>
+
+</body>
+
+</html>

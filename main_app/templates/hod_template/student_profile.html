@@ -1,0 +1,92 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">{{ student.admin.last_name }}, {{ student.admin.first_name }} - {{ student.admission_number }}</h3>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Course:</strong>
+                            {% if student.course %}
+                                {{ student.course.name }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </p>
+                        <p><strong>Session:</strong> {{ student.session }}</p>
+
+                        <h5>Results</h5>
+                        {% if results %}
+                        <table class="table table-bordered">
+                            <thead><tr><th>#</th><th>Subject</th><th>Test</th><th>Exam</th><th>Total</th></tr></thead>
+                            <tbody>
+                                {% for r in results %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ r.subject.name }}</td>
+                                    <td>{{ r.test }}</td>
+                                    <td>{{ r.exam }}</td>
+                                    <td>{{ r.test|add:r.exam|stringformat:"0.0f" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <div class="alert alert-info">No results found for this student.</div>
+                        {% endif %}
+
+                        <h5>Fees</h5>
+                        {% if fees %}
+                        <table class="table table-bordered">
+                            <thead><tr><th>#</th><th>Session</th><th>Amount Due</th><th>Paid</th><th>Outstanding</th><th>Status</th></tr></thead>
+                            <tbody>
+                                {% for f in fees %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ f.session }}</td>
+                                    <td>KSH {{ f.amount_due }}</td>
+                                    <td>KSH {{ f.amount_paid }}</td>
+                                    <td>KSH {{ f.amount_outstanding }}</td>
+                                    <td>{{ f.status }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <div class="alert alert-info">No fees records found.</div>
+                        {% endif %}
+
+                        <h5>Notifications</h5>
+                        {% if notifications %}
+                        <ul>
+                            {% for n in notifications %}
+                            <li>{{ n.message }} <small class="text-muted">{{ n.created_at }}</small></li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <div class="alert alert-info">No notifications.</div>
+                        {% endif %}
+
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5>Summary</h5>
+                        <p><strong>Total Due:</strong> KSH {{ total_due }}</p>
+                        <p><strong>Total Paid:</strong> KSH {{ total_paid }}</p>
+                        <p><strong>Total Outstanding:</strong> KSH {{ total_outstanding }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

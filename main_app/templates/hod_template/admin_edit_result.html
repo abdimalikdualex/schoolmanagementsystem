@@ -1,0 +1,199 @@
+{% extends 'main_app/base.html' %}
+
+{% block content %}
+<div class="content-wrapper">
+    <section class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1>Edit Student Results</h1>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-right">
+                        <li class="breadcrumb-item"><a href="{% url 'admin_home' %}">Home</a></li>
+                        <li class="breadcrumb-item active">Edit Results</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="content">
+        <div class="container-fluid">
+            {% if messages %}
+            <div class="row">
+                {% for message in messages %}
+                <div class="col-12">
+                    {% if message.tags == 'error' %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="row">
+                <div class="col-md-8 offset-md-2">
+                    <div class="card card-primary">
+                        <div class="card-header">
+                            <h3 class="card-title">Update Student Result</h3>
+                        </div>
+                        <form method="POST">
+                            {% csrf_token %}
+                            <div class="card-body">
+                                <div class="form-group">
+                                    <label>Select Course</label>
+                                    <select id="course_select" class="form-control" required>
+                                        <option value="">-- Select Course --</option>
+                                        {% for course in courses %}
+                                        <option value="{{ course.id }}">{{ course.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Select Subject</label>
+                                    <select id="subject_select" name="subject_id" class="form-control" required>
+                                        <option value="">-- Select Subject --</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Select Student</label>
+                                    <select id="student_select" name="student_id" class="form-control" required>
+                                        <option value="">-- Select Student --</option>
+                                    </select>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label>Test Score (Max 40)</label>
+                                            <input type="number" id="test_score" name="test" class="form-control" min="0" max="40" placeholder="Test Score" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label>Exam Score (Max 60)</label>
+                                            <input type="number" id="exam_score" name="exam" class="form-control" min="0" max="60" placeholder="Exam Score" required>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <div class="alert alert-info">
+                                        <strong>Total Score:</strong> <span id="total_score">0</span>/100
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Save Result
+                                </button>
+                                <a href="{% url 'admin_home' %}" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Cancel
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+    var students_by_course = {};
+    var subjects_by_course = {};
+    
+    {% for student in students %}
+        if (!students_by_course[{{ student.course.id }}]) {
+            students_by_course[{{ student.course.id }}] = [];
+        }
+        students_by_course[{{ student.course.id }}].push({
+            id: {{ student.id }},
+            name: "{{ student.admin.last_name }} {{ student.admin.first_name }}"
+        });
+    {% endfor %}
+    
+    {% for subject in subjects %}
+        if (!subjects_by_course[{{ subject.course.id }}]) {
+            subjects_by_course[{{ subject.course.id }}] = [];
+        }
+        subjects_by_course[{{ subject.course.id }}].push({
+            id: {{ subject.id }},
+            name: "{{ subject.name }}"
+        });
+    {% endfor %}
+
+    document.getElementById('course_select').addEventListener('change', function() {
+        var course_id = this.value;
+        var subject_select = document.getElementById('subject_select');
+        var student_select = document.getElementById('student_select');
+        
+        subject_select.innerHTML = '<option value="">-- Select Subject --</option>';
+        student_select.innerHTML = '<option value="">-- Select Student --</option>';
+        
+        if (course_id && subjects_by_course[course_id]) {
+            subjects_by_course[course_id].forEach(function(subject) {
+                var option = document.createElement('option');
+                option.value = subject.id;
+                option.textContent = subject.name;
+                subject_select.appendChild(option);
+            });
+        }
+        
+        if (course_id && students_by_course[course_id]) {
+            students_by_course[course_id].forEach(function(student) {
+                var option = document.createElement('option');
+                option.value = student.id;
+                option.textContent = student.name;
+                student_select.appendChild(option);
+            });
+        }
+    });
+
+    document.getElementById('student_select').addEventListener('change', function() {
+        var student_id = this.value;
+        var subject_id = document.getElementById('subject_select').value;
+        
+        if (student_id && subject_id) {
+            $.ajax({
+                url: "{% url 'admin_fetch_student_result' %}",
+                method: 'POST',
+                data: {
+                    student_id: student_id,
+                    subject_id: subject_id,
+                    csrfmiddlewaretoken: '{{ csrf_token }}'
+                },
+                success: function(data) {
+                    var result = JSON.parse(data);
+                    document.getElementById('test_score').value = result.test;
+                    document.getElementById('exam_score').value = result.exam;
+                    updateTotalScore();
+                },
+                error: function() {
+                    document.getElementById('test_score').value = '';
+                    document.getElementById('exam_score').value = '';
+                    updateTotalScore();
+                }
+            });
+        }
+    });
+
+    document.getElementById('test_score').addEventListener('input', updateTotalScore);
+    document.getElementById('exam_score').addEventListener('input', updateTotalScore);
+
+    function updateTotalScore() {
+        var test = parseInt(document.getElementById('test_score').value) || 0;
+        var exam = parseInt(document.getElementById('exam_score').value) || 0;
+        var total = test + exam;
+        document.getElementById('total_score').textContent = total;
+    }
+</script>
+
+{% endblock %}
