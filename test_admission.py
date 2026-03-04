@@ -6,7 +6,7 @@ Run: python test_admission.py
 import os
 import django
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'college_management_system.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'school_management_system.settings')
 django.setup()
 
 from main_app.models import Student, CustomUser, AdmissionSetting

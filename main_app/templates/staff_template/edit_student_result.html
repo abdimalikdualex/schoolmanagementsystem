@@ -48,10 +48,14 @@
     $(document).ready(function () {
         $("#id_subject").change(function () {
             fetchStudents();
-            });
-            $("#id_session_year").change(function () {
-                fetchStudents();
-                });
+        });
+        $("#id_session_year").change(function () {
+            fetchStudents();
+        });
+        // Load students on page load if subject and session already selected
+        if ($("#id_subject").val() && $("#id_session_year").val()) {
+            fetchStudents();
+        }
    $("#id_student").change(function () {
     fetch_student_result();
                 });
@@ -72,11 +76,12 @@
                 type: 'POST',
                 data: {
                     subject: subject,
-                    session:session
+                    session: session,
+                    csrfmiddlewaretoken: '{{ csrf_token }}'
                 }
-            }).done(function (response) {
-                var json_data = JSON.parse(response)
-                if (json_data.length < 1) {
+            }).done(function (data) {
+                var json_data = Array.isArray(data) ? data : (typeof data === 'string' ? JSON.parse(data) : data);
+                if (!json_data || json_data.length < 1) {
                     alert("No data to display")
                 } else {
                     var div_data = "<option>Select Student</option>"
@@ -110,16 +115,16 @@
                     type: 'POST',
                     data: {
                         subject: subject,
-                        student:student
-                    }
-                }).done(function (response) {
-                    if (response == 'False') {
+                        student:student,
+                        csrfmiddlewaretoken: '{{ csrf_token }}'
+                    },
+                    dataType: 'json'
+                }).done(function (data) {
+                    if (data.error) {
                         alert("No data to display")
                     } else {
-                        var json_data = JSON.parse(response)
-                        
-                            $("#id_test").val(json_data['test'])
-                            $("#id_exam").val(json_data['exam'])
+                            $("#id_test").val(data.test)
+                            $("#id_exam").val(data.exam)
                             $("#id_exam").show()
                             $("#id_test").show()
                             $("#update_result").show()

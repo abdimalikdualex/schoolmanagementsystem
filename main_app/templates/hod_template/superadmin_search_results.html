@@ -25,7 +25,7 @@
                         <div class="alert alert-info mb-3">
                             <strong>Student Found:</strong> {{ student.admin.last_name }}, {{ student.admin.first_name }}
                             <br><strong>Admission:</strong> {{ student.admission_number }}
-                            <br><strong>Course:</strong> {% if student.course %}{{ student.course.name }}{% else %}N/A{% endif %}
+                            <br><strong>Class:</strong> {% if student.course %}{{ student.course.name }}{% else %}N/A{% endif %}
                             <br><strong>Session:</strong> {% if student.session %}{{ student.session }}{% else %}N/A{% endif %}
                         </div>
 

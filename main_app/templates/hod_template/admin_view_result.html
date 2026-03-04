@@ -1,22 +1,6 @@
 {% extends 'main_app/base.html' %}
 
 {% block content %}
-<div class="content-wrapper">
-    <section class="content-header">
-        <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col-sm-6">
-                    <h1>View Student Results</h1>
-                </div>
-                <div class="col-sm-6">
-                    <ol class="breadcrumb float-sm-right">
-                        <li class="breadcrumb-item"><a href="{% url 'admin_home' %}">Home</a></li>
-                        <li class="breadcrumb-item active">View Results</li>
-                    </ol>
-                </div>
-            </div>
-        </div>
-    </section>
 
     <section class="content">
         <div class="container-fluid">
@@ -45,16 +29,16 @@
                     <div class="card card-primary shadow">
                         <div class="card-header bg-gradient-primary">
                             <h3 class="card-title">
-                                <i class="fas fa-filter mr-2"></i> Select Course & Subject
+                                <i class="fas fa-filter mr-2"></i> Select Class & Subject
                             </h3>
                         </div>
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-md-5">
                                     <div class="form-group">
-                                        <label><strong>Select Course</strong></label>
+                                        <label><strong>Select Class / Grade Level</strong></label>
                                         <select id="course_select" class="form-control form-control-lg">
-                                            <option value="">-- Select Course --</option>
+                                            <option value="">-- Select Class --</option>
                                             {% for course in courses %}
                                             <option value="{{ course.id }}">{{ course.name }}</option>
                                             {% endfor %}
@@ -141,7 +125,7 @@
         var subject_id = document.getElementById('subject_select').value;
         
         if (!course_id || !subject_id) {
-            alert('Please select both course and subject');
+            alert('Please select both class and subject');
             return;
         }
         

@@ -1,0 +1,107 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-arrow-up"></i> {{ page_title }}</h3>
+                    </div>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="card-body">
+                            {% if messages %}
+                            {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible">
+                                <button type="button" class="close" data-dismiss="alert">&times;</button>
+                                {{ message }}
+                            </div>
+                            {% endfor %}
+                            {% endif %}
+
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>Kenya CBC Promotion Flow:</strong><br>
+                                PP1 → PP2 → G1 → G2 → G3 → G4 → G5 → G6 → G7 → G8 → G9 → G10 → G11 → G12
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>From Academic Year <span class="text-danger">*</span></label>
+                                        <select name="from_academic_year" class="form-control" required>
+                                            <option value="">Select Year</option>
+                                            {% for session in sessions %}
+                                            <option value="{{ session.id }}">{{ session }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>To Academic Year <span class="text-danger">*</span></label>
+                                        <select name="to_academic_year" class="form-control" required>
+                                            <option value="">Select Year</option>
+                                            {% for session in sessions %}
+                                            <option value="{{ session.id }}">{{ session }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>From Class <span class="text-danger">*</span></label>
+                                        <select name="from_class" class="form-control" required>
+                                            <option value="">Select Class</option>
+                                            {% for class in classes %}
+                                            <option value="{{ class.id }}">
+                                                {{ class.name }}
+                                                {% if class.grade_level %}({{ class.grade_level.code }}){% endif %}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>To Class <span class="text-danger">*</span></label>
+                                        <select name="to_class" class="form-control" required>
+                                            <option value="">Select Class</option>
+                                            {% for class in classes %}
+                                            <option value="{{ class.id }}">
+                                                {{ class.name }}
+                                                {% if class.grade_level %}({{ class.grade_level.code }}){% endif %}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Note:</strong> All active students in the selected class will be promoted. This action cannot be undone.
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-primary btn-lg" 
+                                    onclick="return confirm('Are you sure you want to promote all students? This action cannot be undone.')">
+                                <i class="fas fa-arrow-up"></i> Promote Students
+                            </button>
+                            <a href="{% url 'promotion_dashboard' %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

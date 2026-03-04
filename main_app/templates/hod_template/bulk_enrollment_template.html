@@ -1,0 +1,103 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card card-dark">
+                    <div class="card-header">
+                        <h3 class="card-title">{{page_title}}</h3>
+                    </div>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="card-body">
+                            {% if messages %}
+                            {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible">
+                                <button type="button" class="close" data-dismiss="alert">&times;</button>
+                                {{ message }}
+                            </div>
+                            {% endfor %}
+                            {% endif %}
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Target Class <span class="text-danger">*</span></label>
+                                        <select name="school_class" class="form-control" required>
+                                            <option value="">Select Class</option>
+                                            {% for class in classes %}
+                                            <option value="{{ class.id }}">
+                                                {{ class.name }} 
+                                                {% if class.grade_level %}({{ class.grade_level.code }}){% endif %}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Academic Year <span class="text-danger">*</span></label>
+                                        <select name="academic_year" class="form-control" required>
+                                            <option value="">Select Academic Year</option>
+                                            {% for session in sessions %}
+                                            <option value="{{ session.id }}">{{ session }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Select Students to Enroll <span class="text-danger">*</span></label>
+                                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                    <table class="table table-bordered table-hover">
+                                        <thead class="thead-light">
+                                            <tr>
+                                                <th>
+                                                    <input type="checkbox" id="selectAll">
+                                                </th>
+                                                <th>Student Name</th>
+                                                <th>Admission No.</th>
+                                                <th>Current Class</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for student in students %}
+                                            <tr>
+                                                <td>
+                                                    <input type="checkbox" name="students" value="{{ student.id }}">
+                                                </td>
+                                                <td>{{ student }}</td>
+                                                <td>{{ student.admission_number|default:"-" }}</td>
+                                                <td>{{ student.course|default:"-" }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-primary">Enroll Selected Students</button>
+                            <a href="{% url 'manage_enrollments' %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+$(document).ready(function() {
+    $('#selectAll').on('change', function() {
+        $('input[name="students"]').prop('checked', this.checked);
+    });
+});
+</script>
+{% endblock content %}

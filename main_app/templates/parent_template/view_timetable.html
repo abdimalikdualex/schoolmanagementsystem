@@ -1,0 +1,110 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block main_content %}
+<section class="content">
+    <div class="container-fluid">
+        <!-- Back Navigation -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <a href="{% url 'parent_view_children' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left mr-1"></i> Back to Children
+                </a>
+                <button onclick="window.print()" class="btn btn-info float-right">
+                    <i class="fas fa-print mr-1"></i> Print Timetable
+                </button>
+            </div>
+        </div>
+
+        <!-- Student Info -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="card bg-gradient-primary">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            {% if student.admin.profile_pic %}
+                            <img src="{{ student.admin.profile_pic }}" class="img-circle mr-3" style="width: 60px; height: 60px; object-fit: cover;" alt="Student">
+                            {% else %}
+                            <img src="{% static 'dist/img/user-default.png' %}" class="img-circle mr-3" style="width: 60px; height: 60px;" alt="Student">
+                            {% endif %}
+                            <div>
+                                <h4 class="text-white mb-0">{{ student.admin.first_name }} {{ student.admin.last_name }}</h4>
+                                <p class="text-white-50 mb-0">{{ student.course.name|default:"No Class Assigned" }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timetable -->
+        {% for day, entries in timetable_by_day.items %}
+        <div class="card card-outline card-primary mb-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-calendar-day mr-2"></i>
+                    {{ day|title }}
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover mb-0">
+                        <thead class="thead-light">
+                            <tr>
+                                <th style="width: 120px;">Time</th>
+                                <th>Subject</th>
+                                <th>Teacher</th>
+                                <th style="width: 100px;">Room</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tt in entries %}
+                            <tr>
+                                <td>
+                                    <span class="badge badge-dark">
+                                        {{ tt.start_time|time:"H:i" }} - {{ tt.end_time|time:"H:i" }}
+                                    </span>
+                                </td>
+                                <td><strong>{{ tt.subject.name }}</strong></td>
+                                <td>
+                                    {% if tt.staff %}
+                                    {{ tt.staff.admin.first_name }} {{ tt.staff.admin.last_name }}
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ tt.room|default:"-" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-3">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    No classes scheduled for {{ day|title }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<style>
+@media print {
+    .btn, .main-sidebar, .main-header, .main-footer {
+        display: none !important;
+    }
+    .content-wrapper {
+        margin-left: 0 !important;
+    }
+    .card {
+        break-inside: avoid;
+    }
+}
+</style>
+{% endblock main_content %}

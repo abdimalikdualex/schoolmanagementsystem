@@ -1,0 +1,104 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card card-primary card-outline">
+                    <div class="card-body box-profile">
+                        <div class="text-center">
+                            {% if student.admin.profile_pic %}
+                            <img class="profile-user-img img-fluid img-circle" 
+                                src="{{ student.admin.profile_pic.url }}" alt="Student">
+                            {% else %}
+                            <img class="profile-user-img img-fluid img-circle" 
+                                src="{% static 'dist/img/default.png' %}" alt="Student">
+                            {% endif %}
+                        </div>
+                        <h3 class="profile-username text-center">{{ student }}</h3>
+                        <p class="text-muted text-center">{{ student.course }}</p>
+
+                        <ul class="list-group list-group-unbordered mb-3">
+                            <li class="list-group-item">
+                                <b>Admission No</b> 
+                                <a class="float-right">{{ student.admission_number|default:"N/A" }}</a>
+                            </li>
+                            <li class="list-group-item">
+                                <b>Class</b> 
+                                <a class="float-right">{{ student.course|default:"N/A" }}</a>
+                            </li>
+                            {% if fee_balance %}
+                            <li class="list-group-item">
+                                <b>Total Fees</b> 
+                                <a class="float-right">KES {{ fee_balance.total_fees|floatformat:2 }}</a>
+                            </li>
+                            <li class="list-group-item">
+                                <b>Total Paid</b> 
+                                <a class="float-right text-success">KES {{ fee_balance.total_paid|floatformat:2 }}</a>
+                            </li>
+                            <li class="list-group-item">
+                                <b>Balance</b> 
+                                <a class="float-right {% if fee_balance.balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                    KES {{ fee_balance.balance|floatformat:2 }}
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+
+                        <a href="{% url 'print_fee_statement' student.id %}" class="btn btn-primary btn-block">
+                            <i class="fas fa-print"></i> Print Statement
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Payment History</h3>
+                    </div>
+                    <div class="card-body table-responsive p-0">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Receipt No</th>
+                                    <th>Mode</th>
+                                    <th>Reference</th>
+                                    <th class="text-right">Amount</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in payments %}
+                                <tr>
+                                    <td>{{ payment.payment_date|date:"d/m/Y" }}</td>
+                                    <td><strong>{{ payment.receipt_number }}</strong></td>
+                                    <td>{{ payment.get_payment_mode_display }}</td>
+                                    <td>{{ payment.transaction_ref|default:"-" }}</td>
+                                    <td class="text-right">KES {{ payment.amount|floatformat:2 }}</td>
+                                    <td>
+                                        <a href="{% url 'print_fee_receipt' payment.id %}" 
+                                            class="btn btn-sm btn-info" title="Print Receipt">
+                                            <i class="fas fa-print"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center">No payments recorded</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock content %}

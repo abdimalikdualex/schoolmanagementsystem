@@ -1,0 +1,166 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title">Compose Bulk SMS</h3>
+                    </div>
+                    <form method="POST" action="{% url 'bulk_sms' %}">
+                        {% csrf_token %}
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label>Select Recipients</label>
+                                <select name="recipient_type" class="form-control" id="recipient_type" required>
+                                    <option value="">-- Select --</option>
+                                    <option value="all_students">All Students</option>
+                                    <option value="all_parents">All Parents</option>
+                                    <option value="class_students">Students in Specific Class</option>
+                                    <option value="class_parents">Parents of Students in Class</option>
+                                    <option value="grade_students">Students in Grade Level</option>
+                                    <option value="grade_parents">Parents of Students in Grade</option>
+                                    <option value="custom">Custom Phone Numbers</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="class_select" style="display:none;">
+                                <label>Select Class</label>
+                                <select name="course" class="form-control">
+                                    <option value="">-- Select Class --</option>
+                                    {% for course in courses %}
+                                    <option value="{{ course.id }}">{{ course }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="grade_select" style="display:none;">
+                                <label>Select Grade Level</label>
+                                <select name="grade_level" class="form-control">
+                                    <option value="">-- Select Grade --</option>
+                                    {% for grade in grade_levels %}
+                                    <option value="{{ grade.id }}">{{ grade }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="custom_numbers" style="display:none;">
+                                <label>Phone Numbers (one per line)</label>
+                                <textarea name="custom_numbers" class="form-control" rows="4" 
+                                    placeholder="0712345678&#10;0723456789"></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Use Template (Optional)</label>
+                                <select name="template" class="form-control" id="template_select">
+                                    <option value="">-- Custom Message --</option>
+                                    {% for template in templates %}
+                                    <option value="{{ template.id }}" data-content="{{ template.content }}">
+                                        {{ template.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Message</label>
+                                <textarea name="message" id="message" class="form-control" rows="4" 
+                                    placeholder="Type your message here..." required></textarea>
+                                <small class="text-muted">
+                                    Characters: <span id="char_count">0</span>/160 | 
+                                    SMS: <span id="sms_count">1</span>
+                                </small>
+                                <br>
+                                <small class="text-info">
+                                    Placeholders: {student_name}, {parent_name}, {class_name}, {school_name}
+                                </small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Schedule (Optional)</label>
+                                <input type="datetime-local" name="schedule_time" class="form-control">
+                                <small class="text-muted">Leave empty to send immediately</small>
+                            </div>
+                        </div>
+
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i> Send SMS
+                            </button>
+                            <a href="{% url 'sms_reports' %}" class="btn btn-info">
+                                <i class="fas fa-chart-bar"></i> View Reports
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card card-info">
+                    <div class="card-header">
+                        <h3 class="card-title">Quick Actions</h3>
+                    </div>
+                    <div class="card-body">
+                        <a href="{% url 'sms_templates' %}" class="btn btn-block btn-outline-primary">
+                            <i class="fas fa-file-alt"></i> Manage Templates
+                        </a>
+                        <a href="{% url 'sms_reports' %}" class="btn btn-block btn-outline-info">
+                            <i class="fas fa-chart-line"></i> SMS Reports
+                        </a>
+                        <a href="{% url 'process_sms_queue' %}" class="btn btn-block btn-outline-success">
+                            <i class="fas fa-sync"></i> Process Queue
+                        </a>
+                    </div>
+                </div>
+
+                <div class="card card-warning">
+                    <div class="card-header">
+                        <h3 class="card-title">Tips</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success"></i> Keep messages under 160 characters</li>
+                            <li><i class="fas fa-check text-success"></i> Use templates for consistency</li>
+                            <li><i class="fas fa-check text-success"></i> Test with one number first</li>
+                            <li><i class="fas fa-check text-success"></i> Schedule non-urgent messages</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+document.getElementById('recipient_type').addEventListener('change', function() {
+    var value = this.value;
+    document.getElementById('class_select').style.display = 
+        (value.includes('class')) ? 'block' : 'none';
+    document.getElementById('grade_select').style.display = 
+        (value.includes('grade')) ? 'block' : 'none';
+    document.getElementById('custom_numbers').style.display = 
+        (value === 'custom') ? 'block' : 'none';
+});
+
+document.getElementById('template_select').addEventListener('change', function() {
+    var option = this.options[this.selectedIndex];
+    if (option.dataset.content) {
+        document.getElementById('message').value = option.dataset.content;
+        updateCharCount();
+    }
+});
+
+document.getElementById('message').addEventListener('input', updateCharCount);
+
+function updateCharCount() {
+    var len = document.getElementById('message').value.length;
+    document.getElementById('char_count').textContent = len;
+    document.getElementById('sms_count').textContent = Math.ceil(len / 160) || 1;
+}
+</script>
+
+{% endblock content %}

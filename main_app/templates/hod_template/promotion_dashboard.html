@@ -1,0 +1,199 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <!-- Info boxes -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="info-box bg-info">
+                    <span class="info-box-icon"><i class="fas fa-graduation-cap"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">Total Classes</span>
+                        <span class="info-box-number">{{ classes.count }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-box bg-success">
+                    <span class="info-box-icon"><i class="fas fa-layer-group"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">Grade Levels</span>
+                        <span class="info-box-number">{{ grade_levels.count }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-arrow-up"></i> Bulk Promotion</h3>
+                    </div>
+                    <form method="POST" action="{% url 'bulk_promote' %}">
+                        {% csrf_token %}
+                        <div class="card-body">
+                            {% if messages %}
+                            {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible">
+                                <button type="button" class="close" data-dismiss="alert">&times;</button>
+                                {{ message }}
+                            </div>
+                            {% endfor %}
+                            {% endif %}
+
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>Kenya CBC Promotion Flow:</strong><br>
+                                PP1 → PP2 → G1 → G2 → G3 → G4 → G5 → G6 → G7 → G8 → G9 → G10 → G11 → G12
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>From Academic Year <span class="text-danger">*</span></label>
+                                        <select name="from_academic_year" class="form-control" required>
+                                            <option value="">Select Year</option>
+                                            {% for session in sessions %}
+                                            <option value="{{ session.id }}">{{ session }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>To Academic Year <span class="text-danger">*</span></label>
+                                        <select name="to_academic_year" class="form-control" required>
+                                            <option value="">Select Year</option>
+                                            {% for session in sessions %}
+                                            <option value="{{ session.id }}">{{ session }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>From Class <span class="text-danger">*</span></label>
+                                        <select name="from_class" id="from_class" class="form-control" required>
+                                            <option value="">Select Class</option>
+                                            {% for class in classes %}
+                                            <option value="{{ class.id }}">
+                                                {{ class.name }}
+                                                {% if class.grade_level %}({{ class.grade_level.code }}){% endif %}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>To Class <span class="text-danger">*</span></label>
+                                        <select name="to_class" id="to_class" class="form-control" required>
+                                            <option value="">Select Class</option>
+                                            {% for class in classes %}
+                                            <option value="{{ class.id }}">
+                                                {{ class.name }}
+                                                {% if class.grade_level %}({{ class.grade_level.code }}){% endif %}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Select Students (leave empty to promote all active students)</label>
+                                <div id="studentList" class="border p-3" style="max-height: 200px; overflow-y: auto;">
+                                    <p class="text-muted">Select a class to load students</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-primary btn-lg" 
+                                    onclick="return confirm('Are you sure you want to promote students? This action cannot be undone.')">
+                                <i class="fas fa-arrow-up"></i> Promote Students
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-history"></i> Recent Promotions</h3>
+                    </div>
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush">
+                            {% for promotion in recent_promotions %}
+                            <li class="list-group-item">
+                                <strong>{{ promotion.from_class }} → {{ promotion.to_class }}</strong>
+                                <br>
+                                <small class="text-muted">
+                                    {{ promotion.students_promoted }} students promoted
+                                    <br>
+                                    {{ promotion.created_at|date:"M d, Y H:i" }}
+                                </small>
+                                <span class="badge badge-{{ promotion.status }} float-right">{{ promotion.status }}</span>
+                            </li>
+                            {% empty %}
+                            <li class="list-group-item text-muted">No promotions yet</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="card-footer">
+                        <a href="{% url 'promotion_history' %}" class="btn btn-sm btn-secondary">View All History</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+$(document).ready(function() {
+    $('#from_class').on('change', function() {
+        var classId = $(this).val();
+        var academicYear = $('select[name="from_academic_year"]').val();
+        
+        if (classId && academicYear) {
+            $.get("{% url 'get_class_students' %}", {
+                class_id: classId,
+                academic_year_id: academicYear
+            }, function(data) {
+                if (data.success) {
+                    var html = '';
+                    if (data.students.length > 0) {
+                        data.students.forEach(function(student) {
+                            html += '<div class="custom-control custom-checkbox">';
+                            html += '<input type="checkbox" class="custom-control-input" name="students" value="' + student.id + '" id="student_' + student.id + '">';
+                            html += '<label class="custom-control-label" for="student_' + student.id + '">' + student.name + ' (' + (student.admission_number || 'N/A') + ')</label>';
+                            html += '</div>';
+                        });
+                    } else {
+                        html = '<p class="text-muted">No students found in this class</p>';
+                    }
+                    $('#studentList').html(html);
+                }
+            });
+        }
+        
+        // Auto-suggest next class
+        if (classId) {
+            $.get("{% url 'get_next_grade_class' %}", {class_id: classId}, function(data) {
+                if (data.success && data.suggested_class) {
+                    $('#to_class').val(data.suggested_class.id);
+                }
+            });
+        }
+    });
+});
+</script>
+{% endblock content %}

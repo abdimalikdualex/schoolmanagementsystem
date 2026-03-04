@@ -21,7 +21,7 @@
                                     <th>Full Name</th>
                                     <th>Email</th>
                                     <th>Gender</th>
-                                    <th>Course</th>
+                                    <th>Class</th>
                                     <th>Avatar</th>
                                     <th>Action</th>
                                 </tr>
@@ -106,18 +106,18 @@
             type: 'POST',
             data: {
                 id: id,
-                message:message
-            }
-        }).done(function (response) {
-           
-          if (response == 'True'){
+                message:message,
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            dataType: 'json'
+        }).done(function (data) {
+          if (data && data.success){
             alert("Notification Sent");
             location.reload();
           }else{
             alert("Notification could not be saved. Please try again.");
           }
-           
-        }).fail(function (response) {
+        }).fail(function () {
             alert("Error in saving token")
         })
 

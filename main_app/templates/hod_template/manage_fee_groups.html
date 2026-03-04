@@ -1,0 +1,106 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title">Add Fee Group</h3>
+                    </div>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label>Group Name</label>
+                                {{ form.name }}
+                                <small class="text-muted">e.g., Day Scholar, Boarder</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Description</label>
+                                {{ form.description }}
+                            </div>
+                            <div class="form-group">
+                                <div class="custom-control custom-checkbox">
+                                    {{ form.is_active }}
+                                    <label class="custom-control-label" for="id_is_active">Active</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-primary">Save Fee Group</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="card card-info">
+                    <div class="card-header">
+                        <h3 class="card-title">Fee Groups</h3>
+                    </div>
+                    <div class="card-body">
+                        {% for group in fee_groups %}
+                        <div class="card card-outline card-secondary mb-3">
+                            <div class="card-header">
+                                <h3 class="card-title">
+                                    {{ group.name }}
+                                    {% if group.is_active %}
+                                    <span class="badge badge-success">Active</span>
+                                    {% else %}
+                                    <span class="badge badge-secondary">Inactive</span>
+                                    {% endif %}
+                                </h3>
+                                <div class="card-tools">
+                                    <a href="{% url 'edit_fee_group' group.id %}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <table class="table table-sm mb-0">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>Fee Type</th>
+                                            <th class="text-right">Amount (KES)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in group.fee_items.all %}
+                                        <tr>
+                                            <td>{{ item.fee_type.name }}</td>
+                                            <td class="text-right">{{ item.amount|floatformat:2 }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="2" class="text-center text-muted">
+                                                No fee items configured
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tfoot class="bg-light">
+                                        <tr>
+                                            <th>Total</th>
+                                            <th class="text-right">{{ group.get_total_fees|floatformat:2 }}</th>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="alert alert-info">
+                            No fee groups found. Create one to get started.
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock content %}

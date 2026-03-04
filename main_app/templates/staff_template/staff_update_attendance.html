@@ -97,9 +97,9 @@
             
             }
 
-            ).done(function(response){
-                var json_data = JSON.parse(response)
-                if (json_data.length > 0){
+            ).done(function(data){
+                var json_data = Array.isArray(data) ? data : (typeof data === 'string' ? JSON.parse(data) : data);
+                if (json_data && json_data.length > 0){
 
                     var html = "";
                     for (key in json_data){
@@ -143,9 +143,9 @@ if (attendance_date.length  == 0){
                 data: {
                     attendance_date_id:attendance_date,
                 }
-            }).done(function (response) {
-                var json_data = JSON.parse(response)
-                if (json_data.length < 1) {
+            }).done(function (data) {
+                var json_data = Array.isArray(data) ? data : (typeof data === 'string' ? JSON.parse(data) : data);
+                if (!json_data || json_data.length < 1) {
                     alert("No data to display")
             $("#save_attendance").hide()
 
@@ -187,8 +187,8 @@ if (attendance_date.length  == 0){
                     date: attendance_date,
                     student_ids: student_data,
                 }
-            }).done(function (response) {
-                if (response == 'OK'){
+            }).done(function (data) {
+                if (data && data.status == 'OK'){
                     alert("Updated")
                 }else{
                     alert("Error. Please try again")

@@ -1,0 +1,51 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title">Edit SMS Template</h3>
+                    </div>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label>Template Name</label>
+                                {{ form.name }}
+                            </div>
+                            <div class="form-group">
+                                <label>Template Type</label>
+                                {{ form.template_type }}
+                            </div>
+                            <div class="form-group">
+                                <label>Content</label>
+                                {{ form.content }}
+                                <small class="text-info">
+                                    Available placeholders: {student_name}, {parent_name}, {class_name}, 
+                                    {amount}, {date}, {school_name}, {balance}
+                                </small>
+                            </div>
+                            <div class="form-group">
+                                <div class="custom-control custom-checkbox">
+                                    {{ form.is_active }}
+                                    <label class="custom-control-label" for="id_is_active">Active</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-primary">Update Template</button>
+                            <a href="{% url 'sms_templates' %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock content %}

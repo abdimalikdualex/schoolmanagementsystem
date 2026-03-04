@@ -1,0 +1,65 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block main_content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row mb-3">
+            <div class="col-12">
+                <a href="{% url 'parent_view_child_profile' student.id %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left mr-1"></i> Back to Profile
+                </a>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-file-pdf mr-2"></i>Report Cards - {{ student.admin.first_name }} {{ student.admin.last_name }}</h3>
+                        <div class="card-tools">
+                            <a href="{% url 'parent_view_children' %}" class="btn btn-sm btn-outline-secondary">My Children</a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {% if terms_data %}
+                        <p class="text-muted">Select a term to view or download the report card.</p>
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Academic Year</th>
+                                        <th>Term</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in terms_data %}
+                                    <tr>
+                                        <td>{{ item.academic_year }}</td>
+                                        <td>{{ item.term|upper }}</td>
+                                        <td>
+                                            <a href="{% url 'parent_download_report_card_pdf' student.id %}?year={{ item.academic_year.id }}&term={{ item.term }}" class="btn btn-danger btn-sm" target="_blank">
+                                                <i class="fas fa-download mr-1"></i> Download PDF
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-file-pdf fa-3x text-muted mb-3"></i>
+                            <h5>No Report Cards Yet</h5>
+                            <p class="text-muted">Report cards will appear here once exam results are recorded for your child.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock main_content %}

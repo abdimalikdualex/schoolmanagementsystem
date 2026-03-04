@@ -19,7 +19,7 @@
                             <tr>
                                 <th>#</th>
                                 <th>Staff</th>
-                                <th>Course</th>
+                                <th>Class</th>
                                 <th>Message</th>
                                 <th>Leave Date</th>
                                 <th>Submitted On</th>
@@ -119,18 +119,20 @@
     $.ajax({
         url: "{% url 'view_staff_leave' %}",
         type:'POST',
-        data:{
+                data:{
               id:id,
-              status:status
-        }
-    }).done(function(response){
-        if (response == "True"){
+              status:status,
+              csrfmiddlewaretoken: '{{ csrf_token }}'
+        },
+        dataType: 'json'
+    }).done(function(data){
+        if (data.success){
             alert("Leave Response Has Been Saved!")
             location.reload()
         }else{
             alert("Reply Could Not Be Sent")
         }
-    }).fail(function(response){
+    }).fail(function(){
         alert("Error Occured. ")
     })
 }else{

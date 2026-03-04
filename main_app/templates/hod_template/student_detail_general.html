@@ -1,0 +1,256 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block main_content %}
+<section class="content">
+    <div class="container-fluid">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'admin_home' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'manage_student' %}">Students</a></li>
+                <li class="breadcrumb-item active">{{ student.admin.first_name }} {{ student.admin.last_name }}</li>
+            </ol>
+        </nav>
+
+        <!-- Student Name Header -->
+        <h4 class="mb-4">{{ student.admin.first_name }} {{ student.admin.last_name }}</h4>
+
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-tabs mb-4" id="studentTabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'general' %}active{% endif %}" href="{% url 'student_detail_general' student.id %}" style="background-color: {% if active_tab == 'general' %}#8b7355{% else %}#d4c4a8{% endif %}; color: {% if active_tab == 'general' %}white{% else %}#333{% endif %};">
+                    General
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'fees' %}active{% endif %}" href="{% url 'student_detail_fees' student.id %}" style="background-color: {% if active_tab == 'fees' %}#8b7355{% else %}#d4c4a8{% endif %}; color: {% if active_tab == 'fees' %}white{% else %}#333{% endif %};">
+                    Fee Payment
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'results' %}active{% endif %}" href="{% url 'student_detail_results' student.id %}" style="background-color: {% if active_tab == 'results' %}#8b7355{% else %}#d4c4a8{% endif %}; color: {% if active_tab == 'results' %}white{% else %}#333{% endif %};">
+                    Exam Results
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'sms' %}active{% endif %}" href="{% url 'student_detail_sms' student.id %}" style="background-color: {% if active_tab == 'sms' %}#8b7355{% else %}#d4c4a8{% endif %}; color: {% if active_tab == 'sms' %}white{% else %}#333{% endif %};">
+                    SMS Messages
+                </a>
+            </li>
+        </ul>
+
+        <!-- General Information Card -->
+        <div class="card">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="info-row border-bottom py-2">
+                            <strong>Class:</strong> {{ class_info|default:"-" }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-row border-bottom py-2">
+                            <strong>Section:</strong> {{ stream.name|default:"-" }}
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="info-row border-bottom py-2">
+                            <strong>Name:</strong> {{ student.admin.first_name }} {{ student.admin.last_name }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-row border-bottom py-2">
+                            <strong>Gender:</strong> {{ student.admin.get_gender_display|default:"-" }}
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="info-row border-bottom py-2">
+                            <strong>Student Number:</strong> {{ student.admission_number|default:"-" }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-row border-bottom py-2">
+                            <strong>Date of Birth:</strong> {{ student.date_of_birth|date:"d/m/Y"|default:"-" }}
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="info-row border-bottom py-2">
+                            <strong>Admission Date:</strong> {{ student.admission_date|date:"d/m/Y"|default:"-" }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-row border-bottom py-2">
+                            <strong>Status:</strong> 
+                            <span class="{% if student.status == 'active' %}text-success{% else %}text-muted{% endif %}">
+                                {{ student.get_status_display|default:"Active" }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="info-row border-bottom py-2">
+                            <strong>Created At:</strong> {{ student.admin.created_at|date:"d-M-Y H:i:s" }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-row border-bottom py-2">
+                            <strong>Last Updated:</strong> {{ student.admin.updated_at|date:"d-M-Y H:i:s" }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Student Guardians Section -->
+                <div class="mt-4">
+                    <h5>Student Guardians</h5>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for guardian in guardians %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>{{ guardian.name }}</td>
+                                <td>{{ guardian.phone_number }}</td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editGuardianModal{{ guardian.id }}">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <form method="post" action="{% url 'student_delete_guardian' student.id guardian.id %}" style="display: inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this guardian?')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+
+                            <!-- Edit Guardian Modal -->
+                            <div class="modal fade" id="editGuardianModal{{ guardian.id }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <form method="post" action="{% url 'student_edit_guardian' student.id guardian.id %}">
+                                            {% csrf_token %}
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Edit Guardian</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="mb-3">
+                                                    <label class="form-label">Name</label>
+                                                    <input type="text" name="name" class="form-control" value="{{ guardian.name }}" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Phone Number</label>
+                                                    <input type="text" name="phone_number" class="form-control" value="{{ guardian.phone_number }}" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Relationship</label>
+                                                    <select name="relationship" class="form-control">
+                                                        <option value="father" {% if guardian.relationship == 'father' %}selected{% endif %}>Father</option>
+                                                        <option value="mother" {% if guardian.relationship == 'mother' %}selected{% endif %}>Mother</option>
+                                                        <option value="guardian" {% if guardian.relationship == 'guardian' %}selected{% endif %}>Guardian</option>
+                                                        <option value="uncle" {% if guardian.relationship == 'uncle' %}selected{% endif %}>Uncle</option>
+                                                        <option value="aunt" {% if guardian.relationship == 'aunt' %}selected{% endif %}>Aunt</option>
+                                                        <option value="grandparent" {% if guardian.relationship == 'grandparent' %}selected{% endif %}>Grandparent</option>
+                                                        <option value="other" {% if guardian.relationship == 'other' %}selected{% endif %}>Other</option>
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Email (Optional)</label>
+                                                    <input type="email" name="email" class="form-control" value="{{ guardian.email|default_if_none:'' }}">
+                                                </div>
+                                                <div class="form-check mb-3">
+                                                    <input type="checkbox" name="is_primary" class="form-check-input" {% if guardian.is_primary %}checked{% endif %}>
+                                                    <label class="form-check-label">Primary Contact</label>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-primary">Save Changes</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">No guardians added yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    
+                    <!-- Add Guardian Button -->
+                    <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#addGuardianModal">
+                        <i class="fas fa-plus"></i> Add Guardian
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Add Guardian Modal -->
+<div class="modal fade" id="addGuardianModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'student_add_guardian' student.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Guardian</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Phone Number</label>
+                        <input type="text" name="phone_number" class="form-control" placeholder="e.g., 0765540720" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Relationship</label>
+                        <select name="relationship" class="form-control">
+                            <option value="guardian">Guardian</option>
+                            <option value="father">Father</option>
+                            <option value="mother">Mother</option>
+                            <option value="uncle">Uncle</option>
+                            <option value="aunt">Aunt</option>
+                            <option value="grandparent">Grandparent</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email (Optional)</label>
+                        <input type="email" name="email" class="form-control">
+                    </div>
+                    <div class="form-check mb-3">
+                        <input type="checkbox" name="is_primary" class="form-check-input">
+                        <label class="form-check-label">Primary Contact</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Guardian</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock main_content %}

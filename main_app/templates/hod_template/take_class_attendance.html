@@ -1,0 +1,171 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title">Take Class Attendance</h3>
+            </div>
+            <form method="POST" id="attendance_form">
+                {% csrf_token %}
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Select Class</label>
+                                <select name="school_class" id="school_class" class="form-control" required>
+                                    <option value="">-- Select Class --</option>
+                                    {% for course in courses %}
+                                    <option value="{{ course.id }}">{{ course }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>Date</label>
+                                <input type="date" name="date" id="attendance_date" 
+                                    class="form-control" value="{{ today }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>&nbsp;</label>
+                                <button type="button" id="load_students" class="btn btn-info btn-block">
+                                    <i class="fas fa-users"></i> Load Students
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label>&nbsp;</label>
+                                <div class="custom-control custom-checkbox mt-2">
+                                    <input type="checkbox" name="notify_parents" id="notify_parents" 
+                                        class="custom-control-input" checked>
+                                    <label class="custom-control-label" for="notify_parents">
+                                        SMS Alert
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="students_container" style="display:none;">
+                        <hr>
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-sm btn-success" onclick="markAll('present')">
+                                <i class="fas fa-check"></i> Mark All Present
+                            </button>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="markAll('absent')">
+                                <i class="fas fa-times"></i> Mark All Absent
+                            </button>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>Adm No</th>
+                                        <th>Student Name</th>
+                                        <th width="200">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="students_list">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer" id="submit_section" style="display:none;">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save"></i> Save Attendance
+                    </button>
+                    <a href="{% url 'attendance_dashboard' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+
+<script>
+document.getElementById('load_students').addEventListener('click', function() {
+    var classId = document.getElementById('school_class').value;
+    var date = document.getElementById('attendance_date').value;
+    
+    if (!classId) {
+        alert('Please select a class');
+        return;
+    }
+    
+    fetch("{% url 'get_class_students_for_attendance' %}?class_id=" + classId + "&date=" + date)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                var tbody = document.getElementById('students_list');
+                tbody.innerHTML = '';
+                
+                data.students.forEach(function(student) {
+                    var presentChecked = student.status === 'present' ? 'checked' : '';
+                    var absentChecked = student.status === 'absent' ? 'checked' : '';
+                    var lateChecked = student.status === 'late' ? 'checked' : '';
+                    
+                    var row = `
+                        <tr>
+                            <td>${student.admission_number}</td>
+                            <td>${student.name}</td>
+                            <td>
+                                <div class="btn-group btn-group-toggle" data-toggle="buttons">
+                                    <label class="btn btn-outline-success ${presentChecked ? 'active' : ''}">
+                                        <input type="radio" name="status_${student.id}" 
+                                            value="present" ${presentChecked}> Present
+                                    </label>
+                                    <label class="btn btn-outline-danger ${absentChecked ? 'active' : ''}">
+                                        <input type="radio" name="status_${student.id}" 
+                                            value="absent" ${absentChecked}> Absent
+                                    </label>
+                                    <label class="btn btn-outline-warning ${lateChecked ? 'active' : ''}">
+                                        <input type="radio" name="status_${student.id}" 
+                                            value="late" ${lateChecked}> Late
+                                    </label>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+                
+                document.getElementById('students_container').style.display = 'block';
+                document.getElementById('submit_section').style.display = 'block';
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Error loading students');
+            console.error(error);
+        });
+});
+
+function markAll(status) {
+    var radios = document.querySelectorAll('input[type="radio"][value="' + status + '"]');
+    radios.forEach(function(radio) {
+        radio.checked = true;
+        radio.parentElement.classList.add('active');
+        
+        // Remove active from siblings
+        var siblings = radio.closest('.btn-group').querySelectorAll('label');
+        siblings.forEach(function(label) {
+            if (label !== radio.parentElement) {
+                label.classList.remove('active');
+            }
+        });
+    });
+}
+</script>
+
+{% endblock content %}

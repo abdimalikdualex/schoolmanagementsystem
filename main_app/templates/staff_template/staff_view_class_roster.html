@@ -1,0 +1,135 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-users"></i> {{ page_title }}
+                        </h3>
+                        <div class="card-tools">
+                            <a href="{% url 'staff_view_my_class' %}" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-arrow-left"></i> Back to My Classes
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Class Info -->
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <div class="info-box bg-info">
+                                    <span class="info-box-icon"><i class="fas fa-school"></i></span>
+                                    <div class="info-box-content">
+                                        <span class="info-box-text">Class</span>
+                                        <span class="info-box-number">{{ school_class.name }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="info-box bg-success">
+                                    <span class="info-box-icon"><i class="fas fa-layer-group"></i></span>
+                                    <div class="info-box-content">
+                                        <span class="info-box-text">Grade Level</span>
+                                        <span class="info-box-number">{{ school_class.grade_level|default:"Not Set" }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="info-box bg-warning">
+                                    <span class="info-box-icon"><i class="fas fa-chalkboard-teacher"></i></span>
+                                    <div class="info-box-content">
+                                        <span class="info-box-text">Class Teacher</span>
+                                        <span class="info-box-number">{{ school_class.class_teacher|default:"Not Assigned" }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="info-box bg-primary">
+                                    <span class="info-box-icon"><i class="fas fa-users"></i></span>
+                                    <div class="info-box-content">
+                                        <span class="info-box-text">Total Students</span>
+                                        <span class="info-box-number">{{ enrollments.count|add:direct_students.count }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if is_class_teacher %}
+                        <div class="alert alert-success">
+                            <i class="fas fa-star"></i> You are the class teacher for this class.
+                        </div>
+                        {% endif %}
+
+                        {% if subjects %}
+                        <div class="mb-3">
+                            <strong>Subjects you teach in this class:</strong>
+                            {% for subject in subjects %}
+                            <span class="badge badge-primary">{{ subject.name }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <!-- Students Table -->
+                        <table id="studentsTable" class="table table-bordered table-hover">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Photo</th>
+                                    <th>Student Name</th>
+                                    <th>Admission No.</th>
+                                    <th>Gender</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for enrollment in enrollments %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>
+                                        {% if enrollment.student.admin.profile_pic %}
+                                        <img src="{{ enrollment.student.admin.profile_pic }}" class="img-circle" 
+                                             style="width: 40px; height: 40px; object-fit: cover;">
+                                        {% else %}
+                                        <i class="fas fa-user-circle fa-2x text-muted"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ enrollment.student }}</td>
+                                    <td>{{ enrollment.student.admission_number|default:"-" }}</td>
+                                    <td>{{ enrollment.student.admin.get_gender_display }}</td>
+                                </tr>
+                                {% empty %}
+                                {% for student in direct_students %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>
+                                        {% if student.admin.profile_pic %}
+                                        <img src="{{ student.admin.profile_pic }}" class="img-circle" 
+                                             style="width: 40px; height: 40px; object-fit: cover;">
+                                        {% else %}
+                                        <i class="fas fa-user-circle fa-2x text-muted"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ student }}</td>
+                                    <td>{{ student.admission_number|default:"-" }}</td>
+                                    <td>{{ student.admin.get_gender_display }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center">No students in this class</td>
+                                </tr>
+                                {% endfor %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

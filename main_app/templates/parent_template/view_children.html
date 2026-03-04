@@ -1,0 +1,92 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block main_content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-child mr-2"></i>My Children</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            {% for child in children %}
+                            <div class="col-lg-4 col-md-6 col-12 mb-4">
+                                <div class="card card-primary card-outline h-100">
+                                    <div class="card-body box-profile">
+                                        <div class="text-center">
+                                            {% if child.admin.profile_pic %}
+                                            <img class="profile-user-img img-fluid img-circle" src="{{ child.admin.profile_pic }}" alt="Student profile">
+                                            {% else %}
+                                            <img class="profile-user-img img-fluid img-circle" src="{% static 'dist/img/user-default.png' %}" alt="Student profile">
+                                            {% endif %}
+                                        </div>
+
+                                        <h3 class="profile-username text-center">{{ child.admin.first_name }} {{ child.admin.last_name }}</h3>
+                                        <p class="text-muted text-center">
+                                            {{ child.course.name|default:child.current_class.name|default:"No Class" }}
+                                        </p>
+
+                                        <ul class="list-group list-group-unbordered mb-3">
+                                            <li class="list-group-item">
+                                                <b>Admission No.</b>
+                                                <a class="float-right">{{ child.admission_number|default:"-" }}</a>
+                                            </li>
+                                            <li class="list-group-item">
+                                                <b>Status</b>
+                                                <a class="float-right">
+                                                    <span class="badge {% if child.status == 'active' %}badge-success{% else %}badge-secondary{% endif %}">
+                                                        {{ child.get_status_display|default:"Active" }}
+                                                    </span>
+                                                </a>
+                                            </li>
+                                            <li class="list-group-item">
+                                                <b>Session</b>
+                                                <a class="float-right">{{ child.session|default:"-" }}</a>
+                                            </li>
+                                        </ul>
+
+                                        <a href="{% url 'parent_view_child_profile' child.id %}" class="btn btn-primary btn-block mb-2">
+                                            <i class="fas fa-user mr-1"></i> View Details
+                                        </a>
+                                        <div class="btn-group w-100" role="group">
+                                            <a href="{% url 'parent_view_child_attendance' child.id %}" class="btn btn-sm btn-outline-info" title="Attendance">
+                                                <i class="fas fa-calendar-check"></i>
+                                            </a>
+                                            <a href="{% url 'parent_view_child_results' child.id %}" class="btn btn-sm btn-outline-success" title="Results">
+                                                <i class="fas fa-chart-line"></i>
+                                            </a>
+                                            <a href="{% url 'parent_view_child_fees' child.id %}" class="btn btn-sm btn-outline-warning" title="Fees">
+                                                <i class="fas fa-dollar-sign"></i>
+                                            </a>
+                                            <a href="{% url 'parent_view_child_timetable' child.id %}" class="btn btn-sm btn-outline-primary" title="Timetable">
+                                                <i class="fas fa-clock"></i>
+                                            </a>
+                                            <a href="{% url 'parent_view_child_homework' child.id %}" class="btn btn-sm btn-outline-danger" title="Homework">
+                                                <i class="fas fa-book"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="col-12">
+                                <div class="alert alert-info text-center">
+                                    <i class="fas fa-info-circle fa-2x mb-2"></i>
+                                    <h5>No Children Linked</h5>
+                                    <p class="mb-0">No children have been linked to your account yet. Please contact the school administration.</p>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock main_content %}

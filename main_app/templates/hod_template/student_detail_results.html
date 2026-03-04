@@ -1,0 +1,231 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block main_content %}
+<section class="content">
+    <div class="container-fluid">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'admin_home' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'manage_student' %}">Fee Collections</a></li>
+                <li class="breadcrumb-item active">Exam Results for {{ student.admin.first_name }} {{ student.admin.last_name }}</li>
+            </ol>
+        </nav>
+
+        <!-- Student Name Header -->
+        <h4 class="mb-4">Exam Results for {{ student.admin.first_name }} {{ student.admin.last_name }}</h4>
+
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-tabs mb-4" id="studentTabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'general' %}active{% endif %}" href="{% url 'student_detail_general' student.id %}" style="background-color: {% if active_tab == 'general' %}#8b7355{% else %}#d4c4a8{% endif %}; color: {% if active_tab == 'general' %}white{% else %}#333{% endif %};">
+                    General
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'fees' %}active{% endif %}" href="{% url 'student_detail_fees' student.id %}" style="background-color: {% if active_tab == 'fees' %}#8b7355{% else %}#d4c4a8{% endif %}; color: {% if active_tab == 'fees' %}white{% else %}#333{% endif %};">
+                    Fee Payment
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'results' %}active{% endif %}" href="{% url 'student_detail_results' student.id %}" style="background-color: {% if active_tab == 'results' %}#8b7355{% else %}#d4c4a8{% endif %}; color: {% if active_tab == 'results' %}white{% else %}#333{% endif %};">
+                    Exam Results
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'sms' %}active{% endif %}" href="{% url 'student_detail_sms' student.id %}" style="background-color: {% if active_tab == 'sms' %}#8b7355{% else %}#d4c4a8{% endif %}; color: {% if active_tab == 'sms' %}white{% else %}#333{% endif %};">
+                    SMS Messages
+                </a>
+            </li>
+        </ul>
+
+        <!-- Exam Results Content -->
+        <div class="card">
+            <div class="card-body">
+                <!-- Filter Row -->
+                <form method="get" class="row mb-4">
+                    <div class="col-md-2">
+                        <select name="academic_year" class="form-control">
+                            <option value="">Select academic year...</option>
+                            {% for session in sessions %}
+                            <option value="{{ session.id }}" {% if selected_year == session.id|stringformat:"i" %}selected{% endif %}>{{ session.start_year|date:"Y" }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="term" class="form-control">
+                            <option value="">Select term...</option>
+                            <option value="term1" {% if selected_term == 'term1' %}selected{% endif %}>TERM ONE</option>
+                            <option value="term2" {% if selected_term == 'term2' %}selected{% endif %}>TERM TWO</option>
+                            <option value="term3" {% if selected_term == 'term3' %}selected{% endif %}>TERM THREE</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="exam_type" class="form-control">
+                            <option value="">Select exam type...</option>
+                            {% for exam_type in exam_types %}
+                            <option value="{{ exam_type.id }}" {% if selected_exam_type == exam_type.id|stringformat:"i" %}selected{% endif %}>{{ exam_type.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="subject" class="form-control">
+                            <option value="">Select subject...</option>
+                            {% for subject in subjects %}
+                            <option value="{{ subject.id }}" {% if selected_subject == subject.id|stringformat:"i" %}selected{% endif %}>{{ subject.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary">Search</button>
+                        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addResultModal">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Results Table -->
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Academic Year</th>
+                            <th>Term</th>
+                            <th>Exam Type</th>
+                            <th>Subject</th>
+                            <th>Score</th>
+                            <th>Out Of</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result in results %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ result.academic_year.start_year|date:"Y" }}</td>
+                            <td>{{ result.get_term_display }}</td>
+                            <td>{{ result.exam_type.name }}</td>
+                            <td>{{ result.subject.name }}</td>
+                            <td>{{ result.score|floatformat:0 }}</td>
+                            <td>{{ result.out_of|floatformat:0 }}</td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editResultModal{{ result.id }}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <form method="post" action="{% url 'student_delete_result' student.id result.id %}" style="display: inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this result?')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+
+                        <!-- Edit Result Modal -->
+                        <div class="modal fade" id="editResultModal{{ result.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <form method="post" action="{% url 'student_edit_result' student.id result.id %}">
+                                        {% csrf_token %}
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Edit Result</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">Score</label>
+                                                <input type="number" name="score" class="form-control" value="{{ result.score|floatformat:0 }}" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Out Of</label>
+                                                <input type="number" name="out_of" class="form-control" value="{{ result.out_of|floatformat:0 }}" required>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted">No results found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Add Result Modal -->
+<div class="modal fade" id="addResultModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'student_add_result' student.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Exam Result</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Academic Year</label>
+                        <select name="academic_year" class="form-control" required>
+                            <option value="">Select year...</option>
+                            {% for session in sessions %}
+                            <option value="{{ session.id }}">{{ session.start_year|date:"Y" }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Term</label>
+                        <select name="term" class="form-control" required>
+                            <option value="term1">TERM ONE</option>
+                            <option value="term2">TERM TWO</option>
+                            <option value="term3">TERM THREE</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Exam Type</label>
+                        <select name="exam_type" class="form-control" required>
+                            <option value="">Select exam type...</option>
+                            {% for exam_type in exam_types %}
+                            <option value="{{ exam_type.id }}">{{ exam_type.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Subject</label>
+                        <select name="subject" class="form-control" required>
+                            <option value="">Select subject...</option>
+                            {% for subject in subjects %}
+                            <option value="{{ subject.id }}">{{ subject.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Score</label>
+                            <input type="number" name="score" class="form-control" step="0.01" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Out Of</label>
+                            <input type="number" name="out_of" class="form-control" value="100" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Result</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock main_content %}

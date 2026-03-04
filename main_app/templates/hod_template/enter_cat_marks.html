@@ -1,0 +1,112 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        {% if active_term %}
+        {% if active_term.is_locked %}
+        <div class="alert alert-warning">
+            <i class="fas fa-lock"></i> Term is closed. CAT marks cannot be edited.
+        </div>
+        {% else %}
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title">Enter CAT Marks (Continuous Assessment)</h3>
+                <small class="text-muted">Active Term: {{ active_term }}</small>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>Subject</label>
+                                <select name="subject" id="subject_select" class="form-control" required>
+                                    <option value="">-- Select Subject --</option>
+                                    {% for subject in subjects %}
+                                    <option value="{{ subject.id }}">{{ subject.name }} ({{ subject.course }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>Assessment Name</label>
+                                <input type="text" name="assessment_name" class="form-control" 
+                                    value="CAT 1" placeholder="e.g., CAT 1, CAT 2, Assignment 1">
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label>Max Marks</label>
+                                <input type="number" name="max_marks" class="form-control" value="100" min="1">
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-group">
+                                <label>&nbsp;</label>
+                                <button type="button" id="load_btn" class="btn btn-info btn-block">
+                                    <i class="fas fa-users"></i> Load Students
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="students_section" style="display:none;">
+                        <hr>
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>Adm No</th>
+                                        <th>Student Name</th>
+                                        <th width="120">Marks</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cat_tbody">
+                                </tbody>
+                            </table>
+                        </div>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save"></i> Save CAT Marks
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="alert alert-warning">
+            No active term. Activate an academic term to enter CAT marks.
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<script>
+document.getElementById('load_btn').addEventListener('click', function() {
+    var subjectId = document.getElementById('subject_select').value;
+    if (!subjectId) {
+        alert('Please select a subject');
+        return;
+    }
+    fetch("{% url 'get_students_for_results' %}?subject_id=" + subjectId + "&exam_schedule_id=0")
+        .then(r => r.json())
+        .then(data => {
+            var tbody = document.getElementById('cat_tbody');
+            tbody.innerHTML = '';
+            if (data.success && data.students) {
+                data.students.forEach(function(s) {
+                    tbody.innerHTML += '<tr><td>' + (s.admission_number || 'N/A') + '</td><td>' + s.name + 
+                        '</td><td><input type="number" name="cat_' + s.id + '" class="form-control" min="0" step="0.5" placeholder="0"></td></tr>';
+                });
+                document.getElementById('students_section').style.display = 'block';
+            } else {
+                alert('No students in this class');
+            }
+        })
+        .catch(function() { alert('Error loading students'); });
+});
+</script>
+{% endblock content %}

@@ -1,0 +1,155 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block main_content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-envelope mr-2"></i>Messages</h3>
+                        <div class="card-tools">
+                            <a href="{% url 'parent_send_message' %}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus mr-1"></i> New Message
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Nav tabs -->
+                        <ul class="nav nav-tabs" id="messageTabs" role="tablist">
+                            <li class="nav-item">
+                                <a class="nav-link active" id="inbox-tab" data-toggle="tab" href="#inbox" role="tab">
+                                    <i class="fas fa-inbox mr-1"></i> Inbox
+                                    {% if messages_received %}
+                                    <span class="badge badge-primary">{{ messages_received|length }}</span>
+                                    {% endif %}
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="sent-tab" data-toggle="tab" href="#sent" role="tab">
+                                    <i class="fas fa-paper-plane mr-1"></i> Sent
+                                </a>
+                            </li>
+                        </ul>
+
+                        <!-- Tab content -->
+                        <div class="tab-content mt-3">
+                            <!-- Inbox -->
+                            <div class="tab-pane fade show active" id="inbox" role="tabpanel">
+                                <div class="list-group">
+                                    {% for msg in messages_received %}
+                                    <div class="list-group-item list-group-item-action {% if not msg.is_read %}bg-light{% endif %}" 
+                                         data-toggle="modal" data-target="#messageModal{{ msg.id }}"
+                                         style="cursor: pointer;">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">
+                                                {% if not msg.is_read %}
+                                                <i class="fas fa-circle text-primary mr-1" style="font-size: 8px;"></i>
+                                                {% endif %}
+                                                {{ msg.subject }}
+                                            </h6>
+                                            <small class="text-muted">{{ msg.created_at|date:"M d, Y H:i" }}</small>
+                                        </div>
+                                        <p class="mb-1 text-muted">{{ msg.content|truncatewords:20 }}</p>
+                                        <small class="text-muted">
+                                            <i class="fas fa-user mr-1"></i>
+                                            From: {{ msg.sender.first_name }} {{ msg.sender.last_name }}
+                                        </small>
+                                    </div>
+
+                                    <!-- Message Modal -->
+                                    <div class="modal fade" id="messageModal{{ msg.id }}" tabindex="-1" role="dialog">
+                                        <div class="modal-dialog modal-lg" role="document">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">{{ msg.subject }}</h5>
+                                                    <button type="button" class="close" data-dismiss="modal">
+                                                        <span>&times;</span>
+                                                    </button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <p class="text-muted mb-2">
+                                                        <strong>From:</strong> {{ msg.sender.first_name }} {{ msg.sender.last_name }}<br>
+                                                        <strong>Date:</strong> {{ msg.created_at|date:"M d, Y H:i" }}
+                                                    </p>
+                                                    <hr>
+                                                    <p>{{ msg.content|linebreaks }}</p>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% empty %}
+                                    <div class="text-center text-muted py-5">
+                                        <i class="fas fa-inbox fa-3x mb-3"></i>
+                                        <h5>No Messages</h5>
+                                        <p>Your inbox is empty.</p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Sent -->
+                            <div class="tab-pane fade" id="sent" role="tabpanel">
+                                <div class="list-group">
+                                    {% for msg in messages_sent %}
+                                    <div class="list-group-item list-group-item-action" 
+                                         data-toggle="modal" data-target="#sentModal{{ msg.id }}"
+                                         style="cursor: pointer;">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">{{ msg.subject }}</h6>
+                                            <small class="text-muted">{{ msg.created_at|date:"M d, Y H:i" }}</small>
+                                        </div>
+                                        <p class="mb-1 text-muted">{{ msg.content|truncatewords:20 }}</p>
+                                        <small class="text-muted">
+                                            <i class="fas fa-user mr-1"></i>
+                                            To: {{ msg.recipient.first_name }} {{ msg.recipient.last_name }}
+                                        </small>
+                                    </div>
+
+                                    <!-- Sent Modal -->
+                                    <div class="modal fade" id="sentModal{{ msg.id }}" tabindex="-1" role="dialog">
+                                        <div class="modal-dialog modal-lg" role="document">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">{{ msg.subject }}</h5>
+                                                    <button type="button" class="close" data-dismiss="modal">
+                                                        <span>&times;</span>
+                                                    </button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <p class="text-muted mb-2">
+                                                        <strong>To:</strong> {{ msg.recipient.first_name }} {{ msg.recipient.last_name }}<br>
+                                                        <strong>Date:</strong> {{ msg.created_at|date:"M d, Y H:i" }}
+                                                    </p>
+                                                    <hr>
+                                                    <p>{{ msg.content|linebreaks }}</p>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% empty %}
+                                    <div class="text-center text-muted py-5">
+                                        <i class="fas fa-paper-plane fa-3x mb-3"></i>
+                                        <h5>No Sent Messages</h5>
+                                        <p>You haven't sent any messages yet.</p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock main_content %}

@@ -1,0 +1,112 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-5">
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title">Add Fee Structure</h3>
+                    </div>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label>Fee Group</label>
+                                {{ form.fee_group }}
+                            </div>
+                            <div class="form-group">
+                                <label>Grade Level (Optional)</label>
+                                {{ form.grade_level }}
+                                <small class="text-muted">Apply to all classes in this grade</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Specific Class (Optional)</label>
+                                {{ form.course }}
+                                <small class="text-muted">Or apply to a specific class</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Session</label>
+                                {{ form.session }}
+                            </div>
+                            <div class="form-group">
+                                <label>Term</label>
+                                {{ form.term }}
+                            </div>
+                            <div class="form-group">
+                                <label>Due Date</label>
+                                {{ form.due_date }}
+                            </div>
+                            <div class="form-group">
+                                <div class="custom-control custom-checkbox">
+                                    {{ form.is_active }}
+                                    <label class="custom-control-label" for="id_is_active">Active</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-primary">Save Structure</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-md-7">
+                <div class="card card-info">
+                    <div class="card-header">
+                        <h3 class="card-title">Fee Structures</h3>
+                    </div>
+                    <div class="card-body table-responsive p-0">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Fee Group</th>
+                                    <th>Applies To</th>
+                                    <th>Session</th>
+                                    <th>Term</th>
+                                    <th>Due Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for structure in structures %}
+                                <tr>
+                                    <td>{{ structure.fee_group.name }}</td>
+                                    <td>
+                                        {% if structure.course %}
+                                        {{ structure.course }}
+                                        {% elif structure.grade_level %}
+                                        {{ structure.grade_level }} (All Classes)
+                                        {% else %}
+                                        All
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ structure.session }}</td>
+                                    <td>{{ structure.get_term_display }}</td>
+                                    <td>{{ structure.due_date|date:"d/m/Y" }}</td>
+                                    <td>
+                                        {% if structure.is_active %}
+                                        <span class="badge badge-success">Active</span>
+                                        {% else %}
+                                        <span class="badge badge-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center">No fee structures found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock content %}

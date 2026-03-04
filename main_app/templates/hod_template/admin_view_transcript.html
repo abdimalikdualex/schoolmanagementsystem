@@ -1,83 +1,210 @@
 {% extends 'main_app/base.html' %}
+{% load static %}
 
 {% block content %}
-<div class="content-wrapper">
-    <section class="content-header">
-        <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col-sm-6">
-                    <h1>Student Transcripts</h1>
-                </div>
-                <div class="col-sm-6">
-                    <ol class="breadcrumb float-sm-right">
-                        <li class="breadcrumb-item"><a href="{% url 'admin_home' %}">Home</a></li>
-                        <li class="breadcrumb-item active">Transcripts</li>
-                    </ol>
-                </div>
-            </div>
-        </div>
-    </section>
-
     <section class="content">
         <div class="container-fluid">
-            <div class="row justify-content-center">
-                <div class="col-lg-10">
-                    <div class="card card-primary shadow">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
                         <div class="card-header bg-gradient-primary">
                             <h3 class="card-title">
-                                <i class="fas fa-file-alt mr-2"></i> Select Student to View/Print Transcript
-                            </h3>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-10">
-                                    <div class="form-group">
-                                        <label><strong>Select Student</strong></label>
-                                        <select id="student_select" class="form-control form-control-lg">
-                                            <option value="">-- Select Student --</option>
-                                            {% for student in students %}
-                                            <option value="{{ student.id }}">
-                                                {{ student.admin.last_name }}, {{ student.admin.first_name }} ({{ student.admin.username }})
-                                            </option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-2 d-flex align-items-end">
-                                    <button id="view_transcript_btn" class="btn btn-primary btn-block btn-lg">
-                                        <i class="fas fa-eye"></i> View
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Transcript Card -->
-                    <div class="card card-success shadow" id="transcript_card" style="display: none;">
-                        <div class="card-header bg-gradient-success">
-                            <h3 class="card-title">
-                                <i class="fas fa-graduation-cap mr-2"></i> Student Transcript
+                                <i class="fas fa-file-alt mr-2"></i> Academic Transcripts - All Students
                             </h3>
                             <div class="card-tools">
-                                <button type="button" class="btn btn-success btn-sm mr-2" onclick="window.print()">
-                                    <i class="fas fa-print"></i> Print
+                                <button type="button" class="btn btn-info btn-sm" id="sendAllSMS" onclick="sendAllResultsSMS()">
+                                    <i class="fas fa-sms"></i> Send SMS to All Students
                                 </button>
-                                <button type="button" class="btn btn-secondary btn-sm" onclick="location.reload()">
-                                    <i class="fas fa-redo"></i> Clear
+                                <button type="button" class="btn btn-success btn-sm" onclick="window.print()">
+                                    <i class="fas fa-print"></i> Print All
                                 </button>
                             </div>
                         </div>
                         <div class="card-body">
-                            <div id="transcript_content">
-                                <!-- Transcript will be loaded here -->
-                            </div>
+                            {% if transcripts %}
+                                {% for transcript in transcripts %}
+                                <div class="transcript-container" style="page-break-after: always; margin-bottom: 50px; padding: 30px; background: #ffffff; border: 2px solid #1a1a1a;">
+                                    <!-- Header Section -->
+                                    <div style="position: relative; margin-bottom: 35px; border-bottom: 3px solid #1a1a1a; padding-bottom: 25px; background: linear-gradient(to bottom, #ffffff 0%, #f8f9fa 100%); padding: 20px; border-radius: 5px;">
+                                        <div style="position: absolute; top: 10px; right: 10px; color: #dc3545; font-weight: bold; font-size: 16px; background: #fff; padding: 5px 10px; border: 2px solid #dc3545; border-radius: 3px;">{{ transcript.serial_number }}</div>
+                                        <div style="text-align: center; margin-top: 20px;">
+                                            <div style="margin-bottom: 20px;">
+                                                <img src="{% static 'dist/img/cmsl.png' %}" alt="School Logo" style="max-height: 120px; margin-bottom: 15px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));">
+                                            </div>
+                                            <h2 style="margin: 8px 0; color: #1a1a1a; font-size: 28px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase;">SCHOOL MANAGEMENT SYSTEM</h2>
+                                            <p style="margin: 10px 0; color: #333; font-size: 14px; font-weight: 600; letter-spacing: 1px;">OFFICE OF THE REGISTRAR ACADEMIC AFFAIRS</p>
+                                            <p style="margin: 8px 0; color: #1a1a1a; font-size: 22px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase;">ACADEMIC TRANSCRIPT</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Student Information Table -->
+                                    <div style="margin-bottom: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                        <table style="width: 100%; border-collapse: collapse; border: 2px solid #1a1a1a;">
+                                            <tr>
+                                                <td style="width: 35%; padding: 12px 18px; border: 1px solid #1a1a1a; background: linear-gradient(to right, #f5f5f5 0%, #e8e8e8 100%); font-weight: bold; color: #1a1a1a; font-size: 12px; vertical-align: middle;">Name of Student:</td>
+                                                <td style="width: 65%; padding: 12px 18px; border: 1px solid #1a1a1a; background: #ffffff; color: #1a1a1a; font-size: 12px; vertical-align: middle; font-weight: 500;">{{ transcript.student_name }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 12px 18px; border: 1px solid #1a1a1a; background: linear-gradient(to right, #f5f5f5 0%, #e8e8e8 100%); font-weight: bold; color: #1a1a1a; font-size: 12px; vertical-align: middle;">Registration Number:</td>
+                                                <td style="padding: 12px 18px; border: 1px solid #1a1a1a; background: #ffffff; color: #1a1a1a; font-size: 12px; vertical-align: middle; font-weight: 500;">{{ transcript.reg_number }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 12px 18px; border: 1px solid #1a1a1a; background: linear-gradient(to right, #f5f5f5 0%, #e8e8e8 100%); font-weight: bold; color: #1a1a1a; font-size: 12px; vertical-align: middle;">Faculty/School:</td>
+                                                <td style="padding: 12px 18px; border: 1px solid #1a1a1a; background: #ffffff; color: #1a1a1a; font-size: 12px; vertical-align: middle; font-weight: 500;">{{ transcript.course }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 12px 18px; border: 1px solid #1a1a1a; background: linear-gradient(to right, #f5f5f5 0%, #e8e8e8 100%); font-weight: bold; color: #1a1a1a; font-size: 12px; vertical-align: middle;">Department:</td>
+                                                <td style="padding: 12px 18px; border: 1px solid #1a1a1a; background: #ffffff; color: #1a1a1a; font-size: 12px; vertical-align: middle; font-weight: 500;">{{ transcript.course }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 12px 18px; border: 1px solid #1a1a1a; background: linear-gradient(to right, #f5f5f5 0%, #e8e8e8 100%); font-weight: bold; color: #1a1a1a; font-size: 12px; vertical-align: middle;">Class:</td>
+                                                <td style="padding: 12px 18px; border: 1px solid #1a1a1a; background: #ffffff; color: #1a1a1a; font-size: 12px; vertical-align: middle; font-weight: 500;">{{ transcript.course }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 12px 18px; border: 1px solid #1a1a1a; background: linear-gradient(to right, #f5f5f5 0%, #e8e8e8 100%); font-weight: bold; color: #1a1a1a; font-size: 12px; vertical-align: middle;">Programme:</td>
+                                                <td style="padding: 12px 18px; border: 1px solid #1a1a1a; background: #ffffff; color: #1a1a1a; font-size: 12px; vertical-align: middle; font-weight: 500;">{{ transcript.course }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 12px 18px; border: 1px solid #1a1a1a; background: linear-gradient(to right, #f5f5f5 0%, #e8e8e8 100%); font-weight: bold; color: #1a1a1a; font-size: 12px; vertical-align: middle;">Academic Year:</td>
+                                                <td style="padding: 12px 18px; border: 1px solid #1a1a1a; background: #ffffff; color: #1a1a1a; font-size: 12px; vertical-align: middle; font-weight: 500;">{{ transcript.session }}</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    
+                                    <!-- Academic Performance Table -->
+                                    <div style="margin-bottom: 30px;">
+                                        <h3 style="color: #1a1a1a; font-size: 16px; font-weight: bold; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #1a1a1a;">ACADEMIC PERFORMANCE</h3>
+                                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; border: 2px solid #1a1a1a; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                            <thead>
+                                                <tr style="background: linear-gradient(to bottom, #2c3e50 0%, #1a1a1a 100%); color: white;">
+                                                    <th style="padding: 14px 10px; text-align: center; border: 1px solid #1a1a1a; font-weight: bold; font-size: 12px; letter-spacing: 0.5px;">S/N</th>
+                                                    <th style="padding: 14px 10px; text-align: center; border: 1px solid #1a1a1a; font-weight: bold; font-size: 12px; letter-spacing: 0.5px;">Unit Code</th>
+                                                    <th style="padding: 14px 10px; text-align: left; border: 1px solid #1a1a1a; font-weight: bold; font-size: 12px; letter-spacing: 0.5px;">Unit Title</th>
+                                                    <th style="padding: 14px 10px; text-align: center; border: 1px solid #1a1a1a; font-weight: bold; font-size: 12px; letter-spacing: 0.5px;">Attendance<br/><span style="font-size: 10px; font-weight: normal;">(%)</span></th>
+                                                    <th style="padding: 14px 10px; text-align: center; border: 1px solid #1a1a1a; font-weight: bold; font-size: 12px; letter-spacing: 0.5px;">Marks<br/><span style="font-size: 10px; font-weight: normal;">(100%)</span></th>
+                                                    <th style="padding: 14px 10px; text-align: center; border: 1px solid #1a1a1a; font-weight: bold; font-size: 12px; letter-spacing: 0.5px;">Grade</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for result in transcript.results %}
+                                                {% if forloop.counter0|divisibleby:2 %}
+                                                <tr style="background: #ffffff;">
+                                                {% else %}
+                                                <tr style="background: #f8f9fa;">
+                                                {% endif %}
+                                                    <td style="padding: 12px 10px; text-align: center; border: 1px solid #1a1a1a; color: #1a1a1a; font-size: 11px; font-weight: 500;">{{ forloop.counter }}</td>
+                                                    <td style="padding: 12px 10px; text-align: center; border: 1px solid #1a1a1a; color: #1a1a1a; font-size: 11px; font-weight: 600; font-family: 'Courier New', monospace;">{{ result.unit_code }}</td>
+                                                    <td style="padding: 12px 10px; text-align: left; border: 1px solid #1a1a1a; color: #1a1a1a; font-size: 11px; font-weight: 500;">{{ result.subject }}</td>
+                                                    <td style="padding: 12px 10px; text-align: center; border: 1px solid #1a1a1a; color: #1a1a1a; font-size: 11px; font-weight: 500;">{{ result.attendance }}%</td>
+                                                    <td style="padding: 12px 10px; text-align: center; border: 1px solid #1a1a1a; color: #1a1a1a; font-size: 12px; font-weight: bold;">{{ result.total }}</td>
+                                                    <td style="padding: 12px 10px; text-align: center; border: 1px solid #1a1a1a; font-size: 12px; font-weight: bold;">
+                                                        {% if result.grade == 'A' %}
+                                                        <span style="display: inline-block; padding: 4px 10px; border-radius: 3px; background: #d5f4e6; color: #27ae60; border: 1px solid #27ae60;">{{ result.grade }}</span>
+                                                        {% elif result.grade == 'B' %}
+                                                        <span style="display: inline-block; padding: 4px 10px; border-radius: 3px; background: #d6eaf8; color: #3498db; border: 1px solid #3498db;">{{ result.grade }}</span>
+                                                        {% elif result.grade == 'C' %}
+                                                        <span style="display: inline-block; padding: 4px 10px; border-radius: 3px; background: #fef5e7; color: #f39c12; border: 1px solid #f39c12;">{{ result.grade }}</span>
+                                                        {% elif result.grade == 'D' %}
+                                                        <span style="display: inline-block; padding: 4px 10px; border-radius: 3px; background: #fadbd8; color: #e74c3c; border: 1px solid #e74c3c;">{{ result.grade }}</span>
+                                                        {% else %}
+                                                        <span style="display: inline-block; padding: 4px 10px; border-radius: 3px; background: #f9d6d3; color: #c0392b; border: 1px solid #c0392b;">{{ result.grade }}</span>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                            <tfoot style="background: linear-gradient(to bottom, #e8e8e8 0%, #d0d0d0 100%); font-weight: bold; border-top: 3px solid #1a1a1a;">
+                                                <tr>
+                                                    <td colspan="3" style="padding: 14px 15px; text-align: right; border: 1px solid #1a1a1a; color: #1a1a1a; font-size: 13px; letter-spacing: 0.5px;">TOTAL:</td>
+                                                    <td style="padding: 14px 10px; text-align: center; border: 1px solid #1a1a1a; color: #1a1a1a; font-size: 14px; font-weight: bold; background: #ffffff;">{{ transcript.total_marks }}</td>
+                                                    <td style="padding: 14px 10px; text-align: center; border: 1px solid #1a1a1a; color: #1a1a1a; font-size: 13px;"></td>
+                                                </tr>
+                                                <tr>
+                                                    <td colspan="3" style="padding: 14px 15px; text-align: right; border: 1px solid #1a1a1a; color: #1a1a1a; font-size: 13px; letter-spacing: 0.5px;">AVERAGE:</td>
+                                                    <td style="padding: 14px 10px; text-align: center; border: 1px solid #1a1a1a; color: #1a1a1a; font-size: 14px; font-weight: bold; background: #ffffff;">{{ transcript.average|floatformat:2 }}</td>
+                                                    <td style="padding: 14px 10px; text-align: center; border: 1px solid #1a1a1a; color: #1a1a1a; font-size: 13px;"></td>
+                                                </tr>
+                                                <tr>
+                                                    <td colspan="4" style="padding: 14px 15px; text-align: right; border: 1px solid #1a1a1a; color: #1a1a1a; font-size: 13px; letter-spacing: 0.5px;">PASS:</td>
+                                                    <td style="padding: 14px 10px; text-align: center; border: 1px solid #1a1a1a; color: #1a1a1a; font-size: 14px; font-weight: bold; background: #ffffff;">{{ transcript.passed_subjects }}</td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                    
+                                    <!-- Recommendation Section -->
+                                    <div style="margin: 30px 0; padding: 20px; border: 2px solid #1a1a1a; background: linear-gradient(to bottom, #ffffff 0%, #f8f9fa 100%); box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                        <h4 style="color: #1a1a1a; font-size: 15px; font-weight: bold; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #1a1a1a; text-transform: uppercase; letter-spacing: 1px;">RECOMMENDATION</h4>
+                                        <p style="color: #1a1a1a; font-size: 13px; margin: 0; line-height: 1.8; font-weight: 500; padding: 10px; {% if transcript.average >= 50 %}background: #d5f4e6; border-left: 4px solid #27ae60;{% else %}background: #fadbd8; border-left: 4px solid #e74c3c;{% endif %}">
+                                            <strong>{% if transcript.average >= 50 %}PASS: RECOMMENDED TO PROCEED TO NEXT LEVEL{% else %}FAIL: STUDENT MUST REPEAT THE CLASS{% endif %}</strong>
+                                        </p>
+                                    </div>
+                                    
+                                    <!-- Grading System -->
+                                    <div style="margin: 30px 0; padding: 20px; border: 2px solid #ddd; background: #f9f9f9; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                                        <h4 style="color: #1a1a1a; font-size: 14px; font-weight: bold; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #1a1a1a; text-transform: uppercase; letter-spacing: 0.5px;">KEY TO GRADING SYSTEM</h4>
+                                        <table style="width: 100%; border-collapse: collapse;">
+                                            <tr>
+                                                <td style="padding: 10px 15px; border: 1px solid #ddd; background: #ffffff; font-size: 11px; color: #1a1a1a;"><strong style="color: #27ae60;">A:</strong> 70-100 (Excellent)</td>
+                                                <td style="padding: 10px 15px; border: 1px solid #ddd; background: #ffffff; font-size: 11px; color: #1a1a1a;"><strong style="color: #3498db;">B:</strong> 60-69 (Good)</td>
+                                                <td style="padding: 10px 15px; border: 1px solid #ddd; background: #ffffff; font-size: 11px; color: #1a1a1a;"><strong style="color: #f39c12;">C:</strong> 50-59 (Credit)</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 10px 15px; border: 1px solid #ddd; background: #ffffff; font-size: 11px; color: #1a1a1a;"><strong style="color: #e74c3c;">D:</strong> 40-49 (Pass)</td>
+                                                <td style="padding: 10px 15px; border: 1px solid #ddd; background: #ffffff; font-size: 11px; color: #1a1a1a;"><strong style="color: #c0392b;">F:</strong> 0-39 (Fail)</td>
+                                                <td style="padding: 10px 15px; border: 1px solid #ddd; background: #ffffff; font-size: 11px; color: #1a1a1a;"><strong>I:</strong> Incomplete</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 10px 15px; border: 1px solid #ddd; background: #ffffff; font-size: 11px; color: #1a1a1a;"><strong>X:</strong> Absent</td>
+                                                <td style="padding: 10px 15px; border: 1px solid #ddd; background: #ffffff; font-size: 11px; color: #1a1a1a;"><strong>P:</strong> Pass</td>
+                                                <td style="padding: 10px 15px; border: 1px solid #ddd; background: #ffffff; font-size: 11px; color: #1a1a1a;"><strong>W:</strong> Withdrawn</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    
+                                    <!-- Footer -->
+                                    <div style="margin-top: 50px; display: flex; justify-content: space-between; border-top: 3px solid #1a1a1a; padding-top: 30px; background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%); padding: 25px; border-radius: 5px;">
+                                        <div style="width: 45%;">
+                                            <div style="margin-bottom: 60px;">
+                                                <p style="color: #1a1a1a; font-size: 12px; margin: 8px 0; font-weight: bold; letter-spacing: 0.5px;">REGISTRAR (ACADEMIC AFFAIRS)</p>
+                                                <p style="color: #1a1a1a; font-size: 12px; margin: 8px 0; font-weight: 500;">SCHOOL MANAGEMENT SYSTEM</p>
+                                            </div>
+                                            <div style="border-top: 2px solid #1a1a1a; padding-top: 8px; margin-top: 50px;">
+                                                <p style="color: #1a1a1a; font-size: 10px; margin: 0; font-style: italic;">Signature</p>
+                                            </div>
+                                        </div>
+                                        <div style="width: 45%; text-align: right;">
+                                            <p style="color: #1a1a1a; font-size: 12px; margin: 8px 0; font-weight: bold; letter-spacing: 0.5px;">Date of Issue:</p>
+                                            <p style="color: #1a1a1a; font-size: 12px; margin: 8px 0; font-weight: 500; font-family: 'Courier New', monospace;">{% now "D dS M Y H:i:s" %}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Action Buttons -->
+                                    <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
+                                        <div class="btn-group" role="group">
+                                            {% if REPORTLAB_AVAILABLE %}
+                                            <a href="{% url 'admin_download_transcript_pdf' transcript.student.id %}" class="btn btn-danger btn-sm">
+                                                <i class="fas fa-file-pdf"></i> Download PDF
+                                            </a>
+                                            {% endif %}
+                                            <button type="button" class="btn btn-info btn-sm" onclick="sendResultsSMS({{ transcript.student.id }}, '{{ transcript.student_name }}')">
+                                                <i class="fas fa-sms"></i> Send SMS
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> No transcripts available. Students need to have results recorded first.
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
-</div>
 
 <style>
     @media print {
@@ -85,227 +212,104 @@
             margin: 0;
             padding: 0;
         }
-        .card-tools {
+        .card-header, .card-tools {
             display: none;
         }
         body {
             background: white;
         }
+        .transcript-container {
+            page-break-after: always;
+            margin-bottom: 0;
+        }
     }
-    
-    .transcript-header {
-        text-align: center;
-        margin-bottom: 30px;
-        border-bottom: 3px solid #333;
-        padding-bottom: 15px;
-    }
-    
-    .transcript-header h2 {
-        margin: 0;
-        color: #2c3e50;
-    }
-    
-    .student-info {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
-        margin-bottom: 30px;
-        padding: 15px;
-        background: #f8f9fa;
-        border-radius: 5px;
-    }
-    
-    .student-info-item {
-        display: flex;
-        justify-content: space-between;
-    }
-    
-    .student-info-label {
-        font-weight: bold;
-        color: #2c3e50;
-    }
-    
-    .transcript-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 30px;
-    }
-    
-    .transcript-table thead {
-        background: #34495e;
-        color: white;
-    }
-    
-    .transcript-table th {
-        padding: 12px;
-        text-align: left;
-        border: 1px solid #bdc3c7;
-    }
-    
-    .transcript-table td {
-        padding: 12px;
-        border: 1px solid #bdc3c7;
-    }
-    
-    .transcript-table tbody tr:nth-child(even) {
-        background: #ecf0f1;
-    }
-    
-    .transcript-table tbody tr:hover {
-        background: #e8e8e8;
-    }
-    
-    .text-center {
-        text-align: center;
-    }
-    
-    .summary-section {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
-        margin-top: 30px;
-    }
-    
-    .summary-box {
-        padding: 20px;
-        background: #ecf0f1;
-        border-radius: 5px;
-        text-align: center;
-        border-left: 4px solid #3498db;
-    }
-    
-    .summary-label {
-        font-size: 14px;
-        color: #7f8c8d;
-        margin-bottom: 5px;
-    }
-    
-    .summary-value {
-        font-size: 24px;
-        font-weight: bold;
-        color: #2c3e50;
-    }
-    
-    .grade-badge {
-        display: inline-block;
-        padding: 4px 8px;
-        border-radius: 3px;
-        color: white;
-        font-weight: bold;
-    }
-    
-    .grade-a { background: #27ae60; }
-    .grade-b { background: #3498db; }
-    .grade-c { background: #f39c12; }
-    .grade-d { background: #e74c3c; }
-    .grade-f { background: #c0392b; }
 </style>
 
+{% endblock %}
+
+{% block custom_js %}
 <script>
-    document.getElementById('view_transcript_btn').addEventListener('click', function() {
-        var student_id = document.getElementById('student_select').value;
-        
-        if (!student_id) {
-            alert('Please select a student');
+    function sendResultsSMS(studentId, studentName) {
+        if (!confirm(`Send results via SMS to ${studentName}?`)) {
             return;
         }
         
-        var formData = new FormData();
-        formData.append('student_id', student_id);
-        formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+        // Show loading state
+        const btn = event.target.closest('button');
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
         
-        fetch("{% url 'admin_get_student_transcript' %}", {
+        fetch(`/transcript/send-sms/${studentId}/`, {
             method: 'POST',
-            body: formData
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json',
+            },
         })
         .then(response => response.json())
         .then(data => {
-            if (data.error) {
-                alert('Error: ' + data.error);
-                return;
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            
+            if (data.success) {
+                alert(`✓ Success: ${data.message}`);
+            } else {
+                alert(`✗ Error: ${data.error || 'Failed to send SMS'}`);
             }
-            
-            var transcriptHTML = `
-                <div class="transcript-header">
-                    <h2>ELEVATE COLLEGE PORTAL</h2>
-                    <p style="margin: 5px 0;">Academic Transcript</p>
-                </div>
-                
-                <div class="student-info">
-                    <div class="student-info-item">
-                        <span class="student-info-label">Student Name:</span>
-                        <span>${data.student_name}</span>
-                    </div>
-                    <div class="student-info-item">
-                        <span class="student-info-label">Student ID:</span>
-                        <span>${data.student_id}</span>
-                    </div>
-                    <div class="student-info-item">
-                        <span class="student-info-label">Course:</span>
-                        <span>${data.course}</span>
-                    </div>
-                    <div class="student-info-item">
-                        <span class="student-info-label">Session:</span>
-                        <span>${data.session}</span>
-                    </div>
-                </div>
-                
-                <table class="transcript-table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Subject</th>
-                            <th class="text-center">Test (40)</th>
-                            <th class="text-center">Exam (60)</th>
-                            <th class="text-center">Total (100)</th>
-                            <th class="text-center">Grade</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-            
-            data.results.forEach(function(result, index) {
-                transcriptHTML += `
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td>${result.subject}</td>
-                        <td class="text-center">${result.test}</td>
-                        <td class="text-center">${result.exam}</td>
-                        <td class="text-center"><strong>${result.total}</strong></td>
-                        <td class="text-center">${result.grade}</td>
-                    </tr>
-                `;
-            });
-            
-            transcriptHTML += `
-                    </tbody>
-                </table>
-                
-                <div class="summary-section">
-                    <div class="summary-box">
-                        <div class="summary-label">Average Score</div>
-                        <div class="summary-value">${data.average}</div>
-                    </div>
-                    <div class="summary-box">
-                        <div class="summary-label">Total Subjects</div>
-                        <div class="summary-value">${data.results.length}</div>
-                    </div>
-                </div>
-                
-                <div style="margin-top: 40px; text-align: center; color: #7f8c8d; font-size: 12px;">
-                    <p>This is an official academic transcript. Grade Scale: A (70-100), B (60-69), C (50-59), D (40-49), F (0-39)</p>
-                    <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
-                </div>
-            `;
-            
-            document.getElementById('transcript_content').innerHTML = transcriptHTML;
-            document.getElementById('transcript_card').style.display = 'block';
         })
         .catch(error => {
-            console.error('Error:', error);
-            alert('Error loading transcript');
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            alert(`✗ Error: ${error.message || 'Failed to send SMS'}`);
         });
-    });
+    }
+    
+    function sendAllResultsSMS() {
+        if (!confirm('Send results via SMS to ALL students? This may take a while.')) {
+            return;
+        }
+        
+        const btn = document.getElementById('sendAllSMS');
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending to all...';
+        
+        fetch('/transcript/send-sms-all/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            
+            if (data.success) {
+                let message = `✓ Success: ${data.message}\n\n`;
+                message += `Sent: ${data.success_count}\n`;
+                message += `Failed: ${data.error_count}`;
+                
+                if (data.errors && data.errors.length > 0) {
+                    message += `\n\nErrors:\n${data.errors.slice(0, 5).join('\n')}`;
+                    if (data.errors.length > 5) {
+                        message += `\n... and ${data.errors.length - 5} more`;
+                    }
+                }
+                
+                alert(message);
+            } else {
+                alert(`✗ Error: ${data.error || 'Failed to send SMS'}`);
+            }
+        })
+        .catch(error => {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            alert(`✗ Error: ${error.message || 'Failed to send SMS'}`);
+        });
+    }
     
     function getCookie(name) {
         let cookieValue = null;
@@ -322,5 +326,4 @@
         return cookieValue;
     }
 </script>
-
 {% endblock %}

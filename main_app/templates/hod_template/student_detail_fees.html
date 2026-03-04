@@ -1,0 +1,252 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block main_content %}
+<section class="content">
+    <div class="container-fluid">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'admin_home' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'manage_student' %}">Students</a></li>
+                <li class="breadcrumb-item active">{{ student.admin.first_name }} {{ student.admin.last_name }}</li>
+            </ol>
+        </nav>
+
+        <!-- Student Name Header -->
+        <h4 class="mb-4">{{ student.admin.first_name }} {{ student.admin.last_name }}</h4>
+
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-tabs mb-4" id="studentTabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'general' %}active{% endif %}" href="{% url 'student_detail_general' student.id %}" style="background-color: {% if active_tab == 'general' %}#8b7355{% else %}#d4c4a8{% endif %}; color: {% if active_tab == 'general' %}white{% else %}#333{% endif %};">
+                    General
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'fees' %}active{% endif %}" href="{% url 'student_detail_fees' student.id %}" style="background-color: {% if active_tab == 'fees' %}#8b7355{% else %}#d4c4a8{% endif %}; color: {% if active_tab == 'fees' %}white{% else %}#333{% endif %};">
+                    Fee Payment
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'results' %}active{% endif %}" href="{% url 'student_detail_results' student.id %}" style="background-color: {% if active_tab == 'results' %}#8b7355{% else %}#d4c4a8{% endif %}; color: {% if active_tab == 'results' %}white{% else %}#333{% endif %};">
+                    Exam Results
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'sms' %}active{% endif %}" href="{% url 'student_detail_sms' student.id %}" style="background-color: {% if active_tab == 'sms' %}#8b7355{% else %}#d4c4a8{% endif %}; color: {% if active_tab == 'sms' %}white{% else %}#333{% endif %};">
+                    SMS Messages
+                </a>
+            </li>
+        </ul>
+
+        <!-- Fee Payment Content -->
+        <div class="card">
+            <div class="card-body">
+                <!-- Student Fee Details Summary -->
+                <h5>Student Fee Details</h5>
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <strong>Total Fee Billed:</strong> {{ total_billed|floatformat:2 }}
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Total Paid:</strong> {{ total_paid|floatformat:2 }}
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Balance:</strong> 
+                        <span class="{% if balance > 0 %}text-danger{% else %}text-success{% endif %}">{{ balance|floatformat:2 }}</span>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="mb-4">
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addPaymentModal">
+                        <i class="fas fa-plus"></i> Create New Payment
+                    </button>
+                    <a href="{% url 'student_print_fee_statement_detail' student.id %}" class="btn btn-outline-secondary" target="_blank">
+                        <i class="fas fa-print"></i> Print Fee Statement
+                    </a>
+                </div>
+
+                <!-- Previous Payments Table -->
+                <h6>Previous Payments</h6>
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Payment Date</th>
+                            <th>Payment Method</th>
+                            <th>Transaction Type</th>
+                            <th>Amount</th>
+                            <th>Created At</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in payments %}
+                        <tr {% if payment.is_reversed %}class="table-secondary"{% endif %}>
+                            <td>{{ payment.receipt_number }}</td>
+                            <td>{{ payment.payment_date|date:"M d, Y" }}</td>
+                            <td>{{ payment.get_payment_mode_display }}</td>
+                            <td>{{ payment.get_transaction_type_display }}</td>
+                            <td>{{ payment.amount|floatformat:2 }}</td>
+                            <td>{{ payment.created_at|date:"M d, Y, g:i:s A" }}</td>
+                            <td>
+                                {% if not payment.is_reversed %}
+                                <a href="{% url 'student_print_fee_receipt' student.id payment.id %}" class="btn btn-sm btn-info" target="_blank">
+                                    <i class="fas fa-print"></i> Print
+                                </a>
+                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editPaymentModal{{ payment.id }}">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                                <form method="post" action="{% url 'student_delete_fee_payment' student.id payment.id %}" style="display: inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this payment?')">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </form>
+                                {% else %}
+                                <span class="text-muted">Reversed</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+
+                        <!-- Edit Payment Modal -->
+                        <div class="modal fade" id="editPaymentModal{{ payment.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <form method="post" action="{% url 'student_edit_fee_payment' student.id payment.id %}">
+                                        {% csrf_token %}
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Edit Payment</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label">Amount</label>
+                                                    <input type="number" name="amount" class="form-control" step="0.01" value="{{ payment.amount }}" required>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label">Payment Method</label>
+                                                    <select name="payment_mode" class="form-control">
+                                                        <option value="cash" {% if payment.payment_mode == 'cash' %}selected{% endif %}>CASH</option>
+                                                        <option value="paybill" {% if payment.payment_mode == 'paybill' %}selected{% endif %}>PAYBILL</option>
+                                                        <option value="mpesa" {% if payment.payment_mode == 'mpesa' %}selected{% endif %}>M-Pesa</option>
+                                                        <option value="card" {% if payment.payment_mode == 'card' %}selected{% endif %}>Card</option>
+                                                        <option value="bank" {% if payment.payment_mode == 'bank' %}selected{% endif %}>Bank</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label">Transaction Type</label>
+                                                    <select name="transaction_type" class="form-control">
+                                                        <option value="credit" {% if payment.transaction_type == 'credit' %}selected{% endif %}>CREDIT</option>
+                                                        <option value="debit" {% if payment.transaction_type == 'debit' %}selected{% endif %}>DEBIT</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label">Description</label>
+                                                    <input type="text" name="description" class="form-control" value="{{ payment.description|default_if_none:'' }}">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">No payments recorded</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <!-- Pagination -->
+                {% if payments.has_other_pages %}
+                <nav aria-label="Page navigation">
+                    <ul class="pagination justify-content-center">
+                        {% if payments.has_previous %}
+                        <li class="page-item"><a class="page-link" href="?page={{ payments.previous_page_number }}">&laquo;</a></li>
+                        {% endif %}
+                        {% for num in payments.paginator.page_range %}
+                        <li class="page-item {% if payments.number == num %}active{% endif %}">
+                            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                        </li>
+                        {% endfor %}
+                        {% if payments.has_next %}
+                        <li class="page-item"><a class="page-link" href="?page={{ payments.next_page_number }}">&raquo;</a></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Add Payment Modal -->
+<div class="modal fade" id="addPaymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'student_add_fee_payment' student.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Student</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Amount</label>
+                            <input type="number" name="amount" class="form-control" step="0.01" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Payment Date</label>
+                            <input type="datetime-local" name="payment_date" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Payment Method</label>
+                            <select name="payment_mode" class="form-control">
+                                <option value="cash">CASH</option>
+                                <option value="paybill">PAYBILL</option>
+                                <option value="mpesa">M-Pesa</option>
+                                <option value="card">Card</option>
+                                <option value="bank">Bank</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Transaction Type</label>
+                            <select name="transaction_type" class="form-control">
+                                <option value="credit">CREDIT</option>
+                                <option value="debit">DEBIT</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Paid By</label>
+                        <input type="text" name="paid_by" class="form-control" placeholder="Name of person paying">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <input type="text" name="description" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock main_content %}

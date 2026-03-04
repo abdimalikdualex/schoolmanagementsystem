@@ -1,0 +1,127 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block main_content %}
+<section class="content">
+    <div class="container-fluid">
+        <!-- Back Navigation -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <a href="{% url 'parent_view_children' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left mr-1"></i> Back to Children
+                </a>
+            </div>
+        </div>
+
+        <!-- Student Info Card -->
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card card-primary card-outline">
+                    <div class="card-body box-profile">
+                        <div class="text-center">
+                            {% if student.admin.profile_pic %}
+                            <img class="profile-user-img img-fluid img-circle" src="{{ student.admin.profile_pic }}" alt="Student">
+                            {% else %}
+                            <img class="profile-user-img img-fluid img-circle" src="{% static 'dist/img/user-default.png' %}" alt="Student">
+                            {% endif %}
+                        </div>
+                        <h3 class="profile-username text-center">{{ student.admin.first_name }} {{ student.admin.last_name }}</h3>
+                        <p class="text-muted text-center">{{ student.course.name|default:student.current_class.name|default:"No Class" }}</p>
+                    </div>
+                </div>
+
+                <!-- Attendance Summary -->
+                <div class="card card-info">
+                    <div class="card-header">
+                        <h3 class="card-title">Attendance Summary</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-6 text-center border-right">
+                                <h4 class="text-success">{{ present }}</h4>
+                                <small class="text-muted">Present</small>
+                            </div>
+                            <div class="col-6 text-center">
+                                <h4 class="text-danger">{{ absent }}</h4>
+                                <small class="text-muted">Absent</small>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="text-center">
+                            <h3 class="{% if percentage >= 75 %}text-success{% elif percentage >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                {{ percentage }}%
+                            </h3>
+                            <small class="text-muted">Overall Attendance</small>
+                        </div>
+                        <div class="progress mt-3" style="height: 20px;">
+                            <div class="progress-bar {% if percentage >= 75 %}bg-success{% elif percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                 role="progressbar" style="width: {{ percentage }}%;" 
+                                 aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
+                                {{ percentage }}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attendance Records -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header d-flex flex-wrap align-items-center justify-content-between">
+                        <h3 class="card-title mb-0"><i class="fas fa-calendar-alt mr-2"></i>Attendance Records</h3>
+                        {% if terms %}
+                        <form method="get" class="form-inline mt-2 mt-md-0">
+                            <select name="term" class="form-control form-control-sm" onchange="this.form.submit()">
+                                <option value="">All Terms</option>
+                                {% for t in terms %}
+                                <option value="{{ t.id }}" {% if term_filter == t.id|stringformat:"s" %}selected{% endif %}>{{ t.term_name }} {{ t.academic_year }}</option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                        {% endif %}
+                    </div>
+                    <div class="card-body table-responsive p-0" style="max-height: 500px;">
+                        <table class="table table-hover table-striped table-head-fixed">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Date</th>
+                                    <th>Subject</th>
+                                    <th>Session</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rec in attendance_records %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ rec.date|date:"M d, Y" }}</td>
+                                    <td>{{ rec.subject.name|default:"-" }}</td>
+                                    <td>{{ rec.session|default:"-" }}</td>
+                                    <td>
+                                        {% if rec.status or rec.status_label == 'Present' %}
+                                        <span class="badge badge-success"><i class="fas fa-check"></i> Present</span>
+                                        {% else %}
+                                        <span class="badge badge-danger"><i class="fas fa-times"></i> {{ rec.status_label }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">
+                                        <i class="fas fa-calendar-times fa-2x mb-2"></i>
+                                        <p>No attendance records found</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock main_content %}

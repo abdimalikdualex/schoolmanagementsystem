@@ -1,0 +1,165 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title">School Settings</h3>
+                    </div>
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="card-body">
+                            <h5 class="text-primary">Basic Information</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>School Name</label>
+                                        {{ form.school_name }}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>School Motto</label>
+                                        {{ form.school_motto }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>School Address</label>
+                                {{ form.school_address }}
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Phone Number</label>
+                                        {{ form.school_phone }}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Email</label>
+                                        {{ form.school_email }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Principal Name</label>
+                                        {{ form.principal_name }}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Receipt Prefix</label>
+                                        {{ form.receipt_prefix }}
+                                        <small class="text-muted">Prefix for fee receipts</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr>
+                            <h5 class="text-primary">Images</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>School Logo</label>
+                                        {{ form.school_logo }}
+                                        {% if settings.school_logo %}
+                                        <br><img src="{{ settings.school_logo.url }}" height="60" class="mt-2">
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Principal's Signature</label>
+                                        {{ form.principal_signature }}
+                                        {% if settings.principal_signature %}
+                                        <br><img src="{{ settings.principal_signature.url }}" height="40" class="mt-2">
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr>
+                            <h5 class="text-primary">SMS Settings</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>SMS Sender ID</label>
+                                        {{ form.sms_sender_id }}
+                                        <small class="text-muted">Will appear as sender</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Fee Reminder Days Before Due</label>
+                                        {{ form.fee_reminder_days_before }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="custom-control custom-switch">
+                                    {{ form.enable_sms_notifications }}
+                                    <label class="custom-control-label" for="id_enable_sms_notifications">
+                                        Enable SMS Notifications
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="custom-control custom-switch">
+                                    {{ form.enable_attendance_sms }}
+                                    <label class="custom-control-label" for="id_enable_attendance_sms">
+                                        Enable Attendance SMS Alerts
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="custom-control custom-switch">
+                                    {{ form.enable_fee_reminder_sms }}
+                                    <label class="custom-control-label" for="id_enable_fee_reminder_sms">
+                                        Enable Fee Reminder SMS
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Settings
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card card-info">
+                    <div class="card-header">
+                        <h3 class="card-title">Quick Links</h3>
+                    </div>
+                    <div class="card-body">
+                        <a href="{% url 'bulk_sms' %}" class="btn btn-outline-primary btn-block">
+                            <i class="fas fa-sms"></i> Bulk SMS
+                        </a>
+                        <a href="{% url 'sms_templates' %}" class="btn btn-outline-info btn-block">
+                            <i class="fas fa-file-alt"></i> SMS Templates
+                        </a>
+                        <a href="{% url 'manage_fee_types' %}" class="btn btn-outline-success btn-block">
+                            <i class="fas fa-money-bill"></i> Fee Types
+                        </a>
+                        <a href="{% url 'manage_grading_scale' %}" class="btn btn-outline-warning btn-block">
+                            <i class="fas fa-graduation-cap"></i> Grading Scale
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock content %}

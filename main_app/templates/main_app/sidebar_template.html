@@ -48,40 +48,85 @@
                 
 
 
+                <!-- Class Management (Kenya CBC) -->
                 <li class="nav-item has-treeview">
                     <a href="#" class="nav-link">
-                        <i class="nav-icon fas fa-bookmark"></i>
+                        <i class="nav-icon fas fa-school"></i>
                         <p>
-                            Course
+                            Classes
                             <i class="fas fa-angle-left right"></i>
                         </p>
                     </a>
                     <ul class="nav nav-treeview">
                         <li class="nav-item">
-                            {% url 'add_course' as add_course %}
-                            <a href="{{add_course}}"
-                                class="nav-link  {% if add_course == request.path %} active {% endif %}">
+                            {% url 'add_class' as add_class %}
+                            <a href="{{add_class}}"
+                                class="nav-link  {% if add_class == request.path %} active {% endif %}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>
-                                    Add Course
-
-                                </p>
+                                <p>Add Class</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            {% url 'manage_course' as manage_course %}
-                            {% url 'edit_course' course_id as edit_course %}
-                            <a href="{{manage_course}}"
-                                class="nav-link  {% if edit_course == request.path or manage_course == request.path %} active {% endif %}">
+                            {% url 'manage_classes' as manage_classes %}
+                            <a href="{{manage_classes}}"
+                                class="nav-link  {% if manage_classes == request.path %} active {% endif %}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>
-                                    Manage Course
-
-                                </p>
+                                <p>Manage Classes</p>
                             </a>
                         </li>
+                        <li class="nav-item">
+                            {% url 'manage_grade_levels' as manage_grade_levels %}
+                            <a href="{{manage_grade_levels}}"
+                                class="nav-link  {% if manage_grade_levels == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Grade Levels (CBC)</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'manage_streams' as manage_streams %}
+                            <a href="{{manage_streams}}"
+                                class="nav-link  {% if manage_streams == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Streams</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
 
-
+                <!-- Student Enrollment & Promotion -->
+                <li class="nav-item has-treeview">
+                    <a href="#" class="nav-link">
+                        <i class="nav-icon fas fa-user-graduate"></i>
+                        <p>
+                            Enrollment
+                            <i class="fas fa-angle-left right"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            {% url 'manage_enrollments' as manage_enrollments %}
+                            <a href="{{manage_enrollments}}"
+                                class="nav-link  {% if manage_enrollments == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Manage Enrollments</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'bulk_enrollment' as bulk_enrollment %}
+                            <a href="{{bulk_enrollment}}"
+                                class="nav-link  {% if bulk_enrollment == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Bulk Enrollment</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'promotion_dashboard' as promotion_dashboard %}
+                            <a href="{{promotion_dashboard}}"
+                                class="nav-link  {% if promotion_dashboard == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Promotion</p>
+                            </a>
+                        </li>
                     </ul>
                 </li>
 
@@ -149,9 +194,8 @@
                         </li>
                         <li class="nav-item">
                             {% url 'manage_session' as manage_session %}
-                            {% url 'edit_session' session_id as edit_session %}
                             <a href="{{manage_session}}"
-                                class="nav-link  {% if edit_session == request.path or manage_session == request.path %} active {% endif %}">
+                                class="nav-link  {% if manage_session == request.path or '/session/edit/' in request.path %} active {% endif %}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>
                                     Manage Session
@@ -163,6 +207,14 @@
                     </ul>
                 </li>
 
+                <li class="nav-item">
+                    {% url 'manage_academic_terms' as manage_academic_terms %}
+                    <a href="{{manage_academic_terms}}"
+                        class="nav-link {% if manage_academic_terms == request.path or '/academic-terms/' in request.path %} active {% endif %}">
+                        <i class="nav-icon fas fa-calendar-alt"></i>
+                        <p>Academic Terms</p>
+                    </a>
+                </li>
 
                 <li class="nav-item">
                     {% url 'add_staff' as add_staff %}
@@ -215,6 +267,23 @@
                     <a href="{{ student_search }}" class="nav-link {% if student_search == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-search"></i>
                         <p>Search Students</p>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    {% url 'add_parent' as add_parent %}
+                    <a href="{{add_parent}}" class="nav-link {% if add_parent == request.path %} active {% endif %}">
+                        <i class="nav-icon fas fa-user-plus"></i>
+                        <p>Add Parent</p>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    {% url 'manage_parent' as manage_parent %}
+                    {% url 'edit_parent' parent_id as edit_parent %}
+                    <a href="{{manage_parent}}"
+                        class="nav-link {% if manage_parent == request.path or edit_parent == request.path %} active {% endif %}">
+                        <i class="nav-icon fas fa-users"></i>
+                        <p>Manage Parents</p>
                     </a>
                 </li>
 
@@ -308,23 +377,229 @@
                     </ul>
                 </li>
 
+                <!-- Finance Panel -->
+                <li class="nav-item">
+                    {% url 'finance_dashboard' as finance_dashboard %}
+                    <a href="{{finance_dashboard}}"
+                        class="nav-link {% if finance_dashboard == request.path %} active {% endif %}">
+                        <i class="nav-icon fas fa-chart-line"></i>
+                        <p>Finance</p>
+                    </a>
+                </li>
                 <li class="nav-item has-treeview">
                     <a href="#" class="nav-link">
-                        <i class="nav-icon fas fa-dollar-sign"></i>
+                        <i class="nav-icon fas fa-wallet"></i>
                         <p>
-                            Fees Management
+                            Finance Management
                             <i class="fas fa-angle-left right"></i>
                         </p>
                     </a>
                     <ul class="nav nav-treeview">
                         <li class="nav-item">
+                            {% url 'finance_dashboard' as finance_dashboard %}
+                            <a href="{{finance_dashboard}}"
+                                class="nav-link  {% if finance_dashboard == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Dashboard</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'fee_collection' as fee_collection %}
+                            <a href="{{fee_collection}}"
+                                class="nav-link  {% if fee_collection == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Fee Collection</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'manage_fee_types' as manage_fee_types %}
+                            <a href="{{manage_fee_types}}"
+                                class="nav-link  {% if manage_fee_types == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Fee Types</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'manage_fee_groups' as manage_fee_groups %}
+                            <a href="{{manage_fee_groups}}"
+                                class="nav-link  {% if manage_fee_groups == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Fee Groups</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'manage_fee_structures' as manage_fee_structures %}
+                            <a href="{{manage_fee_structures}}"
+                                class="nav-link  {% if manage_fee_structures == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Fee Structures</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'finance_term_report' as finance_term_report %}
+                            <a href="{{finance_term_report}}"
+                                class="nav-link  {% if finance_term_report == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Term Revenue Report</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'finance_class_report' as finance_class_report %}
+                            <a href="{{finance_class_report}}"
+                                class="nav-link  {% if finance_class_report == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Class Collection Report</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             {% url 'admin_view_fees' as admin_view_fees %}
                             <a href="{{admin_view_fees}}"
                                 class="nav-link  {% if admin_view_fees == request.path %} active {% endif %}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>
-                                    Manage Fees
-                                </p>
+                                <p>Legacy Fees</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'manage_finance_officers' as manage_finance_officers %}
+                            <a href="{{manage_finance_officers}}"
+                                class="nav-link  {% if manage_finance_officers == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Finance Officers</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- Exams Management -->
+                <li class="nav-item has-treeview">
+                    <a href="#" class="nav-link">
+                        <i class="nav-icon fas fa-graduation-cap"></i>
+                        <p>
+                            Exams
+                            <i class="fas fa-angle-left right"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            {% url 'manage_exam_types' as manage_exam_types %}
+                            <a href="{{manage_exam_types}}"
+                                class="nav-link  {% if manage_exam_types == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Exam Types</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'manage_exam_schedules' as manage_exam_schedules %}
+                            <a href="{{manage_exam_schedules}}"
+                                class="nav-link  {% if manage_exam_schedules == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Exam Schedules</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'manage_result_entry' as manage_result_entry %}
+                            <a href="{{manage_result_entry}}"
+                                class="nav-link  {% if manage_result_entry == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Manage Result Entry</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'manage_grading_scale' as manage_grading_scale %}
+                            <a href="{{manage_grading_scale}}"
+                                class="nav-link  {% if manage_grading_scale == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Grading Scale</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'enter_exam_results' as enter_exam_results %}
+                            <a href="{{enter_exam_results}}"
+                                class="nav-link  {% if enter_exam_results == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Enter Results</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'enter_cat_marks' as enter_cat_marks %}
+                            <a href="{{enter_cat_marks}}"
+                                class="nav-link  {% if enter_cat_marks == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Enter CAT Marks</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'view_exam_results' as view_exam_results %}
+                            <a href="{{view_exam_results}}"
+                                class="nav-link  {% if view_exam_results == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>View & Print Results</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- Class Attendance -->
+                <li class="nav-item has-treeview">
+                    <a href="#" class="nav-link">
+                        <i class="nav-icon fas fa-clipboard-check"></i>
+                        <p>
+                            Class Attendance
+                            <i class="fas fa-angle-left right"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            {% url 'attendance_dashboard' as attendance_dashboard %}
+                            <a href="{{attendance_dashboard}}"
+                                class="nav-link  {% if attendance_dashboard == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Dashboard</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'take_class_attendance' as take_class_attendance %}
+                            <a href="{{take_class_attendance}}"
+                                class="nav-link  {% if take_class_attendance == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Take Attendance</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- SMS Management -->
+                <li class="nav-item has-treeview">
+                    <a href="#" class="nav-link">
+                        <i class="nav-icon fas fa-sms"></i>
+                        <p>
+                            SMS
+                            <i class="fas fa-angle-left right"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            {% url 'bulk_sms' as bulk_sms %}
+                            <a href="{{bulk_sms}}"
+                                class="nav-link  {% if bulk_sms == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Send Bulk SMS</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'sms_templates' as sms_templates %}
+                            <a href="{{sms_templates}}"
+                                class="nav-link  {% if sms_templates == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>SMS Templates</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'sms_reports' as sms_reports %}
+                            <a href="{{sms_reports}}"
+                                class="nav-link  {% if sms_reports == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>SMS Reports</p>
                             </a>
                         </li>
                     </ul>
@@ -390,6 +665,24 @@
                     </a>
                 </li>
 
+                <li class="nav-item">
+                    {% url 'school_settings' as school_settings %}
+                    <a href="{{school_settings}}"
+                        class="nav-link {% if school_settings == request.path %} active {% endif %}">
+                        <i class="nav-icon fas fa-cog"></i>
+                        <p>School Settings</p>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="{% url 'user_logout' %}"
+                        onclick="return confirm('Your session would be terminated.\n\nProceed?')"
+                        class="nav-link">
+                        <i class="nav-icon fas fa-power-off"></i>
+                        <p>Logout</p>
+                    </a>
+                </li>
+
                 {% elif request.user.user_type == '2' %}
                 <!-- Brand Logo -->
                 <a href="#" class="brand-link">
@@ -440,14 +733,26 @@
                             </li>
 
                             <li class="nav-item">
+                                {% url 'staff_view_my_class' as staff_view_my_class %}
+                                <a href="{{staff_view_my_class}}"
+                                    class="nav-link {% if staff_view_my_class == request.path %} active {% endif %}">
+                                    <i class="nav-icon fas fa-school"></i>
+                                    <p>My Classes</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
                                 {% url 'staff_add_result' as staff_add_result %}
                                 <a href="{{staff_add_result}}"
                                     class="nav-link {% if staff_add_result == request.path %} active {% endif %}">
                                     <i class="nav-icon fas fa-poll"></i>
-                                    <p>
-                                        Add Result
-
-                                    </p>
+                                    <p>Add Result</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ staff_add_result }}"
+                                    class="nav-link {% if staff_add_result == request.path %} active {% endif %}">
+                                    <i class="nav-icon fas fa-pen-fancy"></i>
+                                    <p>Post Marks</p>
                                 </a>
                             </li>
                             <li class="nav-item">
@@ -526,7 +831,92 @@
                                 </a>
                             </li>
 
-                            {% else %}
+                            <li class="nav-item">
+                                <a href="{% url 'user_logout' %}"
+                                    onclick="return confirm('Your session would be terminated.\n\nProceed?')"
+                                    class="nav-link">
+                                    <i class="nav-icon fas fa-power-off"></i>
+                                    <p>Logout</p>
+                                </a>
+                            </li>
+
+                            {% elif request.user.user_type == '5' %}
+                            <!-- Finance Officer Panel -->
+                            <a href="{% url 'finance_dashboard' %}" class="brand-link">
+                                <img src="{% static 'dist/img/cmsl.png' %}" alt="Logo" class="brand-image img-circle elevation-3">
+                                <span class="brand-text font-weight-light">Finance Panel</span>
+                            </a>
+                            <div class="sidebar">
+                                <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+                                    <div class="image">
+                                        <img src="{{ request.user.profile_pic }}" class="img-circle elevation-2" alt="User Image">
+                                    </div>
+                                    <div class="info">
+                                        <a href="#" class="d-block">{{ user }}</a>
+                                    </div>
+                                </div>
+                                <nav class="mt-2">
+                                    <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+                                        <li class="nav-item">
+                                            {% url 'finance_dashboard' as finance_dashboard %}
+                                            <a href="{{ finance_dashboard }}" class="nav-link {% if finance_dashboard == request.path %} active {% endif %}">
+                                                <i class="nav-icon fas fa-chart-line"></i>
+                                                <p>Dashboard</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            {% url 'manage_fee_structures' as manage_fee_structures %}
+                                            <a href="{{ manage_fee_structures }}" class="nav-link {% if manage_fee_structures == request.path %} active {% endif %}">
+                                                <i class="nav-icon fas fa-sitemap"></i>
+                                                <p>Fee Structure</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            {% url 'finance_student_billing' as finance_student_billing %}
+                                            <a href="{{ finance_student_billing }}" class="nav-link {% if finance_student_billing == request.path %} active {% endif %}">
+                                                <i class="nav-icon fas fa-file-invoice-dollar"></i>
+                                                <p>Student Billing</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            {% url 'fee_collection' as fee_collection %}
+                                            <a href="{{ fee_collection }}" class="nav-link {% if fee_collection == request.path %} active {% endif %}">
+                                                <i class="nav-icon fas fa-money-bill"></i>
+                                                <p>Record Payment</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            {% url 'finance_term_report' as finance_term_report %}
+                                            <a href="{{ finance_term_report }}" class="nav-link {% if finance_term_report == request.path %} active {% endif %}">
+                                                <i class="nav-icon fas fa-chart-bar"></i>
+                                                <p>Reports</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            {% url 'finance_defaulters' as finance_defaulters %}
+                                            <a href="{{ finance_defaulters }}" class="nav-link {% if finance_defaulters == request.path %} active {% endif %}">
+                                                <i class="nav-icon fas fa-user-times"></i>
+                                                <p>Defaulters</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            {% url 'finance_profile' as finance_profile %}
+                                            <a href="{{ finance_profile }}" class="nav-link {% if finance_profile == request.path %} active {% endif %}">
+                                                <i class="nav-icon fas fa-address-card"></i>
+                                                <p>Profile</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a href="{% url 'user_logout' %}" onclick="return confirm('Your session would be terminated.\n\nProceed?')" class="nav-link">
+                                                <i class="nav-icon fas fa-power-off"></i>
+                                                <p>Logout</p>
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            </div>
+
+                            {% elif request.user.user_type == '3' %}
                             <!-- Brand Logo -->
                             <a href="" class="brand-link">
 
@@ -574,6 +964,15 @@
                                                     Update Profile
 
                                                 </p>
+                                            </a>
+                                        </li>
+
+                                        <li class="nav-item">
+                                            {% url 'student_view_class_info' as student_view_class_info %}
+                                            <a href="{{student_view_class_info}}"
+                                                class="nav-link {% if student_view_class_info == request.path %} active {% endif %}">
+                                                <i class="nav-icon fas fa-school"></i>
+                                                <p>My Class</p>
                                             </a>
                                         </li>
 
@@ -640,10 +1039,6 @@
                                             </a>
                                         </li>
 
-                                        {% endif %}
-
-
-
                                         <li class="nav-item">
                                             <a href="{% url 'user_logout' %}"
                                                 onclick="return confirm('Your session would be terminated.\n\nProceed?')"
@@ -659,4 +1054,106 @@
                                 <!-- /.sidebar-menu -->
                             </div>
                             <!-- /.sidebar -->
+
+{% elif request.user.user_type == '4' %}
+<!-- Parent Panel Sidebar -->
+<a href="{% url 'parent_home' %}" class="brand-link">
+    <img src="{% static 'dist/img/AdminLTELogo.png' %}" alt="Logo"
+        class="brand-image img-circle elevation-3" style="opacity: .8">
+    <span class="brand-text font-weight-light">Parent Portal</span>
+</a>
+
+<div class="sidebar">
+    <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+        <div class="image">
+            {% if request.user.profile_pic %}
+            <img src="{{ request.user.profile_pic.url }}" class="img-circle elevation-2" alt="User Image">
+            {% else %}
+            <img src="{% static 'dist/img/user-default.png' %}" class="img-circle elevation-2" alt="User Image">
+            {% endif %}
+        </div>
+        <div class="info">
+            <a href="{% url 'parent_view_profile' %}" class="d-block">{{ request.user.first_name }} {{ request.user.last_name }}</a>
+        </div>
+    </div>
+
+    <nav class="mt-2">
+        <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+            
+            <li class="nav-item">
+                {% url 'parent_home' as parent_home %}
+                <a href="{{ parent_home }}" class="nav-link {% if parent_home == request.path %}active{% endif %}">
+                    <i class="nav-icon fas fa-home"></i>
+                    <p>Dashboard</p>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                {% url 'parent_view_children' as parent_view_children %}
+                <a href="{{ parent_view_children }}" class="nav-link {% if parent_view_children == request.path %}active{% endif %}">
+                    <i class="nav-icon fas fa-child"></i>
+                    <p>My Children</p>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                {% url 'parent_view_attendance' as parent_view_attendance %}
+                <a href="{{ parent_view_attendance }}" class="nav-link {% if 'attendance' in request.path %}active{% endif %}">
+                    <i class="nav-icon fas fa-calendar-check"></i>
+                    <p>Attendance</p>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                {% url 'parent_view_results' as parent_view_results %}
+                <a href="{{ parent_view_results }}" class="nav-link {% if 'results' in request.path %}active{% endif %}">
+                    <i class="nav-icon fas fa-chart-line"></i>
+                    <p>Results</p>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                {% url 'parent_view_announcements' as parent_view_announcements %}
+                <a href="{{ parent_view_announcements }}" class="nav-link {% if parent_view_announcements == request.path %}active{% endif %}">
+                    <i class="nav-icon fas fa-bullhorn"></i>
+                    <p>Announcements</p>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                {% url 'parent_view_messages' as parent_view_messages %}
+                <a href="{{ parent_view_messages }}" class="nav-link {% if parent_view_messages == request.path %}active{% endif %}">
+                    <i class="nav-icon fas fa-envelope"></i>
+                    <p>Messages</p>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                {% url 'parent_view_notifications' as parent_view_notifications %}
+                <a href="{{ parent_view_notifications }}" class="nav-link {% if parent_view_notifications == request.path %}active{% endif %}">
+                    <i class="nav-icon fas fa-bell"></i>
+                    <p>Notifications</p>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                {% url 'parent_view_profile' as parent_view_profile %}
+                <a href="{{ parent_view_profile }}" class="nav-link {% if parent_view_profile == request.path %}active{% endif %}">
+                    <i class="nav-icon fas fa-user-cog"></i>
+                    <p>My Profile</p>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{% url 'user_logout' %}" onclick="return confirm('Your session would be terminated.\n\nProceed?')" class="nav-link">
+                    <i class="nav-icon fas fa-power-off"></i>
+                    <p>Logout</p>
+                </a>
+            </li>
+
+        </ul>
+    </nav>
+</div>
+
+{% endif %}
 </aside>

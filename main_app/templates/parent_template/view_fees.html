@@ -1,0 +1,185 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block main_content %}
+<section class="content">
+    <div class="container-fluid">
+        <!-- Back Navigation -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <a href="{% url 'parent_view_children' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left mr-1"></i> Back to Children
+                </a>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Student Info -->
+            <div class="col-md-4">
+                <div class="card card-primary card-outline">
+                    <div class="card-body box-profile">
+                        <div class="text-center">
+                            {% if student.admin.profile_pic %}
+                            <img class="profile-user-img img-fluid img-circle" src="{{ student.admin.profile_pic }}" alt="Student">
+                            {% else %}
+                            <img class="profile-user-img img-fluid img-circle" src="{% static 'dist/img/user-default.png' %}" alt="Student">
+                            {% endif %}
+                        </div>
+                        <h3 class="profile-username text-center">{{ student.admin.first_name }} {{ student.admin.last_name }}</h3>
+                        <p class="text-muted text-center">{{ student.course.name|default:"No Class" }}</p>
+                    </div>
+                </div>
+
+                <!-- Fee Summary -->
+                <div class="card card-warning">
+                    <div class="card-header">
+                        <h3 class="card-title">Fee Summary</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>Total Due:</span>
+                                <strong class="text-primary">KES {{ total_due|floatformat:2 }}</strong>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>Total Paid:</span>
+                                <strong class="text-success">KES {{ total_paid|floatformat:2 }}</strong>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between bg-light">
+                                <span><strong>Balance:</strong></span>
+                                <strong class="{% if total_outstanding > 0 %}text-danger{% else %}text-success{% endif %}">
+                                    KES {{ total_outstanding|floatformat:2 }}
+                                </strong>
+                            </li>
+                        </ul>
+                        
+                        {% if total_outstanding > 0 %}
+                        <div class="alert alert-warning mt-3 mb-0">
+                            <i class="fas fa-exclamation-triangle mr-1"></i>
+                            Outstanding balance of <strong>KES {{ total_outstanding|floatformat:2 }}</strong>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-success mt-3 mb-0">
+                            <i class="fas fa-check-circle mr-1"></i>
+                            All fees are paid!
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fee Records -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-dollar-sign mr-2"></i>Fee Payment History</h3>
+                    </div>
+                    <div class="card-body table-responsive">
+                        {% if use_new_system %}
+                        <!-- New Payment System -->
+                        <table class="table table-bordered table-striped">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Receipt No.</th>
+                                    <th>Date</th>
+                                    <th>Payment Mode</th>
+                                    <th class="text-right">Amount</th>
+                                    <th>Reference</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in payments %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td><strong>{{ payment.receipt_number }}</strong></td>
+                                    <td>{{ payment.payment_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        <span class="badge badge-info">{{ payment.get_payment_mode_display }}</span>
+                                    </td>
+                                    <td class="text-right text-success">
+                                        <strong>KES {{ payment.amount|floatformat:2 }}</strong>
+                                    </td>
+                                    <td>{{ payment.transaction_ref|default:"-" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        <i class="fas fa-receipt fa-2x mb-2"></i>
+                                        <p>No payment records found</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <!-- Legacy Fee System -->
+                        <table class="table table-bordered table-striped">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Session</th>
+                                    <th>Description</th>
+                                    <th class="text-right">Amount Due</th>
+                                    <th class="text-right">Amount Paid</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fee in fees %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ fee.session|default:"-" }}</td>
+                                    <td>{{ fee.description|default:"School Fee" }}</td>
+                                    <td class="text-right">KES {{ fee.amount_due|floatformat:2 }}</td>
+                                    <td class="text-right">KES {{ fee.amount_paid|floatformat:2 }}</td>
+                                    <td>
+                                        {% if fee.status == 'Paid' %}
+                                        <span class="badge badge-success">Paid</span>
+                                        {% elif fee.status == 'Partial' %}
+                                        <span class="badge badge-warning">Partial</span>
+                                        {% else %}
+                                        <span class="badge badge-danger">Unpaid</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ fee.created_at|date:"M d, Y" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">
+                                        <i class="fas fa-receipt fa-2x mb-2"></i>
+                                        <p>No fee records found</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Payment Information -->
+                <div class="card card-info">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-info-circle mr-2"></i>Payment Information</h3>
+                    </div>
+                    <div class="card-body">
+                        <p>For fee payments, please use any of the following methods:</p>
+                        <ul>
+                            <li><strong>M-Pesa Paybill:</strong> Contact school for details</li>
+                            <li><strong>Bank Transfer:</strong> Contact school for bank details</li>
+                            <li><strong>Cash:</strong> Pay at the school's finance office</li>
+                        </ul>
+                        <p class="text-muted mb-0">
+                            <i class="fas fa-phone mr-1"></i> For any fee-related inquiries, please contact the school administration.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock main_content %}

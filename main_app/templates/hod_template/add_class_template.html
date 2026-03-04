@@ -1,0 +1,134 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card card-dark">
+                    <div class="card-header">
+                        <h3 class="card-title">{{page_title}}</h3>
+                    </div>
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="card-body">
+                            {% if messages %}
+                            {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible">
+                                <button type="button" class="close" data-dismiss="alert">&times;</button>
+                                {{ message }}
+                            </div>
+                            {% endfor %}
+                            {% endif %}
+                            {% if not grade_levels %}
+                            <div class="alert alert-warning">No grade levels found. Please <a href="{% url 'add_grade_level' %}">add grade levels</a> first (e.g., Grade 1, Grade 2, Form 1).</div>
+                            {% endif %}
+                            {% if not streams %}
+                            <div class="alert alert-warning">No streams found. Please <a href="{% url 'manage_streams' %}">add streams</a> first (e.g., East, West, Blue).</div>
+                            {% endif %}
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Grade Level (CBC) <span class="text-danger">*</span></label>
+                                        <select name="grade_level" id="grade_level" class="form-control" required>
+                                            <option value="">Select Grade Level</option>
+                                            {% for grade in grade_levels %}
+                                            <option value="{{ grade.id }}" {% if request.POST.grade_level == grade.id|stringformat:"s" %}selected{% endif %}>{{ grade.code }} - {{ grade.name }} ({{ grade.get_stage_display }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Stream <span class="text-danger">*</span></label>
+                                        <select name="stream" id="stream" class="form-control" required>
+                                            <option value="">Select Stream</option>
+                                            {% for stream in streams %}
+                                            <option value="{{ stream.id }}" {% if request.POST.stream == stream.id|stringformat:"s" %}selected{% endif %}>{{ stream.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Class Name (Auto-generated)</label>
+                                        <input type="text" name="name" id="class_name" class="form-control" placeholder="Will be auto-generated" readonly>
+                                        <small class="text-muted">Class name will be generated from Grade Level + Stream</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Academic Year</label>
+                                        <select name="academic_year" class="form-control">
+                                            <option value="">Select Academic Year</option>
+                                            {% for session in sessions %}
+                                            <option value="{{ session.id }}" {% if request.POST.academic_year == session.id|stringformat:"s" %}selected{% endif %}>{{ session }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Class Teacher</label>
+                                        <select name="class_teacher" class="form-control">
+                                            <option value="">Select Class Teacher</option>
+                                            {% for teacher in teachers %}
+                                            <option value="{{ teacher.id }}" {% if request.POST.class_teacher == teacher.id|stringformat:"s" %}selected{% endif %}>{{ teacher }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Capacity</label>
+                                        <input type="number" name="capacity" class="form-control" value="{{ request.POST.capacity|default:40 }}" min="1">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" id="is_active" name="is_active" {% if not request.POST or request.POST.is_active %}checked{% endif %}>
+                                    <label class="custom-control-label" for="is_active">Active</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-primary">Add Class</button>
+                            <a href="{% url 'manage_classes' %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+$(document).ready(function() {
+    function updateClassName() {
+        var gradeText = $('#grade_level option:selected').text().split(' - ')[0];
+        var streamText = $('#stream option:selected').text();
+        
+        if (gradeText && streamText && gradeText !== 'Select Grade Level' && streamText !== 'Select Stream') {
+            $('#class_name').val(gradeText + ' ' + streamText);
+        } else {
+            $('#class_name').val('');
+        }
+    }
+    
+    $('#grade_level, #stream').on('change', updateClassName);
+    updateClassName();  // Run on load to populate name if values preserved after validation error
+});
+</script>
+{% endblock content %}

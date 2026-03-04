@@ -5,7 +5,7 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>College Management System</title>
+    <title>School Management System</title>
     <!-- Tell the browser to be responsive to screen width -->
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- Font Awesome -->
@@ -28,8 +28,18 @@
     <!-- Google Font: Source Sans Pro -->
     <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700" rel="stylesheet">
     {% block custom_css %}
-
     {% endblock custom_css %}
+    {% if user.is_authenticated and user.user_type == '4' %}
+    <style>
+        /* Parent Dashboard - Mobile-first responsive */
+        @media (max-width: 767px) {
+            .small-box .inner h3 { font-size: 1.4rem; }
+            .btn-block-mobile { width: 100% !important; }
+            .content-wrapper .content-header h1 { font-size: 1.25rem; }
+        }
+        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    </style>
+    {% endif %}
 </head>
 
 <body class="hold-transition sidebar-mini layout-fixed">
@@ -42,10 +52,32 @@
                 <li class="nav-item">
                     <a class="nav-link" data-widget="pushmenu" href="#"><i class="fas fa-bars"></i></a>
                 </li>
-
             </ul>
 
-
+            <!-- Right navbar links - User & Logout -->
+            <ul class="navbar-nav ml-auto">
+                {% if user.is_authenticated %}
+                {% if user.user_type == '4' %}
+                <li class="nav-item">
+                    <a href="{% url 'parent_view_notifications' %}" class="nav-link" title="Notifications">
+                        <i class="fas fa-bell"></i>
+                        <span class="d-none d-md-inline ml-1">Notifications</span>
+                    </a>
+                </li>
+                {% endif %}
+                <li class="nav-item">
+                    <span class="nav-link text-muted d-none d-sm-inline">
+                        <i class="fas fa-user"></i> {{ user.first_name }} {{ user.last_name }}
+                    </span>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'user_logout' %}" class="nav-link" onclick="return confirm('Your session would be terminated.\n\nProceed?')" title="Logout">
+                        <i class="fas fa-power-off"></i>
+                        <span class="d-none d-md-inline ml-1">Logout</span>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
         </nav>
         <!-- /.navbar -->
 
@@ -66,9 +98,27 @@
                             <h1 class="m-0 text-dark">{% block page_title %}{% endblock page_title %}</h1>
                         </div><!-- /.col -->
                         <div class="col-sm-6">
-                            
                             <ol class="breadcrumb float-sm-right">
-                                <li class="breadcrumb-item"><a href="#">Home</a></li>
+                                {% if user.is_authenticated %}
+                                    {% if user.user_type == '1' %}
+                                        <li class="breadcrumb-item"><a href="{% url 'admin_home' %}">Home</a></li>
+                                        {% if 'fees' in request.path or 'finance' in request.path %}
+                                        <li class="breadcrumb-item"><a href="{% url 'finance_dashboard' %}">Finance</a></li>
+                                        {% endif %}
+                                    {% elif user.user_type == '2' %}
+                                        <li class="breadcrumb-item"><a href="{% url 'staff_home' %}">Home</a></li>
+                                    {% elif user.user_type == '3' %}
+                                        <li class="breadcrumb-item"><a href="{% url 'student_home' %}">Home</a></li>
+                                    {% elif user.user_type == '4' %}
+                                        <li class="breadcrumb-item"><a href="{% url 'parent_home' %}">Home</a></li>
+                                    {% elif user.user_type == '5' %}
+                                        <li class="breadcrumb-item"><a href="{% url 'finance_dashboard' %}">Finance</a></li>
+                                    {% else %}
+                                        <li class="breadcrumb-item"><a href="{% url 'login_page' %}">Home</a></li>
+                                    {% endif %}
+                                {% else %}
+                                    <li class="breadcrumb-item"><a href="{% url 'login_page' %}">Home</a></li>
+                                {% endif %}
                                 <li class="breadcrumb-item active">{{ page_title }}</li>
                             </ol>
                         </div><!-- /.col -->
@@ -102,7 +152,7 @@
             </div>
             </div></div></div></section>
             {% block content %}
-
+            {% block main_content %}{% endblock main_content %}
             {% endblock content %}
             <!-- /.content -->
         </div>
@@ -114,6 +164,31 @@
     <!-- ./wrapper -->
     <!-- jQuery -->
     <script src="{% static 'plugins/jquery/jquery.min.js'%} "></script>
+    <!-- CSRF Token Setup for AJAX -->
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+        $.ajaxSetup({
+            beforeSend: function(xhr, settings) {
+                if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+                    xhr.setRequestHeader("X-CSRFToken", csrftoken);
+                }
+            }
+        });
+    </script>
     <!-- jQuery UI 1.11.4 -->
     <script src="{% static 'plugins/jquery-ui/jquery-ui.min.js'%} "></script>
     <!-- Resolve conflict in jQuery UI tooltip with Bootstrap tooltip -->

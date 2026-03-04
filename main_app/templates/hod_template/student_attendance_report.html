@@ -1,0 +1,101 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card card-primary card-outline">
+                    <div class="card-body box-profile">
+                        <div class="text-center">
+                            {% if student.admin.profile_pic %}
+                            <img class="profile-user-img img-fluid img-circle" 
+                                src="{{ student.admin.profile_pic.url }}" alt="Student">
+                            {% else %}
+                            <img class="profile-user-img img-fluid img-circle" 
+                                src="{% static 'dist/img/default.png' %}" alt="Student">
+                            {% endif %}
+                        </div>
+                        <h3 class="profile-username text-center">{{ student }}</h3>
+                        <p class="text-muted text-center">{{ student.course }}</p>
+
+                        <ul class="list-group list-group-unbordered mb-3">
+                            <li class="list-group-item">
+                                <b>Total Days</b> 
+                                <a class="float-right">{{ total }}</a>
+                            </li>
+                            <li class="list-group-item">
+                                <b>Present</b> 
+                                <a class="float-right text-success">{{ present }}</a>
+                            </li>
+                            <li class="list-group-item">
+                                <b>Absent</b> 
+                                <a class="float-right text-danger">{{ absent }}</a>
+                            </li>
+                            <li class="list-group-item">
+                                <b>Late</b> 
+                                <a class="float-right text-warning">{{ late }}</a>
+                            </li>
+                            <li class="list-group-item">
+                                <b>Attendance %</b> 
+                                <a class="float-right">
+                                    <span class="badge {% if percentage >= 90 %}badge-success{% elif percentage >= 70 %}badge-warning{% else %}badge-danger{% endif %}">
+                                        {{ percentage }}%
+                                    </span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Attendance History</h3>
+                    </div>
+                    <div class="card-body table-responsive p-0" style="max-height: 500px;">
+                        <table class="table table-hover table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Class</th>
+                                    <th>Status</th>
+                                    <th>Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in records %}
+                                <tr>
+                                    <td>{{ record.class_attendance.date|date:"d/m/Y" }}</td>
+                                    <td>{{ record.class_attendance.school_class }}</td>
+                                    <td>
+                                        {% if record.status == 'present' %}
+                                        <span class="badge badge-success">Present</span>
+                                        {% elif record.status == 'absent' %}
+                                        <span class="badge badge-danger">Absent</span>
+                                        {% elif record.status == 'late' %}
+                                        <span class="badge badge-warning">Late</span>
+                                        {% else %}
+                                        <span class="badge badge-info">{{ record.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ record.remarks|default:"-" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center">No attendance records</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock content %}

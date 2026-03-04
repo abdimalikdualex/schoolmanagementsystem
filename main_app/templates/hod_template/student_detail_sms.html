@@ -1,0 +1,185 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block main_content %}
+<section class="content">
+    <div class="container-fluid">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'admin_home' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'manage_student' %}">Fee Collections</a></li>
+                <li class="breadcrumb-item active">Exam Results for {{ student.admin.first_name }} {{ student.admin.last_name }}</li>
+            </ol>
+        </nav>
+
+        <!-- Student Name Header -->
+        <h4 class="mb-4">Exam Results for {{ student.admin.first_name }} {{ student.admin.last_name }}</h4>
+
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-tabs mb-4" id="studentTabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'general' %}active{% endif %}" href="{% url 'student_detail_general' student.id %}" style="background-color: {% if active_tab == 'general' %}#8b7355{% else %}#d4c4a8{% endif %}; color: {% if active_tab == 'general' %}white{% else %}#333{% endif %};">
+                    General
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'fees' %}active{% endif %}" href="{% url 'student_detail_fees' student.id %}" style="background-color: {% if active_tab == 'fees' %}#8b7355{% else %}#d4c4a8{% endif %}; color: {% if active_tab == 'fees' %}white{% else %}#333{% endif %};">
+                    Fee Payment
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'results' %}active{% endif %}" href="{% url 'student_detail_results' student.id %}" style="background-color: {% if active_tab == 'results' %}#8b7355{% else %}#d4c4a8{% endif %}; color: {% if active_tab == 'results' %}white{% else %}#333{% endif %};">
+                    Exam Results
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'sms' %}active{% endif %}" href="{% url 'student_detail_sms' student.id %}" style="background-color: {% if active_tab == 'sms' %}#8b7355{% else %}#d4c4a8{% endif %}; color: {% if active_tab == 'sms' %}white{% else %}#333{% endif %};">
+                    SMS Messages
+                </a>
+            </li>
+        </ul>
+
+        <!-- SMS Messages Content -->
+        <div class="card">
+            <div class="card-body">
+                <!-- Send New Message Button -->
+                <div class="mb-4 text-center">
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#sendSMSModal">
+                        Send New Message
+                    </button>
+                </div>
+
+                <!-- SMS History Table -->
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Phone Number</th>
+                            <th>Message</th>
+                            <th>Delivery Status</th>
+                            <th>Delivery Time</th>
+                            <th>Created At</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sms in sms_messages %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ sms.phone_number }}</td>
+                            <td>{{ sms.message|truncatechars:50 }}</td>
+                            <td>
+                                {% if sms.delivery_status == 'sent' or sms.delivery_status == 'delivered' %}
+                                <span class="badge bg-success">{{ sms.get_delivery_status_display }}</span>
+                                {% elif sms.delivery_status == 'pending' %}
+                                <span class="badge bg-warning">{{ sms.get_delivery_status_display }}</span>
+                                {% else %}
+                                <span class="badge bg-danger">{{ sms.get_delivery_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ sms.delivery_time|default:"-" }}</td>
+                            <td>{{ sms.created_at|date:"M d, Y g:i A" }}</td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#viewSMSModal{{ sms.id }}">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                            </td>
+                        </tr>
+
+                        <!-- View SMS Modal -->
+                        <div class="modal fade" id="viewSMSModal{{ sms.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">SMS Details</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p><strong>To:</strong> {{ sms.phone_number }}</p>
+                                        <p><strong>Guardian:</strong> {{ sms.guardian.name|default:"-" }}</p>
+                                        <p><strong>Message:</strong></p>
+                                        <div class="border p-2 bg-light">{{ sms.message }}</div>
+                                        <p class="mt-3"><strong>Status:</strong> {{ sms.get_delivery_status_display }}</p>
+                                        <p><strong>Sent At:</strong> {{ sms.created_at|date:"M d, Y g:i:s A" }}</p>
+                                        {% if sms.error_message %}
+                                        <p class="text-danger"><strong>Error:</strong> {{ sms.error_message }}</p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">No data found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Send SMS Modal -->
+<div class="modal fade" id="sendSMSModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'student_send_sms' student.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Send SMS to Guardian</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    {% if guardians %}
+                    <div class="mb-3">
+                        <label class="form-label">Select Guardian</label>
+                        <select name="guardian_id" class="form-control" id="guardianSelect" onchange="updatePhoneNumber()">
+                            <option value="">-- Select Guardian --</option>
+                            {% for guardian in guardians %}
+                            <option value="{{ guardian.id }}" data-phone="{{ guardian.phone_number }}">
+                                {{ guardian.name }} ({{ guardian.get_relationship_display }}) - {{ guardian.phone_number }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    <div class="mb-3">
+                        <label class="form-label">Phone Number</label>
+                        <input type="text" name="phone_number" id="phoneNumber" class="form-control" placeholder="e.g., 0765540720" required>
+                        <small class="text-muted">Enter phone number or select a guardian above</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Message</label>
+                        <textarea name="message" class="form-control" rows="4" required placeholder="Type your message here..."></textarea>
+                        <small class="text-muted">Maximum 160 characters per SMS</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i> Send SMS
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function updatePhoneNumber() {
+    var select = document.getElementById('guardianSelect');
+    var phoneInput = document.getElementById('phoneNumber');
+    var selectedOption = select.options[select.selectedIndex];
+    
+    if (selectedOption.value) {
+        phoneInput.value = selectedOption.getAttribute('data-phone');
+    }
+}
+</script>
+{% endblock main_content %}

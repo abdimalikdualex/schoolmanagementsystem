@@ -1,0 +1,129 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title">Enter Exam Results</h3>
+            </div>
+            <form method="POST" id="results_form">
+                {% csrf_token %}
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Exam Schedule</label>
+                                <select name="exam_schedule" id="exam_schedule" class="form-control" required>
+                                    <option value="">-- Select Exam --</option>
+                                    {% for schedule in exam_schedules %}
+                                    <option value="{{ schedule.id }}">{{ schedule.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Subject</label>
+                                <select name="subject" id="subject" class="form-control" required>
+                                    <option value="">-- Select Subject --</option>
+                                    {% for subject in subjects %}
+                                    <option value="{{ subject.id }}">{{ subject.name }} ({{ subject.course }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>&nbsp;</label>
+                                <button type="button" id="load_students" class="btn btn-info btn-block">
+                                    <i class="fas fa-search"></i> Load Students
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="students_container" style="display:none;">
+                        <hr>
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="results_table">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>Adm No</th>
+                                        <th>Student Name</th>
+                                        <th width="150">Marks</th>
+                                        <th>Comment</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="students_list">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer" id="submit_section" style="display:none;">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save"></i> Save Results
+                    </button>
+                    <a href="{% url 'view_exam_results' %}" class="btn btn-info">
+                        <i class="fas fa-eye"></i> View Results
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+
+<script>
+document.getElementById('load_students').addEventListener('click', function() {
+    var subjectId = document.getElementById('subject').value;
+    var examScheduleId = document.getElementById('exam_schedule').value;
+    
+    if (!subjectId || !examScheduleId) {
+        alert('Please select both exam schedule and subject');
+        return;
+    }
+    
+    fetch("{% url 'get_students_for_results' %}?subject_id=" + subjectId + "&exam_schedule_id=" + examScheduleId)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                var tbody = document.getElementById('students_list');
+                tbody.innerHTML = '';
+                
+                data.students.forEach(function(student) {
+                    var row = `
+                        <tr>
+                            <td>${student.admission_number || 'N/A'}</td>
+                            <td>${student.name}</td>
+                            <td>
+                                <input type="number" name="marks_${student.id}" 
+                                    class="form-control" min="0" max="100" step="0.5"
+                                    value="${student.marks}" placeholder="0">
+                            </td>
+                            <td>
+                                <input type="text" name="comment_${student.id}" 
+                                    class="form-control" value="${student.comment || ''}" 
+                                    placeholder="Teacher's comment">
+                            </td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+                
+                document.getElementById('students_container').style.display = 'block';
+                document.getElementById('submit_section').style.display = 'block';
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Error loading students');
+            console.error(error);
+        });
+});
+</script>
+
+{% endblock content %}

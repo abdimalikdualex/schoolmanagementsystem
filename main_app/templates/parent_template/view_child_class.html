@@ -1,0 +1,133 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-school"></i> {{ student }}'s Class Information</h3>
+                    </div>
+                    <div class="card-body">
+                        {% if school_class %}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="info-box bg-info">
+                                    <span class="info-box-icon"><i class="fas fa-chalkboard"></i></span>
+                                    <div class="info-box-content">
+                                        <span class="info-box-text">Class</span>
+                                        <span class="info-box-number">{{ school_class.name }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-box bg-success">
+                                    <span class="info-box-icon"><i class="fas fa-layer-group"></i></span>
+                                    <div class="info-box-content">
+                                        <span class="info-box-text">Grade Level</span>
+                                        <span class="info-box-number">
+                                            {% if school_class.grade_level %}
+                                            {{ school_class.grade_level.code }} - {{ school_class.grade_level.name }}
+                                            {% else %}
+                                            Not Set
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <table class="table table-bordered">
+                            <tr>
+                                <th>Stream</th>
+                                <td>{{ school_class.stream|default:"Not Set" }}</td>
+                            </tr>
+                            <tr>
+                                <th>Academic Year</th>
+                                <td>{{ current_enrollment.academic_year|default:student.session|default:"Not Set" }}</td>
+                            </tr>
+                            <tr>
+                                <th>Enrollment Status</th>
+                                <td>
+                                    {% if current_enrollment %}
+                                    <span class="badge badge-success">{{ current_enrollment.status }}</span>
+                                    {% else %}
+                                    <span class="badge badge-primary">Active</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                        {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            {{ student }} is not currently enrolled in any class.
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer">
+                        <a href="{% url 'parent_view_children' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Children
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                {% if class_teacher %}
+                <div class="card card-success">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-chalkboard-teacher"></i> Class Teacher</h3>
+                    </div>
+                    <div class="card-body text-center">
+                        {% if class_teacher.admin.profile_pic %}
+                        <img src="{{ class_teacher.admin.profile_pic }}" class="img-circle mb-3" 
+                             style="width: 100px; height: 100px; object-fit: cover;">
+                        {% else %}
+                        <i class="fas fa-user-circle fa-5x text-muted mb-3"></i>
+                        {% endif %}
+                        <h4>{{ class_teacher.admin.first_name }} {{ class_teacher.admin.last_name }}</h4>
+                        <p class="text-muted">
+                            <i class="fas fa-envelope"></i> {{ class_teacher.admin.email }}
+                        </p>
+                        {% if class_teacher.admin.phone_number %}
+                        <p class="text-muted">
+                            <i class="fas fa-phone"></i> {{ class_teacher.admin.phone_number }}
+                        </p>
+                        {% endif %}
+                        <a href="{% url 'parent_send_message' %}?to={{ class_teacher.admin.id }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-envelope"></i> Message Teacher
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-history"></i> Class History</h3>
+                    </div>
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush">
+                            {% for enrollment in enrollment_history %}
+                            <li class="list-group-item">
+                                <strong>{{ enrollment.school_class.name }}</strong>
+                                <br>
+                                <small class="text-muted">
+                                    {{ enrollment.academic_year }}
+                                    <span class="badge badge-{{ enrollment.status }}">{{ enrollment.status }}</span>
+                                </small>
+                            </li>
+                            {% empty %}
+                            <li class="list-group-item text-muted">No enrollment history</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

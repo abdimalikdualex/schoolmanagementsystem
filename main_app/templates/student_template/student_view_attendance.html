@@ -107,9 +107,9 @@
                     start_date: start_date,
                     end_date:end_date
                 }
-            }).done(function (response) {
-                var json_data = JSON.parse(response)
-                if (json_data.length < 1) {
+            }).done(function (data) {
+                var json_data = Array.isArray(data) ? data : (typeof data === 'string' ? JSON.parse(data) : data);
+                if (!json_data || json_data.length < 1) {
                     $("#attendance_data").html("<div class='col-md-12 alert alert-danger'>No Data For Specified Parameters</div>")
 
                 } else {

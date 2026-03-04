@@ -1,0 +1,59 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block main_content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-8 offset-md-2">
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-envelope mr-2"></i>Send Message to Teacher</h3>
+                    </div>
+                    <form method="post" action="{% url 'parent_send_message' %}">
+                        {% csrf_token %}
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="recipient_id">Select Teacher <span class="text-danger">*</span></label>
+                                <select name="recipient_id" id="recipient_id" class="form-control" required>
+                                    <option value="">-- Select Teacher --</option>
+                                    {% for teacher in teachers %}
+                                    {% if teacher %}
+                                    <option value="{{ teacher.admin.id }}">
+                                        {{ teacher.admin.first_name }} {{ teacher.admin.last_name }}
+                                    </option>
+                                    {% endif %}
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Teachers who teach your children's subjects</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="subject">Subject <span class="text-danger">*</span></label>
+                                <input type="text" name="subject" id="subject" class="form-control" 
+                                       placeholder="Enter message subject" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="content">Message <span class="text-danger">*</span></label>
+                                <textarea name="content" id="content" class="form-control" rows="6" 
+                                          placeholder="Type your message here..." required></textarea>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <a href="{% url 'parent_view_messages' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left mr-1"></i> Back
+                            </a>
+                            <button type="submit" class="btn btn-primary float-right">
+                                <i class="fas fa-paper-plane mr-1"></i> Send Message
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock main_content %}

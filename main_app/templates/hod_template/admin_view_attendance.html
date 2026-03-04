@@ -105,6 +105,7 @@
             var subject = $("#subject").val()
             var session = $("#session").val()
             $("#student_data").html("")
+            $("#error_attendance").hide()
 
             if (session.length < 1 || subject.length < 1){
                 $("#error_attendance").html("Kindly Choose Both Subject and Session")
@@ -112,18 +113,18 @@
                 $("#error_attendance").show()
                 return false
             }
+            var $btn = $(this);
+            $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Fetching...');
             $.ajax({
                 url: "{% url 'get_attendance' %}",
                 type: 'POST',
+                dataType: 'json',
                 data:{
                     subject:subject,
                     session:session
                 }
-            
-            }
-
-            ).done(function(response){
-                var json_data = JSON.parse(response)
+            }).done(function(response){
+                var json_data = Array.isArray(response) ? response : (typeof response === 'string' ? JSON.parse(response) : [])
                 if (json_data.length > 0){
 
                     var html = "";
@@ -141,17 +142,15 @@
                     $("#attendance_date").html("")
                     $("#attendance_block").hide()
                     $("#student_data").html("")
-
-
                 }
-            }).fail(function(response){
-                alert("Error While Fetching Data")
-                $("#error_attendance").html("")
+                $btn.prop('disabled', false).html('Fetch Attendance');
+            }).fail(function(xhr){
+                alert("Error While Fetching Data" + (xhr.responseJSON && xhr.responseJSON.error ? ": " + xhr.responseJSON.error : ""))
+                $("#error_attendance").html("Failed to fetch attendance. Please try again.")
                 $("#error_attendance").show()
                 $("#attendance_block").hide()
                 $("#student_data").html("")
-
-
+                $btn.prop('disabled', false).html('Fetch Attendance');
             })
         })
 
@@ -169,13 +168,14 @@ if (attendance_date.length  == 0){
             $.ajax({
                 url: "{% url 'get_admin_attendance' %}",
                 type: 'POST',
+                dataType: 'json',
                 data: {
                     attendance_date_id:attendance_date,
                     session:session,
                     subject:subject
                 }
             }).done(function (response) {
-                var json_data = JSON.parse(response)
+                var json_data = Array.isArray(response) ? response : (typeof response === 'string' ? JSON.parse(response) : [])
                 if (json_data.length < 1) {
                     alert("No data to display")
 

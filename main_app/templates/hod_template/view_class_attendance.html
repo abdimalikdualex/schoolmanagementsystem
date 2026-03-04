@@ -1,0 +1,68 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Attendance for {{ school_class }}</h3>
+                <div class="card-tools">
+                    <form method="GET" class="form-inline">
+                        <select name="month" class="form-control form-control-sm mr-2">
+                            {% for m in "123456789101112"|make_list %}
+                            <option value="{{ forloop.counter }}" {% if month|add:"0" == forloop.counter %}selected{% endif %}>
+                                {{ forloop.counter }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <input type="number" name="year" value="{{ year }}" class="form-control form-control-sm mr-2" style="width:80px;">
+                        <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+                    </form>
+                </div>
+            </div>
+            <div class="card-body table-responsive p-0">
+                <table class="table table-bordered table-hover">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th>Date</th>
+                            <th>Marked By</th>
+                            <th>Present</th>
+                            <th>Absent</th>
+                            <th>Late</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for attendance in attendance_records %}
+                        <tr>
+                            <td>{{ attendance.date|date:"d/m/Y" }}</td>
+                            <td>{{ attendance.marked_by|default:"-" }}</td>
+                            <td class="text-success">{{ attendance.present_count }}</td>
+                            <td class="text-danger">{{ attendance.absent_count }}</td>
+                            <td class="text-warning">{{ attendance.attendance_records.filter.status__late|length }}</td>
+                            <td>
+                                <span class="badge {% if attendance.attendance_percentage >= 90 %}badge-success{% elif attendance.attendance_percentage >= 70 %}badge-warning{% else %}badge-danger{% endif %}">
+                                    {{ attendance.attendance_percentage }}%
+                                </span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">No attendance records for this period</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer">
+                <a href="{% url 'attendance_dashboard' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock content %}

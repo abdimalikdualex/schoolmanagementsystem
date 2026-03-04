@@ -50,9 +50,10 @@
             $.ajax({
                 url: "{% url 'check_email_availability' %}",
                 type: 'POST',
-                data:{email:email}
-            }).done(function(response){
-                if (response == "True"){
+                data:{email:email, csrfmiddlewaretoken: '{{ csrf_token }}'},
+                dataType: 'json'
+            }).done(function(data){
+                if (!data.available){
                     $(".email_error").remove()
                     $("<span class='invalid email_error'>Email Address Already Exist</span>").insertAfter("#id_email");
                 }
@@ -60,7 +61,7 @@
                     $(".email_error").remove()
                     $("<span class='valid email_error'>Email Address Available</span>").insertAfter("#id_email");
                 }
-            }).fail(function(response){
+            }).fail(function(){
                 $("<span class='alert alert-warning'>Server Could Not Process This</span>").insertAfter("#id_email");
             })
         }

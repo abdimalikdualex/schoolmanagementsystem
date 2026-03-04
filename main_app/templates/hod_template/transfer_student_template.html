@@ -1,0 +1,65 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card card-warning">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-exchange-alt"></i> {{ page_title }}</h3>
+                    </div>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="card-body">
+                            {% if messages %}
+                            {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible">
+                                <button type="button" class="close" data-dismiss="alert">&times;</button>
+                                {{ message }}
+                            </div>
+                            {% endfor %}
+                            {% endif %}
+
+                            <div class="alert alert-info">
+                                <h5><i class="fas fa-info-circle"></i> Current Information</h5>
+                                <p><strong>Student:</strong> {{ enrollment.student }}</p>
+                                <p><strong>Current Class:</strong> {{ enrollment.school_class.name }}</p>
+                                <p><strong>Academic Year:</strong> {{ enrollment.academic_year }}</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Transfer To Class <span class="text-danger">*</span></label>
+                                <select name="new_class" class="form-control" required>
+                                    <option value="">Select New Class</option>
+                                    {% for class in classes %}
+                                    <option value="{{ class.id }}">
+                                        {{ class.name }}
+                                        {% if class.grade_level %}({{ class.grade_level.code }}){% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Notes/Reason for Transfer</label>
+                                <textarea name="notes" class="form-control" rows="3" placeholder="Optional: Enter reason for transfer"></textarea>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-warning" 
+                                    onclick="return confirm('Are you sure you want to transfer this student?')">
+                                <i class="fas fa-exchange-alt"></i> Transfer Student
+                            </button>
+                            <a href="{% url 'manage_enrollments' %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

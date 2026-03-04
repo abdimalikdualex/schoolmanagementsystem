@@ -1,0 +1,43 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row mb-3">
+            <div class="col-12">
+                <a href="{% url 'add_finance_officer' %}" class="btn btn-success"><i class="fas fa-plus"></i> Add Finance Officer</a>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Finance Officers</h3>
+            </div>
+            <div class="card-body table-responsive p-0">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Added</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for o in officers %}
+                        <tr>
+                            <td>{{ o.last_name }}, {{ o.first_name }}</td>
+                            <td>{{ o.email }}</td>
+                            <td>{{ o.phone_number|default:"-" }}</td>
+                            <td>{{ o.created_at|date:"d/m/Y" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center">No Finance Officers. <a href="{% url 'add_finance_officer' %}">Add one</a></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

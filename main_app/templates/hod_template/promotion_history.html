@@ -1,0 +1,73 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-history"></i> {{ page_title }}</h3>
+                        <div class="card-tools">
+                            <a href="{% url 'promotion_dashboard' %}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-arrow-up"></i> New Promotion
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <table id="promotionTable" class="table table-bordered table-hover">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>From Class</th>
+                                    <th>To Class</th>
+                                    <th>From Year</th>
+                                    <th>To Year</th>
+                                    <th>Students Promoted</th>
+                                    <th>Failed</th>
+                                    <th>Status</th>
+                                    <th>Promoted By</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for promotion in promotions %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ promotion.from_class|default:"All Classes" }}</td>
+                                    <td>{{ promotion.to_class|default:"Next Grade" }}</td>
+                                    <td>{{ promotion.from_academic_year }}</td>
+                                    <td>{{ promotion.to_academic_year }}</td>
+                                    <td><span class="badge badge-success">{{ promotion.students_promoted }}</span></td>
+                                    <td><span class="badge badge-danger">{{ promotion.students_failed }}</span></td>
+                                    <td>
+                                        {% if promotion.status == 'completed' %}
+                                        <span class="badge badge-success">Completed</span>
+                                        {% elif promotion.status == 'pending' %}
+                                        <span class="badge badge-warning">Pending</span>
+                                        {% elif promotion.status == 'processing' %}
+                                        <span class="badge badge-info">Processing</span>
+                                        {% else %}
+                                        <span class="badge badge-danger">{{ promotion.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ promotion.promoted_by|default:"-" }}</td>
+                                    <td>{{ promotion.created_at|date:"M d, Y H:i" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="10" class="text-center">No promotion records found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

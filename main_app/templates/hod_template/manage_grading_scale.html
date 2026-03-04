@@ -1,0 +1,137 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-5">
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title">Add Grading Scale Entry</h3>
+                    </div>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label>Name/Description</label>
+                                {{ form.name }}
+                                <small class="text-muted">e.g., Kenya CBC Grading</small>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Min Marks</label>
+                                        {{ form.min_marks }}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Max Marks</label>
+                                        {{ form.max_marks }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Grade</label>
+                                        {{ form.grade }}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Points</label>
+                                        {{ form.points }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Remarks</label>
+                                {{ form.remarks }}
+                                <small class="text-muted">e.g., Excellent, Good, Average</small>
+                            </div>
+                            <div class="form-group">
+                                <div class="custom-control custom-checkbox">
+                                    {{ form.is_active }}
+                                    <label class="custom-control-label" for="id_is_active">Active</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-primary">Add Entry</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-md-7">
+                <div class="card card-info">
+                    <div class="card-header">
+                        <h3 class="card-title">Grading Scale</h3>
+                    </div>
+                    <div class="card-body table-responsive p-0">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Marks Range</th>
+                                    <th>Grade</th>
+                                    <th>Points</th>
+                                    <th>Remarks</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for scale in grading_scales %}
+                                <tr>
+                                    <td>{{ scale.min_marks }} - {{ scale.max_marks }}</td>
+                                    <td>
+                                        <span class="badge badge-primary" style="font-size: 1.1em;">
+                                            {{ scale.grade }}
+                                        </span>
+                                    </td>
+                                    <td>{{ scale.points }}</td>
+                                    <td>{{ scale.remarks }}</td>
+                                    <td>
+                                        {% if scale.is_active %}
+                                        <span class="badge badge-success">Active</span>
+                                        {% else %}
+                                        <span class="badge badge-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center">
+                                        No grading scale defined. Add entries above.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card card-secondary">
+                    <div class="card-header">
+                        <h3 class="card-title">Standard Kenya CBC Grading</h3>
+                    </div>
+                    <div class="card-body">
+                        <small class="text-muted">
+                            <table class="table table-sm">
+                                <tr><td>A (80-100)</td><td>Excellent</td></tr>
+                                <tr><td>B (65-79)</td><td>Good</td></tr>
+                                <tr><td>C (50-64)</td><td>Average</td></tr>
+                                <tr><td>D (40-49)</td><td>Below Average</td></tr>
+                                <tr><td>E (0-39)</td><td>Needs Improvement</td></tr>
+                            </table>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock content %}

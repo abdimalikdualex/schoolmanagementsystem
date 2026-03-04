@@ -1,0 +1,152 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-5">
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title">Add Exam Schedule</h3>
+                    </div>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label>Exam Type</label>
+                                {{ form.exam_type }}
+                            </div>
+                            <div class="form-group">
+                                <label>Session</label>
+                                {{ form.session }}
+                            </div>
+                            <div class="form-group">
+                                <label>Term</label>
+                                {{ form.term }}
+                            </div>
+                            <div class="form-group">
+                                <label>Exam Name</label>
+                                {{ form.name }}
+                                <small class="text-muted">e.g., Term 1 End Term Exams 2024</small>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>Start Date</label>
+                                        {{ form.start_date }}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>End Date</label>
+                                        {{ form.end_date }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="custom-control custom-checkbox">
+                                    {{ form.is_published }}
+                                    <label class="custom-control-label" for="id_is_published">
+                                        Publish Results (visible to students/parents)
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="custom-control custom-checkbox">
+                                    {{ form.is_active }}
+                                    <label class="custom-control-label" for="id_is_active">Active</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-primary">Save Schedule</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-md-7">
+                <div class="card card-info">
+                    <div class="card-header">
+                        <h3 class="card-title">Exam Schedules</h3>
+                    </div>
+                    <div class="card-body table-responsive p-0">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Exam</th>
+                                    <th>Type</th>
+                                    <th>Term</th>
+                                    <th>Dates</th>
+                                    <th>Result Entry</th>
+                                    <th>Published</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for schedule in schedules %}
+                                <tr>
+                                    <td>{{ schedule.name }}</td>
+                                    <td>{{ schedule.exam_type }}</td>
+                                    <td>{{ schedule.get_term_display }}</td>
+                                    <td>
+                                        {{ schedule.start_date|date:"d/m" }} - 
+                                        {{ schedule.end_date|date:"d/m/Y" }}
+                                    </td>
+                                    <td>
+                                        {% if schedule.result_entry_open and schedule.result_entry_status == 'open' %}
+                                        <span class="badge badge-success">Open</span>
+                                        <form method="POST" class="d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="close_result_entry">
+                                            <input type="hidden" name="schedule_id" value="{{ schedule.id }}">
+                                            <button type="submit" class="btn btn-xs btn-danger" title="Close Result Upload">Close</button>
+                                        </form>
+                                        {% else %}
+                                        <span class="badge badge-secondary">Closed</span>
+                                        <form method="POST" class="d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="open_result_entry">
+                                            <input type="hidden" name="schedule_id" value="{{ schedule.id }}">
+                                            <button type="submit" class="btn btn-xs btn-success" title="Open Result Upload">Open</button>
+                                        </form>
+                                        {% endif %}
+                                        {% if schedule.result_entry_end_date %}
+                                        <br><small class="text-muted">Deadline: {{ schedule.result_entry_end_date|date:"d/m/Y" }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if schedule.is_published %}
+                                        <span class="badge badge-success">Yes</span>
+                                        {% else %}
+                                        <span class="badge badge-warning">No</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'enter_exam_results' %}?exam_schedule={{ schedule.id }}" 
+                                            class="btn btn-sm btn-primary" title="Enter Results">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'view_exam_results' %}?exam_schedule={{ schedule.id }}" 
+                                            class="btn btn-sm btn-info" title="View Results">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center">No exam schedules found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock content %}

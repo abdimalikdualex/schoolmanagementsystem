@@ -6,7 +6,6 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render, reverse
 from django.views.decorators.csrf import csrf_exempt
 
-from .EmailBackend import EmailBackend
 from .models import Attendance, Session, Subject
 
 # Create your views here.
@@ -18,47 +17,75 @@ def login_page(request):
             return redirect(reverse("admin_home"))
         elif request.user.user_type == '2':
             return redirect(reverse("staff_home"))
+        elif request.user.user_type == '3':
+            return redirect(reverse("student_home"))
+        elif request.user.user_type == '4':
+            return redirect(reverse("parent_home"))
+        elif str(request.user.user_type) == '5':
+            return redirect(reverse("finance_dashboard"))
         else:
             return redirect(reverse("student_home"))
-    return render(request, 'main_app/login.html')
+    from django.conf import settings
+    response = render(request, 'main_app/login.html', {'debug': settings.DEBUG})
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    return response
 
 
 def doLogin(request, **kwargs):
     if request.method != 'POST':
-        return HttpResponse("<h4>Denied</h4>")
+        return redirect(reverse('login_page'))
     else:
-        #Google recaptcha
-        captcha_token = request.POST.get('g-recaptcha-response')
-        captcha_url = "https://www.google.com/recaptcha/api/siteverify"
-        captcha_key = "6LfswtgZAAAAABX9gbLqe-d97qE2g1JP8oUYritJ"
-        data = {
-            'secret': captcha_key,
-            'response': captcha_token
-        }
-        # Make request
-        try:
-            captcha_server = requests.post(url=captcha_url, data=data)
-            response = json.loads(captcha_server.text)
-            if response['success'] == False:
-                messages.error(request, 'Invalid Captcha. Try Again')
-                return redirect('/')
-        except:
-            messages.error(request, 'Captcha could not be verified. Try Again')
-            return redirect('/')
+        # Google recaptcha - Skip in development mode
+        from django.conf import settings
+        if not settings.DEBUG:
+            captcha_token = request.POST.get('g-recaptcha-response')
+            captcha_url = "https://www.google.com/recaptcha/api/siteverify"
+            captcha_key = "6LfswtgZAAAAABX9gbLqe-d97qE2g1JP8oUYritJ"
+            data = {
+                'secret': captcha_key,
+                'response': captcha_token
+            }
+            # Make request
+            try:
+                captcha_server = requests.post(url=captcha_url, data=data)
+                response = json.loads(captcha_server.text)
+                if response['success'] == False:
+                    messages.error(request, 'Invalid Captcha. Try Again')
+                    return redirect(reverse('login_page'))
+            except:
+                messages.error(request, 'Captcha could not be verified. Try Again')
+                return redirect(reverse('login_page'))
         
-        #Authenticate
-        user = EmailBackend.authenticate(request, username=request.POST.get('email'), password=request.POST.get('password'))
-        if user != None:
+        # Authenticate using Django's authenticate function
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        
+        user = authenticate(request, username=email, password=password)
+        
+        if user is not None:
+            if not user.is_active:
+                messages.error(request, "Account is disabled. Contact administrator.")
+                return redirect(reverse("login_page"))
             login(request, user)
-            if user.user_type == '1':
+            request.session.save()  # Ensure session is persisted before redirect
+            user_type = str(user.user_type) if user.user_type else '3'
+            if user_type == '1':
                 return redirect(reverse("admin_home"))
-            elif user.user_type == '2':
+            elif user_type == '2':
                 return redirect(reverse("staff_home"))
+            elif user_type == '3':
+                return redirect(reverse("student_home"))
+            elif user_type == '4':
+                return redirect(reverse("parent_home"))
+            elif user_type == '5':
+                return redirect(reverse("finance_dashboard"))
             else:
                 return redirect(reverse("student_home"))
         else:
-            messages.error(request, "Invalid details")
-            return redirect("/")
+            messages.error(request, "Invalid email or password")
+            return redirect(reverse("login_page"))
 
 
 
@@ -84,9 +111,9 @@ def get_attendance(request):
                     "session": attd.session.id
                     }
             attendance_list.append(data)
-        return JsonResponse(json.dumps(attendance_list), safe=False)
+        return JsonResponse(attendance_list, safe=False)
     except Exception as e:
-        return None
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 def showFirebaseJS(request):

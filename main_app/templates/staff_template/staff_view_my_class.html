@@ -1,0 +1,103 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <!-- Assigned Classes (Class Teacher) -->
+        {% if assigned_classes %}
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-chalkboard-teacher"></i> Classes I'm Class Teacher Of</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            {% for class in assigned_classes %}
+                            <div class="col-md-4">
+                                <div class="card card-outline card-success">
+                                    <div class="card-header">
+                                        <h5 class="card-title">{{ class.name }}</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <p>
+                                            <strong>Grade Level:</strong> 
+                                            {% if class.grade_level %}
+                                            <span class="badge badge-info">{{ class.grade_level.code }}</span>
+                                            {% else %}
+                                            Not Set
+                                            {% endif %}
+                                        </p>
+                                        <p><strong>Stream:</strong> {{ class.stream|default:"Not Set" }}</p>
+                                        <p><strong>Academic Year:</strong> {{ class.academic_year|default:"Not Set" }}</p>
+                                        <p><strong>Students:</strong> {{ class.current_enrollment_count }} / {{ class.capacity }}</p>
+                                    </div>
+                                    <div class="card-footer">
+                                        <a href="{% url 'staff_view_class_roster' class.id %}" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-users"></i> View Roster
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Teaching Classes -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card card-info">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-book"></i> Classes I Teach</h3>
+                    </div>
+                    <div class="card-body">
+                        {% if teaching_classes %}
+                        <table class="table table-bordered table-hover">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>Class</th>
+                                    <th>Grade Level</th>
+                                    <th>Stream</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for class in teaching_classes %}
+                                <tr>
+                                    <td>{{ class.name }}</td>
+                                    <td>
+                                        {% if class.grade_level %}
+                                        <span class="badge badge-info">{{ class.grade_level.code }}</span>
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ class.stream|default:"-" }}</td>
+                                    <td>
+                                        <a href="{% url 'staff_view_class_roster' class.id %}" class="btn btn-info btn-sm">
+                                            <i class="fas fa-users"></i> View Students
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> You are not assigned to teach any subjects yet.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

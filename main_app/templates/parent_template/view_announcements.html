@@ -1,0 +1,63 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block main_content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-bullhorn mr-2"></i>School Announcements</h3>
+                    </div>
+                    <div class="card-body">
+                        {% for announcement in announcements %}
+                        <div class="card card-outline card-info mb-3">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">{{ announcement.title }}</h5>
+                                <div class="card-tools">
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar mr-1"></i>
+                                        {{ announcement.publish_date|date:"M d, Y" }}
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <p>{{ announcement.content }}</p>
+                                {% if announcement.target_audience == 'class' and announcement.target_course %}
+                                <span class="badge badge-primary">
+                                    <i class="fas fa-school mr-1"></i>
+                                    {{ announcement.target_course.name }}
+                                </span>
+                                {% endif %}
+                                {% if announcement.attachment %}
+                                <div class="mt-3">
+                                    <a href="{{ announcement.attachment.url }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                        <i class="fas fa-paperclip mr-1"></i> View Attachment
+                                    </a>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="card-footer text-muted">
+                                <small>
+                                    <i class="fas fa-user mr-1"></i>
+                                    Posted by: {{ announcement.created_by.first_name }} {{ announcement.created_by.last_name }}
+                                </small>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-bullhorn fa-3x mb-3"></i>
+                            <h5>No Announcements</h5>
+                            <p>There are no announcements at the moment.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock main_content %}

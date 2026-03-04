@@ -5,21 +5,23 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>Elevate College Portal | Log In</title>
+    <title>School Management System | Log In</title>
     <!-- Tell the browser to be responsive to screen width -->
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="{% static 'plugins/fontawesome-free/css/all.min.css' %}">
-    <!-- Ionicons -->
-    <link rel="stylesheet" href="{% static 'https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css' %}">
+    <!-- Ionicons (external) -->
+    <link rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
     <!-- icheck bootstrap -->
     <link rel="stylesheet" href="{% static 'plugins/icheck-bootstrap/icheck-bootstrap.min.css' %}">
     <!-- Theme style -->
     <link rel="stylesheet" href="{% static 'dist/css/adminlte.min.css' %}">
     <!-- Google Font: Source Sans Pro -->
     <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700" rel="stylesheet">
-    <!-- Google Recaptcha     -->
+    <!-- Google Recaptcha - only load when not in debug mode -->
+    {% if not debug %}
     <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    {% endif %}
     <style>
         @keyframes slideInDown {
             from {
@@ -211,13 +213,52 @@
             animation: slideInUp 0.6s ease-out 0.55s both;
             opacity: 0.3;
         }
+        /* Responsive styles */
+        @media (max-width: 576px) {
+            .login-page {
+                padding: 15px 0;
+                min-height: 100vh;
+                min-height: 100dvh;
+            }
+            .login-box {
+                max-width: 95%;
+                padding: 0 10px;
+                margin: 0 auto;
+            }
+            .login-logo a {
+                font-size: 20px;
+            }
+            .login-card-body {
+                padding: 25px 20px;
+            }
+            .form-control {
+                padding: 10px 12px;
+                font-size: 14px;
+            }
+            .btn-success {
+                padding: 10px 16px;
+                font-size: 14px;
+            }
+            .row .col-8, .row .col-4 {
+                flex: 0 0 100%;
+                max-width: 100%;
+            }
+            .row .col-4 {
+                margin-top: 10px;
+            }
+        }
+        @media (max-width: 380px) {
+            .login-logo a {
+                font-size: 18px;
+            }
+        }
     </style>
 </head>
 
 <body class="hold-transition login-page">
     <div class="login-box">
         <div class="login-logo">
-            <a href=""><i class="fas fa-graduation-cap" style="color: #ffc107; margin-right: 10px;"></i><b>Elevate College</b> Portal</a>
+            <a href=""><i class="fas fa-graduation-cap" style="color: #ffc107; margin-right: 10px;"></i><b>School Management</b> System</a>
         </div>
         <!-- /.login-logo -->
         <div class="card">
@@ -225,15 +266,13 @@
                 {% if messages %}
                 <div class="col-12">
                     {% for message in messages %}
-                    {% if message.tags == 'error' %}
-                    <div class="alert alert-danger text-center">
-                        <i class="fas fa-exclamation-circle"></i> {{message }}
+                    <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'success' %}alert-success{% else %}alert-warning{% endif %} text-center">
+                        <i class="fas {% if message.tags == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %}"></i> {{ message }}
                     </div>
-                    {% endif %}
                     {% endfor %}
                 </div>
                 {% endif %}
-                <form action="doLogin/" method="post">
+                <form action="{% url 'user_login' %}" method="post" id="login-form" autocomplete="on">
                     {% csrf_token %}
                     <div class="input-group mb-3">
                         <input required type="email" name='email' class="form-control" placeholder="Enter your email">
@@ -251,9 +290,11 @@
                             </div>
                         </div>
                     </div>
+                    {% if not debug %}
                     <div class="input-group mb-3">
                         <div class="g-recaptcha" data-sitekey="6LfswtgZAAAAAJ7bhwqZZtDpBsc75ekH6FWA4Fnt"></div>
                     </div>
+                    {% endif %}
                     <div class="row">
                         <div class="col-8">
                             <div class="icheck-primary">
@@ -274,7 +315,7 @@
                 </form>
                 <hr style="margin: 20px 0;">
                 <p class="mb-1" style="text-align: center;">
-                    <a href="{% url 'password_reset' %}">
+                    <a href="#" onclick="alert('Please contact the administrator to reset your password.'); return false;">
                         <i class="fas fa-key"></i> Forgot Password?
                     </a>
                 </p>
@@ -290,6 +331,16 @@
     <script src="{% static 'plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
     <!-- AdminLTE App -->
     <script src="{% static 'dist/js/adminlte.min.js' %}"></script>
+    <script>
+        // Ensure form submits properly and show loading state
+        document.getElementById('login-form').addEventListener('submit', function() {
+            var btn = this.querySelector('button[type="submit"]');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
+            }
+        });
+    </script>
 
 </body>
 

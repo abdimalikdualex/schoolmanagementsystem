@@ -1,0 +1,86 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header bg-info">
+                        <h3 class="card-title">{{page_title}}</h3>
+                        <div class="card-tools">
+                            <a href="{% url 'add_grade_level' %}" class="btn btn-light btn-sm">
+                                <i class="fas fa-plus"></i> Add Grade Level
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Kenya CBC Structure:</strong> Pre-Primary (PP1-PP2) → Primary (G1-G6) → Junior Secondary (G7-G9) → Senior Secondary (G10-G12)
+                        </div>
+                        <table id="gradeTable" class="table table-bordered table-hover">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>Order</th>
+                                    <th>Code</th>
+                                    <th>Name</th>
+                                    <th>Stage</th>
+                                    <th>Description</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for grade in grade_levels %}
+                                <tr>
+                                    <td>{{ grade.order_index }}</td>
+                                    <td><strong>{{ grade.code }}</strong></td>
+                                    <td>{{ grade.name }}</td>
+                                    <td>
+                                        {% if grade.stage == 'preprimary' %}
+                                        <span class="badge badge-success">Pre-Primary</span>
+                                        {% elif grade.stage == 'primary' %}
+                                        <span class="badge badge-primary">Primary</span>
+                                        {% elif grade.stage == 'junior_secondary' %}
+                                        <span class="badge badge-warning">Junior Secondary</span>
+                                        {% elif grade.stage == 'senior_secondary' %}
+                                        <span class="badge badge-danger">Senior Secondary</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ grade.description|default:"-"|truncatewords:10 }}</td>
+                                    <td>
+                                        {% if grade.is_active %}
+                                        <span class="badge badge-success">Active</span>
+                                        {% else %}
+                                        <span class="badge badge-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'edit_grade_level' grade.id %}" class="btn btn-info btn-sm">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center">
+                                        No grade levels found. 
+                                        <br><br>
+                                        <strong>Run this command to seed CBC grade levels:</strong><br>
+                                        <code>python manage.py seed_grade_levels</code>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

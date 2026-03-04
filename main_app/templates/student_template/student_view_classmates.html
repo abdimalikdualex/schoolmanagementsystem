@@ -1,0 +1,72 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-users"></i> {{ page_title }}
+                        </h3>
+                        <div class="card-tools">
+                            <a href="{% url 'student_view_class_info' %}" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-arrow-left"></i> Back to Class Info
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            {% for enrollment in enrollments %}
+                            <div class="col-md-3 col-sm-6">
+                                <div class="card card-widget widget-user-2 shadow-sm">
+                                    <div class="widget-user-header bg-light">
+                                        <div class="widget-user-image">
+                                            {% if enrollment.student.admin.profile_pic %}
+                                            <img class="img-circle" src="{{ enrollment.student.admin.profile_pic }}" alt="User Avatar">
+                                            {% else %}
+                                            <img class="img-circle" src="{% static 'dist/img/user.png' %}" alt="User Avatar">
+                                            {% endif %}
+                                        </div>
+                                        <h5 class="widget-user-username">{{ enrollment.student.admin.first_name }} {{ enrollment.student.admin.last_name }}</h5>
+                                        <p class="widget-user-desc text-muted">{{ enrollment.student.admission_number|default:"" }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            {% for student in direct_classmates %}
+                            <div class="col-md-3 col-sm-6">
+                                <div class="card card-widget widget-user-2 shadow-sm">
+                                    <div class="widget-user-header bg-light">
+                                        <div class="widget-user-image">
+                                            {% if student.admin.profile_pic %}
+                                            <img class="img-circle" src="{{ student.admin.profile_pic }}" alt="User Avatar">
+                                            {% else %}
+                                            <img class="img-circle" src="{% static 'dist/img/user.png' %}" alt="User Avatar">
+                                            {% endif %}
+                                        </div>
+                                        <h5 class="widget-user-username">{{ student.admin.first_name }} {{ student.admin.last_name }}</h5>
+                                        <p class="widget-user-desc text-muted">{{ student.admission_number|default:"" }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="col-12">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> No classmates found in your class.
+                                </div>
+                            </div>
+                            {% endfor %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

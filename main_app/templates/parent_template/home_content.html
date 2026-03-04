@@ -1,0 +1,213 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block main_content %}
+<section class="content">
+    <div class="container-fluid">
+        <!-- Welcome Banner -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card bg-gradient-primary">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h4 class="text-white mb-1">Welcome, {{ request.user.first_name }}!</h4>
+                                <p class="text-white-50 mb-0">Monitor your children's academic progress</p>
+                            </div>
+                            <div>
+                                <i class="fas fa-users fa-3x text-white-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overview Cards (MVP) -->
+        <div class="row">
+            <div class="col-6 col-lg-3 mb-3 mb-lg-0">
+                <div class="small-box bg-info">
+                    <div class="inner">
+                        <h3>{{ total_children }}</h3>
+                        <p>My Children</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-child"></i></div>
+                    <a href="{% url 'parent_view_children' %}" class="small-box-footer">View All <i class="fas fa-arrow-circle-right"></i></a>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3 mb-3 mb-lg-0">
+                <div class="small-box bg-primary">
+                    <div class="inner">
+                        <h3>{% if active_term %}{{ active_term.term_name }} - {{ active_term.academic_year }}{% else %}N/A{% endif %}</h3>
+                        <p>Active Term</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-calendar-alt"></i></div>
+                    <a href="{% url 'parent_view_children' %}" class="small-box-footer">View Children <i class="fas fa-arrow-circle-right"></i></a>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3 mb-3 mb-lg-0">
+                <div class="small-box bg-success">
+                    <div class="inner">
+                        <h3>{{ overall_attendance_pct }}%</h3>
+                        <p>Attendance</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-calendar-check"></i></div>
+                    <a href="{% url 'parent_view_attendance' %}" class="small-box-footer">View Attendance <i class="fas fa-arrow-circle-right"></i></a>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3 mb-3 mb-lg-0">
+                <div class="small-box bg-warning">
+                    <div class="inner">
+                        <h3>{{ latest_grade }}</h3>
+                        <p>Last Result Average</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-chart-line"></i></div>
+                    <a href="{% url 'parent_view_results' %}" class="small-box-footer">View Results <i class="fas fa-arrow-circle-right"></i></a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Secondary Stats -->
+        <div class="row mt-2">
+            <div class="col-4">
+                <a href="{% url 'parent_view_announcements' %}" class="btn btn-outline-primary btn-block btn-sm">
+                    <i class="fas fa-bullhorn mr-1"></i> Announcements ({{ announcements|length }})
+                </a>
+            </div>
+            <div class="col-4">
+                <a href="{% url 'parent_view_messages' %}" class="btn btn-outline-primary btn-block btn-sm">
+                    <i class="fas fa-envelope mr-1"></i> Messages ({{ unread_messages }})
+                </a>
+            </div>
+            <div class="col-4">
+                <a href="{% url 'parent_view_notifications' %}" class="btn btn-outline-primary btn-block btn-sm">
+                    <i class="fas fa-bell mr-1"></i> Notifications ({{ notifications }})
+                </a>
+            </div>
+        </div>
+
+        <!-- Children Overview Cards -->
+        <div class="row">
+            <div class="col-12">
+                <h4 class="mb-3"><i class="fas fa-child mr-2"></i>Children Overview</h4>
+            </div>
+        </div>
+        
+        <div class="row">
+            {% for child_data in children_data %}
+            <div class="col-lg-6 col-12">
+                <div class="card card-widget widget-user-2">
+                    <div class="widget-user-header bg-gradient-info">
+                        <div class="widget-user-image">
+                            {% if child_data.student.admin.profile_pic %}
+                            <img class="img-circle elevation-2" src="{{ child_data.student.admin.profile_pic }}" alt="User Avatar">
+                            {% else %}
+                            <img class="img-circle elevation-2" src="{% static 'dist/img/user-default.png' %}" alt="User Avatar">
+                            {% endif %}
+                        </div>
+                        <h3 class="widget-user-username">{{ child_data.student.admin.first_name }} {{ child_data.student.admin.last_name }}</h3>
+                        <h5 class="widget-user-desc">
+                            {{ child_data.student.course.name|default:child_data.student.current_class.name|default:"No Class" }}
+                        </h5>
+                    </div>
+                    <div class="card-footer p-0">
+                        <ul class="nav flex-column">
+                            <li class="nav-item">
+                                <a href="{% url 'parent_view_child_attendance' child_data.student.id %}" class="nav-link">
+                                    <i class="fas fa-calendar-check mr-2 text-info"></i> Attendance
+                                    <span class="float-right">
+                                        <span class="badge {% if child_data.attendance_percentage >= 75 %}bg-success{% elif child_data.attendance_percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ child_data.attendance_percentage }}%
+                                        </span>
+                                    </span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'parent_view_child_results' child_data.student.id %}" class="nav-link">
+                                    <i class="fas fa-chart-line mr-2 text-success"></i> Exam Results
+                                    <span class="float-right badge bg-primary">{{ child_data.results_count }} subjects</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'parent_view_child_fees' child_data.student.id %}" class="nav-link">
+                                    <i class="fas fa-dollar-sign mr-2 text-warning"></i> Fee Status
+                                    <span class="float-right badge {% if child_data.fees_status == 'Paid' %}bg-success{% elif child_data.fees_status == 'Partial' %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ child_data.fees_status }}
+                                    </span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'parent_view_child_timetable' child_data.student.id %}" class="nav-link">
+                                    <i class="fas fa-clock mr-2 text-purple"></i> Timetable
+                                    <span class="float-right"><i class="fas fa-arrow-right"></i></span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'parent_view_child_homework' child_data.student.id %}" class="nav-link">
+                                    <i class="fas fa-book mr-2 text-danger"></i> Homework
+                                    <span class="float-right"><i class="fas fa-arrow-right"></i></span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'parent_view_child_class' child_data.student.id %}" class="nav-link">
+                                    <i class="fas fa-school mr-2 text-secondary"></i> Class Info
+                                    <span class="float-right"><i class="fas fa-arrow-right"></i></span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'parent_view_child_profile' child_data.student.id %}" class="nav-link bg-light">
+                                    <i class="fas fa-user mr-2 text-primary"></i> View Details
+                                    <span class="float-right"><i class="fas fa-arrow-right"></i></span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    No children linked to your account yet. Please contact the school administration.
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Recent Announcements -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-bullhorn mr-2"></i>Recent Announcements</h3>
+                        <div class="card-tools">
+                            <a href="{% url 'parent_view_announcements' %}" class="btn btn-sm btn-primary">View All</a>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush">
+                            {% for announcement in announcements %}
+                            <li class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">{{ announcement.title }}</h6>
+                                        <p class="text-muted mb-0 small">{{ announcement.content|truncatewords:30 }}</p>
+                                    </div>
+                                    <small class="text-muted">{{ announcement.publish_date|date:"M d, Y" }}</small>
+                                </div>
+                            </li>
+                            {% empty %}
+                            <li class="list-group-item text-center text-muted">
+                                <i class="fas fa-info-circle mr-1"></i> No announcements yet
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock main_content %}

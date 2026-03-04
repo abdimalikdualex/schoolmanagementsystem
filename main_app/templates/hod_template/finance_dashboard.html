@@ -1,0 +1,248 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <!-- Session filter -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <form method="get" class="form-inline">
+                    <label class="mr-2">Academic Year / Term:</label>
+                    <select name="session_id" class="form-control form-control-sm mr-2" onchange="this.form.submit()">
+                        {% for s in sessions %}
+                        <option value="{{ s.id }}" {% if session and session.id == s.id %}selected{% endif %}>
+                            {{ s }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <a href="{% url 'fee_collection' %}" class="btn btn-success btn-sm mr-2">
+                        <i class="fas fa-money-bill"></i> Record Payment
+                    </a>
+                    {% if session %}
+                    <a href="{% url 'finance_generate_invoices' %}?session_id={{ session.id }}" class="btn btn-outline-primary btn-sm" title="Create/update student invoices from fee structures">
+                        <i class="fas fa-file-invoice-dollar"></i> Generate Invoices
+                    </a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+
+        {% if not session %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> No academic session found. Please add a session first.
+        </div>
+        {% else %}
+
+        <!-- Summary Cards -->
+        <div class="row">
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-info">
+                    <div class="inner">
+                        <h3>KES {{ total_expected|floatformat:0 }}</h3>
+                        <p>Total Expected Revenue</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-chart-line"></i></div>
+                    <a href="{% url 'manage_fee_structures' %}" class="small-box-footer">Fee Structures <i class="fas fa-arrow-circle-right"></i></a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-success">
+                    <div class="inner">
+                        <h3>KES {{ total_collected|floatformat:0 }}</h3>
+                        <p>Total Collected</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-coins"></i></div>
+                    <a href="{% url 'fee_collection' %}" class="small-box-footer">Record Payment <i class="fas fa-arrow-circle-right"></i></a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-warning">
+                    <div class="inner">
+                        <h3>KES {{ total_outstanding|floatformat:0 }}</h3>
+                        <p>Total Outstanding</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
+                    <a href="#defaulters" class="small-box-footer">View Defaulters <i class="fas fa-arrow-circle-right"></i></a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-danger">
+                    <div class="inner">
+                        <h3>{{ students_with_arrears }}</h3>
+                        <p>Students with Arrears</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-user-times"></i></div>
+                    <a href="#defaulters" class="small-box-footer">View List <i class="fas fa-arrow-circle-right"></i></a>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Revenue by Class -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Revenue by Class</h3>
+                        <div class="card-tools">
+                            <button type="button" class="btn btn-tool" data-card-widget="collapse"><i class="fas fa-minus"></i></button>
+                        </div>
+                    </div>
+                    <div class="card-body table-responsive p-0">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Class</th>
+                                    <th class="text-right">Expected</th>
+                                    <th class="text-right">Paid</th>
+                                    <th class="text-right">Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in revenue_by_class %}
+                                <tr>
+                                    <td>{{ row.class }}</td>
+                                    <td class="text-right">KES {{ row.expected|floatformat:0 }}</td>
+                                    <td class="text-right text-success">KES {{ row.paid|floatformat:0 }}</td>
+                                    <td class="text-right {% if row.balance > 0 %}text-danger{% endif %}">KES {{ row.balance|floatformat:0 }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="4" class="text-center">No fee data for this session</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Defaulters List -->
+            <div class="col-md-6" id="defaulters">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Defaulters (Balance &gt; 0)</h3>
+                        <div class="card-tools">
+                            <a href="{% url 'send_fee_reminders' %}" class="btn btn-sm btn-warning"><i class="fas fa-bell"></i> Send Reminders</a>
+                        </div>
+                    </div>
+                    <div class="card-body table-responsive p-0" style="max-height: 350px;">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Class</th>
+                                    <th class="text-right">Balance</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fb in defaulters %}
+                                <tr>
+                                    <td>{{ fb.student.admin.last_name }}, {{ fb.student.admin.first_name }}</td>
+                                    <td>{{ fb.student.course|default:"-" }}</td>
+                                    <td class="text-right text-danger">KES {{ fb.balance|floatformat:0 }}</td>
+                                    <td>
+                                        <a href="{% url 'student_detail_fees' fb.student.id %}" class="btn btn-xs btn-info" title="View/Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'student_fee_statement' fb.student.id %}" class="btn btn-xs btn-secondary" title="Statement">
+                                            <i class="fas fa-file-invoice"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="4" class="text-center">No defaulters</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Recent Transactions</h3>
+                        <div class="card-tools">
+                            <a href="{% url 'fee_collection' %}" class="btn btn-sm btn-success">Record Payment</a>
+                        </div>
+                    </div>
+                    <div class="card-body table-responsive p-0">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Receipt No</th>
+                                    <th>Student</th>
+                                    <th class="text-right">Amount</th>
+                                    <th>Method</th>
+                                    <th>Paid By</th>
+                                    <th>Date</th>
+                                    <th>Recorded By</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in recent_transactions %}
+                                <tr>
+                                    <td><strong>{{ p.receipt_number }}</strong></td>
+                                    <td>{{ p.student.admin.last_name }}, {{ p.student.admin.first_name }}</td>
+                                    <td class="text-right">KES {{ p.amount|floatformat:2 }}</td>
+                                    <td>{{ p.get_payment_mode_display }}</td>
+                                    <td>{{ p.paid_by|default:"-" }}</td>
+                                    <td>{{ p.payment_date|date:"d/m/Y H:i" }}</td>
+                                    <td>{{ p.received_by.get_full_name|default:p.received_by.email|default:"-" }}</td>
+                                    <td>
+                                        <a href="{% url 'print_fee_receipt' p.id %}" class="btn btn-sm btn-info" title="Print Receipt">
+                                            <i class="fas fa-print"></i>
+                                        </a>
+                                        <a href="{% url 'student_fee_statement' p.student.id %}" class="btn btn-sm btn-secondary" title="Statement">
+                                            <i class="fas fa-file-invoice"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="8" class="text-center">No recent transactions</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card card-outline card-info">
+                    <div class="card-header">
+                        <h3 class="card-title">Reports</h3>
+                    </div>
+                    <div class="card-body">
+                        <a href="{% url 'finance_term_report' %}?session_id={{ session.id }}" class="btn btn-outline-primary mr-2">
+                            <i class="fas fa-chart-bar"></i> Term Revenue Report
+                        </a>
+                        <a href="{% url 'finance_class_report' %}?session_id={{ session.id }}" class="btn btn-outline-primary mr-2">
+                            <i class="fas fa-table"></i> Class Collection Report
+                        </a>
+                        <a href="{% url 'manage_student' %}" class="btn btn-outline-secondary mr-2" title="Select student to view statement">
+                            <i class="fas fa-file-alt"></i> Student Statement
+                        </a>
+                        <a href="{% url 'fee_collection' %}" class="btn btn-outline-success mr-2">
+                            <i class="fas fa-money-bill"></i> Fee Collection
+                        </a>
+                        <a href="{% url 'manage_fee_structures' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-sitemap"></i> Fee Structures
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% endif %}
+    </div>
+</section>
+
+{% endblock content %}

@@ -86,9 +86,9 @@ if (subject.length  == 0 || session.length == 0){
                     subject: subject,
                     session: session
                 }
-            }).done(function (response) {
-                var json_data = JSON.parse(response)
-                if (json_data.length < 1) {
+            }).done(function (data) {
+                var json_data = Array.isArray(data) ? data : (typeof data === 'string' ? JSON.parse(data) : data);
+                if (!json_data || json_data.length < 1) {
                     alert("No data to display")
                 } else {
                     var div_data = "<hr/><div class='form-group'></div><div class='form-group'> <label>Attendance Date</label><input type='date' class='form-control' name='attendance_date' id='attendance_date' ><div class='row'>"
@@ -132,11 +132,11 @@ if (subject.length  == 0 || session.length == 0){
                         session: session
             
                     }
-                }).done(function (response) {
-                    if (response == 'OK'){
+                }).done(function (data) {
+                    if (data && data.status == 'OK'){
                         alert("Saved")
                     }else{
-                        alert("Error. Please try again")
+                        alert(data && data.error ? data.error : "Error. Please try again")
                     }
                     location.reload()
                     

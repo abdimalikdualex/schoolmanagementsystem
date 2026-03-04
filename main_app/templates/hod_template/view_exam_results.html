@@ -1,0 +1,113 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">View Exam Results</h3>
+            </div>
+            <div class="card-body">
+                <form method="GET" class="mb-4">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Exam Schedule</label>
+                                <select name="exam_schedule" class="form-control">
+                                    <option value="">-- Select Exam --</option>
+                                    {% for schedule in exam_schedules %}
+                                    <option value="{{ schedule.id }}" 
+                                        {% if selected_schedule|add:"0" == schedule.id %}selected{% endif %}>
+                                        {{ schedule.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Class</label>
+                                <select name="course" class="form-control">
+                                    <option value="">-- Select Class --</option>
+                                    {% for course in courses %}
+                                    <option value="{{ course.id }}"
+                                        {% if selected_course|add:"0" == course.id %}selected{% endif %}>
+                                        {{ course }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>&nbsp;</label>
+                                <button type="submit" class="btn btn-primary btn-block">
+                                    <i class="fas fa-filter"></i> Filter
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+
+                {% if results %}
+                <div class="mb-3">
+                    <a href="{% url 'bulk_print_result_slips' %}?exam_schedule={{ selected_schedule }}&course={{ selected_course }}" 
+                        class="btn btn-success">
+                        <i class="fas fa-print"></i> Print All Result Slips
+                    </a>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th>Adm No</th>
+                                <th>Student</th>
+                                <th>Subject</th>
+                                <th>Marks</th>
+                                <th>Grade</th>
+                                <th>Points</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for result in results %}
+                            <tr>
+                                <td>{{ result.student.admission_number|default:"N/A" }}</td>
+                                <td>{{ result.student }}</td>
+                                <td>{{ result.subject.name }}</td>
+                                <td>{{ result.marks }}</td>
+                                <td>
+                                    <span class="badge {% if result.grade == 'A' %}badge-success{% elif result.grade == 'B' %}badge-primary{% elif result.grade == 'C' %}badge-info{% elif result.grade == 'D' %}badge-warning{% else %}badge-danger{% endif %}">
+                                        {{ result.grade|default:"-" }}
+                                    </span>
+                                </td>
+                                <td>{{ result.points }}</td>
+                                <td>
+                                    <a href="{% url 'print_result_slip' result.student.id result.exam_schedule.id %}" 
+                                        class="btn btn-sm btn-info" title="Print Result Slip">
+                                        <i class="fas fa-print"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% elif selected_schedule and selected_course %}
+                <div class="alert alert-info">
+                    No results found for the selected criteria.
+                </div>
+                {% else %}
+                <div class="alert alert-warning">
+                    Please select an exam schedule and class to view results.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock content %}

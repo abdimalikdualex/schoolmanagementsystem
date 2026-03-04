@@ -1,0 +1,147 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block main_content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row mb-3">
+            <div class="col-12">
+                <a href="{% url 'parent_view_children' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left mr-1"></i> Back to My Children
+                </a>
+            </div>
+        </div>
+
+        <!-- Child Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card card-primary card-outline">
+                    <div class="card-body">
+                        <div class="d-flex flex-column flex-md-row align-items-center">
+                            <div class="text-center mb-3 mb-md-0 mr-md-4">
+                                {% if student.admin.profile_pic %}
+                                <img class="rounded-circle" src="{{ student.admin.profile_pic.url }}" alt="" style="width: 80px; height: 80px; object-fit: cover;">
+                                {% else %}
+                                <img class="rounded-circle" src="{% static 'dist/img/user-default.png' %}" alt="" style="width: 80px; height: 80px;">
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1 text-center text-md-left">
+                                <h4 class="mb-1">{{ student.admin.first_name }} {{ student.admin.last_name }}</h4>
+                                <p class="text-muted mb-0">
+                                    {{ student.admission_number|default:"-" }} | 
+                                    {{ student.course.name|default:student.current_class.name|default:"No Class" }}
+                                    {% if student.current_class and student.current_class.stream %} | {{ student.current_class.stream.name }}{% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <ul class="nav nav-tabs nav-justified nav-tabs-responsive mb-3" id="childTabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" id="overview-tab" data-toggle="tab" href="#overview" role="tab">
+                    <i class="fas fa-home d-none d-md-inline"></i> Overview
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="attendance-tab" data-toggle="tab" href="#attendance" role="tab">
+                    <i class="fas fa-calendar-check d-none d-md-inline"></i> Attendance
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="subjects-tab" data-toggle="tab" href="#subjects" role="tab">
+                    <i class="fas fa-book d-none d-md-inline"></i> Subjects
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="results-tab" data-toggle="tab" href="#results" role="tab">
+                    <i class="fas fa-chart-line d-none d-md-inline"></i> Results
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="reportcards-tab" data-toggle="tab" href="#reportcards" role="tab">
+                    <i class="fas fa-file-pdf d-none d-md-inline"></i> Report Cards
+                </a>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="childTabsContent">
+            <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <a href="{% url 'parent_view_child_attendance' student.id %}" class="btn btn-info btn-block btn-lg">
+                            <i class="fas fa-calendar-check mr-2"></i>Attendance
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <a href="{% url 'parent_view_child_results' student.id %}" class="btn btn-success btn-block btn-lg">
+                            <i class="fas fa-chart-line mr-2"></i>Results
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <a href="{% url 'parent_view_child_fees' student.id %}" class="btn btn-warning btn-block btn-lg">
+                            <i class="fas fa-dollar-sign mr-2"></i>Fees
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <a href="{% url 'parent_view_child_timetable' student.id %}" class="btn btn-primary btn-block btn-lg">
+                            <i class="fas fa-clock mr-2"></i>Timetable
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <a href="{% url 'parent_view_child_homework' student.id %}" class="btn btn-secondary btn-block btn-lg">
+                            <i class="fas fa-book mr-2"></i>Homework
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <a href="{% url 'parent_view_child_class' student.id %}" class="btn btn-outline-primary btn-block btn-lg">
+                            <i class="fas fa-school mr-2"></i>Class Info
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="attendance" role="tabpanel">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <a href="{% url 'parent_view_child_attendance' student.id %}" class="btn btn-info btn-lg">
+                            <i class="fas fa-calendar-check mr-2"></i>View Full Attendance
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="subjects" role="tabpanel">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <a href="{% url 'parent_view_child_results' student.id %}" class="btn btn-success btn-lg">
+                            <i class="fas fa-chart-line mr-2"></i>View Subjects & Results
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="results" role="tabpanel">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <a href="{% url 'parent_view_child_results' student.id %}" class="btn btn-success btn-lg">
+                            <i class="fas fa-chart-line mr-2"></i>View Full Results
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="reportcards" role="tabpanel">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <a href="{% url 'parent_view_report_card' student.id %}" class="btn btn-danger btn-lg">
+                            <i class="fas fa-file-pdf mr-2"></i>View Report Cards
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock main_content %}

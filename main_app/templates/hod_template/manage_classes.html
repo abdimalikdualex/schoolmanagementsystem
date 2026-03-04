@@ -1,0 +1,127 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">{{page_title}}</h3>
+                        <div class="card-tools">
+                            <a href="{% url 'add_class' %}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus"></i> Add New Class
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <select id="filterGrade" class="form-control">
+                                    <option value="">All Grade Levels</option>
+                                    {% for grade in grade_levels %}
+                                    <option value="{{ grade.code }}">{{ grade.code }} - {{ grade.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <select id="filterStream" class="form-control">
+                                    <option value="">All Streams</option>
+                                    {% for stream in streams %}
+                                    <option value="{{ stream.name }}">{{ stream.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <table id="classTable" class="table table-bordered table-hover">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Class Name</th>
+                                    <th>Grade Level</th>
+                                    <th>Stream</th>
+                                    <th>Class Teacher</th>
+                                    <th>Academic Year</th>
+                                    <th>Students</th>
+                                    <th>Capacity</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for class in classes %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td><strong>{{ class.name }}</strong></td>
+                                    <td>
+                                        {% if class.grade_level %}
+                                        <span class="badge badge-info">{{ class.grade_level.code }}</span>
+                                        <small>{{ class.grade_level.stage }}</small>
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ class.stream|default:"-" }}</td>
+                                    <td>{{ class.class_teacher|default:"-" }}</td>
+                                    <td>{{ class.academic_year|default:"-" }}</td>
+                                    <td>
+                                        <span class="badge badge-primary">{{ class.current_enrollment_count }}</span>
+                                    </td>
+                                    <td>{{ class.capacity }}</td>
+                                    <td>
+                                        {% if class.is_active %}
+                                        <span class="badge badge-success">Active</span>
+                                        {% else %}
+                                        <span class="badge badge-danger">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a href="{% url 'edit_class' class.id %}" class="btn btn-info btn-sm" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'view_class_students' class.id %}" class="btn btn-primary btn-sm" title="View Students">
+                                                <i class="fas fa-users"></i>
+                                            </a>
+                                            <a href="{% url 'view_class_timetable' class.id %}" class="btn btn-secondary btn-sm" title="Timetable">
+                                                <i class="fas fa-calendar-alt"></i>
+                                            </a>
+                                            <a href="{% url 'delete_class' class.id %}" 
+                                               onclick="return confirm('Are you sure you want to deactivate this class?')" 
+                                               class="btn btn-danger btn-sm" title="Deactivate">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="10" class="text-center">No classes found. <a href="{% url 'add_class' %}">Add a new class</a></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+$(document).ready(function() {
+    var table = $('#classTable').DataTable();
+    
+    $('#filterGrade').on('change', function() {
+        table.column(2).search(this.value).draw();
+    });
+    
+    $('#filterStream').on('change', function() {
+        table.column(3).search(this.value).draw();
+    });
+});
+</script>
+{% endblock content %}

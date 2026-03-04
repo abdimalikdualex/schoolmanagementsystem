@@ -1,0 +1,86 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">{{page_title}}</h3>
+                        <div class="card-tools">
+                            <a href="{% url 'add_enrollment' %}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus"></i> New Enrollment
+                            </a>
+                            <a href="{% url 'bulk_enrollment' %}" class="btn btn-success btn-sm">
+                                <i class="fas fa-users"></i> Bulk Enrollment
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <table id="enrollmentTable" class="table table-bordered table-hover">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Student</th>
+                                    <th>Admission No.</th>
+                                    <th>Class</th>
+                                    <th>Grade Level</th>
+                                    <th>Academic Year</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for enrollment in enrollments %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ enrollment.student }}</td>
+                                    <td>{{ enrollment.student.admission_number|default:"-" }}</td>
+                                    <td>{{ enrollment.school_class.name }}</td>
+                                    <td>
+                                        {% if enrollment.school_class.grade_level %}
+                                        <span class="badge badge-info">{{ enrollment.school_class.grade_level.code }}</span>
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ enrollment.academic_year }}</td>
+                                    <td>
+                                        {% if enrollment.status == 'active' %}
+                                        <span class="badge badge-success">Active</span>
+                                        {% elif enrollment.status == 'promoted' %}
+                                        <span class="badge badge-primary">Promoted</span>
+                                        {% elif enrollment.status == 'transferred' %}
+                                        <span class="badge badge-warning">Transferred</span>
+                                        {% elif enrollment.status == 'completed' %}
+                                        <span class="badge badge-info">Completed</span>
+                                        {% else %}
+                                        <span class="badge badge-secondary">{{ enrollment.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if enrollment.status == 'active' %}
+                                        <a href="{% url 'transfer_student' enrollment.id %}" class="btn btn-warning btn-sm">
+                                            <i class="fas fa-exchange-alt"></i> Transfer
+                                        </a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center">No enrollments found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

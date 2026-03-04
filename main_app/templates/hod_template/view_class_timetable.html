@@ -1,0 +1,163 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block main_content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-calendar-alt mr-2"></i>
+                            Class Timetable: {{ course.name }}
+                        </h3>
+                        <div class="card-tools">
+                            <a href="{% url 'manage_classes' %}" class="btn btn-sm btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to Classes
+                            </a>
+                            <a href="{% url 'manage_timetable' %}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-edit"></i> Manage Timetable
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {% if course.grade_level %}
+                        <div class="mb-3">
+                            <span class="badge badge-info">Grade: {{ course.grade_level.name }}</span>
+                            {% if course.stream %}
+                            <span class="badge badge-secondary">Stream: {{ course.stream.name }}</span>
+                            {% endif %}
+                            {% if course.class_teacher %}
+                            <span class="badge badge-success">Class Teacher: {{ course.class_teacher.admin.first_name }} {{ course.class_teacher.admin.last_name }}</span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        {% for day, day_entries in timetable_by_day.items %}
+                        <div class="card card-outline card-primary mb-3">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-calendar-day mr-2"></i>
+                                    {{ day|title }}
+                                </h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover mb-0">
+                                        <thead class="thead-light">
+                                            <tr>
+                                                <th style="width: 120px;">Time</th>
+                                                <th>Subject</th>
+                                                <th>Teacher</th>
+                                                <th style="width: 100px;">Room</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for tt in day_entries %}
+                                            <tr>
+                                                <td>
+                                                    <span class="badge badge-dark">
+                                                        {{ tt.start_time|time:"H:i" }} - {{ tt.end_time|time:"H:i" }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <strong>{{ tt.subject.name }}</strong>
+                                                </td>
+                                                <td>
+                                                    {% if tt.staff %}
+                                                    {{ tt.staff.admin.first_name }} {{ tt.staff.admin.last_name }}
+                                                    {% else %}
+                                                    <span class="text-muted">Not assigned</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if tt.room %}
+                                                    {{ tt.room }}
+                                                    {% else %}
+                                                    <span class="text-muted">-</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% empty %}
+                                            <tr>
+                                                <td colspan="4" class="text-center text-muted py-3">
+                                                    <i class="fas fa-info-circle mr-1"></i>
+                                                    No classes scheduled for {{ day|title }}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Weekly Overview -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-table mr-2"></i>
+                            Weekly Overview
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-sm">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>Time</th>
+                                        {% for day in days %}
+                                        <th class="text-center">{{ day|title|slice:":3" }}</th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% comment %}
+                                    This section would ideally show a grid view of the timetable
+                                    For now, we show a summary
+                                    {% endcomment %}
+                                    <tr>
+                                        <td colspan="{{ days|length|add:1 }}" class="text-center text-muted">
+                                            <small>View the daily breakdown above for detailed schedule</small>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Print Button -->
+        <div class="row mt-3">
+            <div class="col-12 text-right">
+                <button onclick="window.print()" class="btn btn-info">
+                    <i class="fas fa-print mr-1"></i> Print Timetable
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+@media print {
+    .card-tools, .btn, .main-sidebar, .main-header, .main-footer {
+        display: none !important;
+    }
+    .content-wrapper {
+        margin-left: 0 !important;
+    }
+}
+</style>
+{% endblock main_content %}

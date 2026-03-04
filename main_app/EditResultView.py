@@ -8,6 +8,13 @@ from django.urls import reverse
 
 class EditResultView(View):
     def get(self, request, *args, **kwargs):
+        from .result_entry_permissions import can_teacher_enter_legacy_results
+        if not request.user.is_superuser and request.user.user_type != '1':
+            if not can_teacher_enter_legacy_results(request):
+                return render(request, "staff_template/result_entry_closed.html", {
+                    'page_title': "Result Entry Closed",
+                    'message': "Result upload is currently closed. Please contact the administrator."
+                }, status=403)
         resultForm = EditResultForm()
         # Allow staff to edit only their subjects; superuser can edit all
         try:
@@ -28,6 +35,13 @@ class EditResultView(View):
         return render(request, "staff_template/edit_student_result.html", context)
 
     def post(self, request, *args, **kwargs):
+        from .result_entry_permissions import can_teacher_enter_legacy_results
+        if not request.user.is_superuser and request.user.user_type != '1':
+            if not can_teacher_enter_legacy_results(request):
+                return render(request, "staff_template/result_entry_closed.html", {
+                    'page_title': "Result Entry Closed",
+                    'message': "Result upload is currently closed. Please contact the administrator."
+                }, status=403)
         form = EditResultForm(request.POST)
         context = {'form': form, 'page_title': "Edit Student's Result"}
         if form.is_valid():

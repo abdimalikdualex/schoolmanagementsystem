@@ -22,20 +22,21 @@
                                     <th>Email</th>
                                     <th>Gender</th>
                                     <th>Admission Number</th>
-                                    <th>Course</th>
+                                    <th>Class</th>
                                     <th>Avatar</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for student in students %}
+                                {% if student.student and student.student.id %}
                                 <tr>
                                     <td>{{ forloop.counter }}</td>
                                     <td>{{student.last_name}}, {{student.first_name}}</td>
                                     <td>{{student.email}}</td>
                                     <td>{{student.gender}}</td>
-                                    <td>{{ student.student.admission_number }}</td>
-                                    <td>{{student.student.course.name}}</td>
+                                    <td>{{ student.student.admission_number|default:"-" }}</td>
+                                    <td>{{student.student.course.name|default:"-"}}</td>
                                     <td>
                                         {% if student.profile_pic == ""  %}
                                         No Image
@@ -45,11 +46,19 @@
                                         {% endif %}
                                     </td>
                                     
-                                    <td><a href="{% url 'edit_student' student.student.id %}" class="btn btn-info">Edit</a> -
-                                        <a href="{% url 'delete_student' student.student.id %}" class="btn btn-danger" onclick="return confirm('Are you sure about this ?')">Delete</a>
-
+                                    <td>
+                                        <a href="{% url 'edit_student' student.student.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                        <a href="{% url 'student_detail' student.student.id %}" class="btn btn-sm btn-outline-success">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                        <a href="{% url 'delete_student' student.student.id %}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure about this ?')">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </a>
                                     </td>
                                 </tr>
+                                {% endif %}
                                 {% endfor %}
                             </tbody>
                         </table>

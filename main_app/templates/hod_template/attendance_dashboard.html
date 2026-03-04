@@ -1,0 +1,122 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <!-- Stats Row -->
+        <div class="row">
+            <div class="col-lg-4 col-6">
+                <div class="small-box bg-success">
+                    <div class="inner">
+                        <h3>{{ classes_marked }}</h3>
+                        <p>Classes Marked Today</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-check-circle"></i></div>
+                </div>
+            </div>
+            <div class="col-lg-4 col-6">
+                <div class="small-box bg-warning">
+                    <div class="inner">
+                        <h3>{{ classes_pending.count }}</h3>
+                        <p>Classes Pending</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-clock"></i></div>
+                </div>
+            </div>
+            <div class="col-lg-4 col-6">
+                <div class="small-box bg-info">
+                    <div class="inner">
+                        <h3>{{ total_classes }}</h3>
+                        <p>Total Classes</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-school"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Classes Pending -->
+            <div class="col-md-6">
+                <div class="card card-warning">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-exclamation-triangle"></i> 
+                            Classes Without Attendance Today ({{ today|date:"d/m/Y" }})
+                        </h3>
+                    </div>
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush">
+                            {% for course in classes_pending %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ course }}
+                                <a href="{% url 'take_class_attendance' %}?class={{ course.id }}" 
+                                    class="btn btn-sm btn-primary">
+                                    <i class="fas fa-clipboard-check"></i> Take Attendance
+                                </a>
+                            </li>
+                            {% empty %}
+                            <li class="list-group-item text-success text-center">
+                                <i class="fas fa-check-circle"></i> All classes have attendance marked!
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="card-footer">
+                        <a href="{% url 'take_class_attendance' %}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Take Attendance
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Attendance -->
+            <div class="col-md-6">
+                <div class="card card-info">
+                    <div class="card-header">
+                        <h3 class="card-title">Recent Attendance Records</h3>
+                    </div>
+                    <div class="card-body table-responsive p-0" style="max-height: 400px;">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Class</th>
+                                    <th>Present</th>
+                                    <th>Absent</th>
+                                    <th>%</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for attendance in recent_attendance %}
+                                <tr>
+                                    <td>{{ attendance.date|date:"d/m" }}</td>
+                                    <td>
+                                        <a href="{% url 'view_class_attendance' attendance.school_class.id %}">
+                                            {{ attendance.school_class }}
+                                        </a>
+                                    </td>
+                                    <td class="text-success">{{ attendance.present_count }}</td>
+                                    <td class="text-danger">{{ attendance.absent_count }}</td>
+                                    <td>
+                                        <span class="badge {% if attendance.attendance_percentage >= 90 %}badge-success{% elif attendance.attendance_percentage >= 70 %}badge-warning{% else %}badge-danger{% endif %}">
+                                            {{ attendance.attendance_percentage }}%
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center">No attendance records found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock content %}

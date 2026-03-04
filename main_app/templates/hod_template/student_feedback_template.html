@@ -116,8 +116,8 @@
                           id:id,
                           reply:reply
                     }
-                }).done(function(response){
-                    if (response == "True"){
+                }).done(function(data){
+                    if (data && data.success){
                         alert("Reply Sent")
                         location.reload()
                     }else{
