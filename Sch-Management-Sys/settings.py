@@ -17,6 +17,7 @@ DEBUG = config("DEBUG", default=True, cast=bool)
 
 # Add your Render domain here
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost").split(",")
+ALLOWED_HOSTS = ["schoolmanagementsystem-rr6g.onrender.com"]
 
 # -------------------------------
 # APPLICATIONS
