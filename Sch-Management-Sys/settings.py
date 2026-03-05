@@ -13,11 +13,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY
 # -------------------------------
 SECRET_KEY = config("SECRET_KEY", default="unsafe-secret-key")
-DEBUG = config("DEBUG", default=True, cast=bool)
+DEBUG = config("DEBUG", default=False, cast=bool)
 
-# Add your Render domain here
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost").split(",")
-ALLOWED_HOSTS = ["schoolmanagementsystem-rr6g.onrender.com"]
+# -------------------------------
+# ALLOWED HOSTS
+# -------------------------------
+# Read from environment variable, default to localhost and Render domain
+ALLOWED_HOSTS = config(
+    "ALLOWED_HOSTS",
+    default="127.0.0.1,localhost,schoolmanagementsystem-rr6g.onrender.com"
+).split(",")
 
 # -------------------------------
 # APPLICATIONS
@@ -30,7 +35,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     # Your apps here
-    "school_app",  # example, replace with your apps
+    "school_app",  # replace with your actual apps
 ]
 
 # -------------------------------
@@ -104,7 +109,7 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Use Whitenoise storage for better performance
+# Use Whitenoise storage for compressed files
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # -------------------------------
@@ -119,9 +124,8 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # -------------------------------
-# OTHER SETTINGS
+# EMAIL SETTINGS
 # -------------------------------
-# Example: Email backend for sending verification emails
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = config("EMAIL_HOST", default="smtp.gmail.com")
 EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
