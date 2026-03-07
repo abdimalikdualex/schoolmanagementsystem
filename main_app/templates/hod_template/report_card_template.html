@@ -1,0 +1,101 @@
+{% extends 'hod_template/report_card_base.html' %}
+{% load static %}
+{% block title %}Report Card - {{ student.admin.last_name }}, {{ student.admin.first_name }}{% endblock %}
+
+{% block report_card_content %}
+<div class="report-card-container" style="font-family: 'Times New Roman', serif;">
+    <!-- School Header -->
+    <div class="text-center mb-4" style="border-bottom: 2px solid #1a1a1a; padding-bottom: 15px;">
+        {% if school.logo %}
+        <img src="{{ school.logo.url }}" alt="School Logo" style="max-height: 80px; margin-bottom: 10px;">
+        {% elif settings.school_logo %}
+        <img src="{{ settings.school_logo.url }}" alt="School Logo" style="max-height: 80px; margin-bottom: 10px;">
+        {% else %}
+        <div style="height: 60px; line-height: 60px; color: #999; font-size: 12px;">[School Logo]</div>
+        {% endif %}
+        <h2 style="margin: 5px 0; font-size: 22px; font-weight: bold;">{{ settings.school_name|default:school.name }}</h2>
+        <p style="margin: 3px 0; font-size: 12px;">{{ settings.school_address|default:school.address|default:"" }}</p>
+        <p style="margin: 3px 0; font-size: 12px;">Tel: {{ settings.school_phone|default:school.phone|default:"" }}</p>
+        <hr style="border: none; border-top: 1px solid #ccc; margin: 10px 0;">
+        <h3 style="margin-top: 15px; font-size: 16px;">ACADEMIC REPORT CARD</h3>
+        <p style="font-size: 13px;">Academic Year: {{ academic_term.academic_year }} | Term: {{ academic_term.term_name }}</p>
+    </div>
+
+    <!-- Student Information (two-column: Left = Name, Class, Gender | Right = Admission No, Stream, Term) -->
+    <div class="mb-4" style="border: 1px solid #333; padding: 12px;">
+        <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+            <tr>
+                <td style="width: 50%; vertical-align: top; padding-right: 20px;">
+                    <p style="margin: 4px 0;"><strong>Student Name:</strong> {{ student.admin.last_name }}, {{ student.admin.first_name }}</p>
+                    <p style="margin: 4px 0;"><strong>Class:</strong> {{ school_class.name|default:"-" }}</p>
+                    <p style="margin: 4px 0;"><strong>Gender:</strong> {{ student.admin.gender|default:"-" }}</p>
+                </td>
+                <td style="width: 50%; vertical-align: top;">
+                    <p style="margin: 4px 0;"><strong>Admission No:</strong> {{ student.admission_number|default:"-" }}</p>
+                    <p style="margin: 4px 0;"><strong>Stream:</strong> {% if school_class.stream %}{{ school_class.stream.name }}{% else %}-{% endif %}</p>
+                    <p style="margin: 4px 0;"><strong>Term:</strong> {{ academic_term.term_name }}</p>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Marks Table -->
+    <table class="report-card-marks-table" style="width: 100%; font-size: 11px; border-collapse: collapse;">
+        <thead class="marks-header" style="background: #2c3e50; color: white;">
+            <tr>
+                <th style="padding: 8px; text-align: left; border: 1px solid #333;">Subject</th>
+                <th style="padding: 8px; text-align: center; border: 1px solid #333;">Opener</th>
+                <th style="padding: 8px; text-align: center; border: 1px solid #333;">Midterm</th>
+                <th style="padding: 8px; text-align: center; border: 1px solid #333;">Endterm</th>
+                <th style="padding: 8px; text-align: center; border: 1px solid #333;">Average</th>
+                <th style="padding: 8px; text-align: center; border: 1px solid #333;">Grade</th>
+                <th style="padding: 8px; text-align: center; border: 1px solid #333;">Points</th>
+                <th style="padding: 8px; text-align: left; border: 1px solid #333;">Remarks</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in results %}
+            <tr>
+                <td style="padding: 6px; border: 1px solid #333;">{{ r.subject.name }}</td>
+                <td style="padding: 6px; text-align: center; border: 1px solid #333;">{{ r.opener_marks|floatformat:0 }}</td>
+                <td style="padding: 6px; text-align: center; border: 1px solid #333;">{{ r.midterm_marks|floatformat:0 }}</td>
+                <td style="padding: 6px; text-align: center; border: 1px solid #333;">{{ r.endterm_marks|floatformat:0 }}</td>
+                <td style="padding: 6px; text-align: center; border: 1px solid #333; font-weight: bold;">{{ r.average|floatformat:1 }}</td>
+                <td style="padding: 6px; text-align: center; border: 1px solid #333; font-weight: bold;">{{ r.grade|default:"-" }}</td>
+                <td style="padding: 6px; text-align: center; border: 1px solid #333;">{{ r.points|floatformat:0 }}</td>
+                <td style="padding: 6px; border: 1px solid #333;">{{ r.remarks|default:"-" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-center" style="padding: 20px; color: #999;">No results entered. Please enter marks first.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Summary Section -->
+    <p class="mb-3" style="margin: 12px 0; font-size: 12px; border-bottom: 1px solid #ccc; padding-bottom: 8px;">
+        <strong>Summary:</strong> Total Points: {{ total_points|floatformat:1 }} | Total Subjects: {{ total_subjects }} | Mean Score: {{ mean_score }} | Mean Grade: {{ mean_grade }} | Position in Class: {{ position_in_class|default:"-" }}
+    </p>
+
+    <!-- Comments Section (with underline for signature when empty) -->
+    <div class="mb-3" style="margin: 12px 0;">
+        <p style="margin: 8px 0; font-size: 12px;"><strong>Class Teacher Comment:</strong> {{ class_teacher_comment|default:"_________________________" }}</p>
+        <p style="margin: 8px 0; font-size: 12px;"><strong>Head Teacher Comment:</strong> {{ head_teacher_comment|default:"_________________________" }}</p>
+        <p style="margin: 8px 0; font-size: 12px;"><strong>Student Conduct:</strong> {{ student_conduct|default:"_________________________" }}</p>
+    </div>
+
+    <!-- Attendance Section -->
+    <p style="margin: 12px 0; font-size: 12px;">
+        <strong>Attendance:</strong> Days Open: {{ days_open }} | Days Present: {{ days_present }} | Days Absent: {{ days_absent }}
+    </p>
+</div>
+{% endblock report_card_content %}
+
+{% block report_card_actions %}
+<div class="no-print">
+    <button onclick="window.print()" class="btn btn-primary"><i class="fas fa-print"></i> Print</button>
+    <a href="{% url 'report_card_pdf' student.id academic_term.id %}" class="btn btn-danger"><i class="fas fa-file-pdf"></i> Download PDF</a>
+    <a href="{% url 'report_card_list' %}" class="btn btn-secondary">Back to List</a>
+</div>
+{% endblock report_card_actions %}

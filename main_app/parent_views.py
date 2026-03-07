@@ -21,7 +21,7 @@ def parent_home(request):
     children = parent.children.all().select_related('admin', 'course', 'current_class')
     
     total_children = children.count()
-    active_term = AcademicTerm.get_active_term()
+    active_term = AcademicTerm.get_active_term(school=getattr(request, 'school', None))
     
     # Get announcements for parents
     announcements = Announcement.objects.filter(

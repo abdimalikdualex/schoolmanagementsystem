@@ -1,0 +1,57 @@
+{% extends 'super_admin_template/super_admin_base.html' %}
+{% load static %}
+{% block page_title %}Create School{% endblock page_title %}
+{% block content_title %}Create School{% endblock content_title %}
+{% block breadcrumb %}Create School{% endblock breadcrumb %}
+{% block content %}
+<div class="row">
+            <div class="col-md-8 offset-md-2">
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title">Create New School</h3>
+                        <div class="card-tools">
+                            <a href="{% url 'super_admin_dashboard' %}" class="btn btn-sm btn-secondary">Back to Dashboard</a>
+                        </div>
+                    </div>
+                    <form method="post" action="">
+                        {% csrf_token %}
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="name">School Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" name="name" required placeholder="e.g., ABC Primary School">
+                            </div>
+                            <div class="form-group">
+                                <label for="code">School Code <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="code" name="code" required maxlength="20" placeholder="e.g., ABC001 (unique per school)">
+                            </div>
+                            <div class="form-group">
+                                <label for="email">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" placeholder="school@example.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="phone">Phone</label>
+                                <input type="text" class="form-control" id="phone" name="phone" placeholder="Phone number">
+                            </div>
+                            <div class="form-group">
+                                <label for="address">Address</label>
+                                <textarea class="form-control" id="address" name="address" rows="3" placeholder="Physical address"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="subscription_plan">Subscription Plan</label>
+                                <select class="form-control" id="subscription_plan" name="subscription_plan">
+                                    <option value="">— No plan (unlimited) —</option>
+                                    {% for plan in plans %}
+                                    <option value="{{ plan.id }}">{{ plan.name }} ({{ plan.student_limit }} students, {{ plan.teacher_limit }} teachers)</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-primary">Create School</button>
+                            <a href="{% url 'super_admin_dashboard' %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+{% endblock content %}

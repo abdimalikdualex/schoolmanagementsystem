@@ -278,12 +278,18 @@ def format_results_message(student, results):
 # BULK SMS AND QUEUE PROCESSING FUNCTIONS
 # ============================================
 
-def get_school_settings():
-    """Get school settings for SMS configuration"""
+def get_school_settings(school=None):
+    """
+    Get school settings for SMS/config. Multi-tenant: pass school for tenant-specific settings.
+    When school is None, returns first available (legacy single-school or default).
+    """
     from .models import SchoolSettings
-    settings_obj = SchoolSettings.objects.first()
+    if school is not None:
+        settings_obj = SchoolSettings.objects.filter(school=school).first()
+    else:
+        settings_obj = SchoolSettings.objects.first()
     if not settings_obj:
-        settings_obj = SchoolSettings.objects.create(school_name="School Name")
+        settings_obj = SchoolSettings.objects.create(school_name="School Name", school=school)
     return settings_obj
 
 

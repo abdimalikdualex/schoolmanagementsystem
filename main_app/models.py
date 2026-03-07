@@ -34,7 +34,102 @@ class CustomUserManager(UserManager):
         return self._create_user(email, password, **extra_fields)
 
 
+# ============================================
+# MULTI-TENANT: SUBSCRIPTION & SCHOOL MODELS
+# ============================================
+
+class SubscriptionPlan(models.Model):
+    """
+    Subscription plans for schools. Owner assigns plans and enforces limits.
+    """
+    name = models.CharField(max_length=50, unique=True)  # Starter, Standard, Premium
+    student_limit = models.PositiveIntegerField(default=100, help_text="Max students allowed")
+    teacher_limit = models.PositiveIntegerField(default=20, help_text="Max teachers allowed")
+    description = models.TextField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['student_limit']
+        verbose_name = "Subscription Plan"
+        verbose_name_plural = "Subscription Plans"
+
+    def __str__(self):
+        return self.name
+
+
+class School(models.Model):
+    """
+    Represents a tenant institution in the multi-school platform.
+    All school-scoped data is isolated by school_id.
+    Schools must be approved by Platform Owner before they can access the system.
+    """
+    STATUS_CHOICES = (
+        ('pending', 'Pending Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('suspended', 'Suspended'),
+    )
+    name = models.CharField(max_length=200)
+    code = models.CharField(max_length=20, unique=True, help_text="Unique code e.g., SCH001, used for subdomain")
+    email = models.EmailField(blank=True, null=True)
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
+    logo = models.ImageField(upload_to='schools/', blank=True, null=True)
+    subscription_plan = models.ForeignKey(
+        SubscriptionPlan,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='schools',
+        help_text="Plan controls student/teacher limits"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+        help_text="Only approved schools can access the system"
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = "School"
+        verbose_name_plural = "Schools"
+
+    def __str__(self):
+        return self.name
+
+    def get_student_count(self):
+        from django.apps import apps
+        Student = apps.get_model('main_app', 'Student')
+        return Student.objects.filter(admin__school=self).count()
+
+    def get_teacher_count(self):
+        from django.apps import apps
+        Staff = apps.get_model('main_app', 'Staff')
+        return Staff.objects.filter(admin__school=self).count()
+
+    def can_add_student(self):
+        """Check if school can add more students based on plan limit."""
+        if not self.subscription_plan:
+            return True
+        return self.get_student_count() < self.subscription_plan.student_limit
+
+    def can_add_teacher(self):
+        """Check if school can add more teachers based on plan limit."""
+        if not self.subscription_plan:
+            return True
+        return self.get_teacher_count() < self.subscription_plan.teacher_limit
+
+
 class Session(models.Model):
+    """
+    Academic session (year + term). Used for enrollment, attendance, and grading.
+    Each session belongs to a school for multi-tenant isolation.
+    """
     TERM_CHOICES = [
         ('term1', 'Term I (January-April)'),
         ('term2', 'Term II (May-August)'),
@@ -45,6 +140,14 @@ class Session(models.Model):
         'term2': ((5, 1), (8, 31)),   # May 1 - Aug 31
         'term3': ((9, 1), (12, 31)),  # Sep 1 - Dec 31
     }
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='sessions',
+        help_text="Null for legacy data; required for multi-tenant"
+    )
     academic_year = models.IntegerField(help_text="e.g., 2026", default=2026)
     term = models.CharField(max_length=10, choices=TERM_CHOICES, default='term1')
     start_year = models.DateField()  # Computed from academic_year + term
@@ -77,6 +180,14 @@ class AcademicTerm(models.Model):
         ('active', 'Active'),
         ('closed', 'Closed'),
     ]
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='academic_terms',
+        help_text="Null for legacy data; required for multi-tenant"
+    )
     academic_year = models.IntegerField(help_text="e.g., 2025")
     term_name = models.CharField(max_length=50, help_text="e.g., Term 1, Term 2, Term 3")
     start_date = models.DateField()
@@ -98,20 +209,19 @@ class AcademicTerm(models.Model):
         from django.core.exceptions import ValidationError
         if self.end_date and self.start_date and self.end_date <= self.start_date:
             raise ValidationError({'end_date': 'End date must be after start date.'})
-        # Check overlap with other terms in same year
-        if self.pk is None:
-            overlapping = AcademicTerm.objects.filter(
-                academic_year=self.academic_year
-            ).filter(
-                models.Q(start_date__lte=self.end_date, end_date__gte=self.start_date)
-            )
+        # Check overlap with other terms in same year AND same school (multi-tenant)
+        overlap_qs = AcademicTerm.objects.filter(
+            academic_year=self.academic_year
+        ).filter(
+            models.Q(start_date__lte=self.end_date, end_date__gte=self.start_date)
+        )
+        if self.school_id:
+            overlap_qs = overlap_qs.filter(school=self.school)
         else:
-            overlapping = AcademicTerm.objects.filter(
-                academic_year=self.academic_year
-            ).exclude(pk=self.pk).filter(
-                models.Q(start_date__lte=self.end_date, end_date__gte=self.start_date)
-            )
-        if overlapping.exists():
+            overlap_qs = overlap_qs.filter(school__isnull=True)
+        if self.pk:
+            overlap_qs = overlap_qs.exclude(pk=self.pk)
+        if overlap_qs.exists():
             raise ValidationError(
                 'Term dates overlap with another term in the same academic year.'
             )
@@ -119,14 +229,20 @@ class AcademicTerm(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         if self.status == 'active':
-            # Only one active term: close all others before saving
-            AcademicTerm.objects.exclude(pk=self.pk).update(status='closed')
+            # Only one active term per school: close others in same school
+            qs = AcademicTerm.objects.exclude(pk=self.pk)
+            if self.school_id:
+                qs = qs.filter(school=self.school)
+            qs.update(status='closed')
         super().save(*args, **kwargs)
 
     @classmethod
-    def get_active_term(cls):
-        """Returns the single active term, or None."""
-        return cls.objects.filter(status='active').first()
+    def get_active_term(cls, school=None):
+        """Returns the single active term for the school, or None. If school is None, returns first active (legacy)."""
+        qs = cls.objects.filter(status='active')
+        if school is not None:
+            qs = qs.filter(school=school)
+        return qs.first()
 
     def activate(self):
         """Set this term as active; close all others."""
@@ -154,11 +270,18 @@ class GradeLevel(models.Model):
         ('senior_secondary', 'Senior Secondary'),
         ('form', 'Form (8-4-4)'),  # Form 1–4
     ]
-    
-    code = models.CharField(max_length=10, unique=True, help_text="e.g., PP1, G1-G6, F1-F4")
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='grade_levels',
+        help_text="Null for legacy data; required for multi-tenant"
+    )
+    code = models.CharField(max_length=10, help_text="e.g., PP1, G1-G6, F1-F4")
     name = models.CharField(max_length=50, help_text="e.g., Grade 1, Form 1")
     stage = models.CharField(max_length=20, choices=STAGE_CHOICES)
-    order_index = models.PositiveIntegerField(unique=True, help_text="For promotion sequence")
+    order_index = models.PositiveIntegerField(help_text="For promotion sequence")
     description = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -167,12 +290,17 @@ class GradeLevel(models.Model):
     def __str__(self):
         return f"{self.code} - {self.name}"
 
-    def get_next_grade(self):
+    def get_next_grade(self, school=None):
         """Get the next grade level for promotion"""
-        return GradeLevel.objects.filter(
+        qs = GradeLevel.objects.filter(
             order_index=self.order_index + 1,
             is_active=True
-        ).first()
+        )
+        if school is not None:
+            qs = qs.filter(school=school)
+        elif self.school_id:
+            qs = qs.filter(school=self.school)
+        return qs.first()
 
     class Meta:
         ordering = ['order_index']
@@ -181,13 +309,27 @@ class GradeLevel(models.Model):
 
 
 class CustomUser(AbstractUser):
-    USER_TYPE = ((1, "HOD"), (2, "Staff"), (3, "Student"), (4, "Parent"), (5, "Finance Officer"))
+    USER_TYPE = (
+        (0, "Super Admin"),  # Platform owner - no school, manages all schools
+        (1, "HOD"),          # School Admin
+        (2, "Staff"),        # Teacher
+        (3, "Student"),
+        (4, "Parent"),
+        (5, "Finance Officer"),
+    )
     GENDER = [("M", "Male"), ("F", "Female")]
-    
-    
+
     username = None  # Removed username, using email instead
     email = models.EmailField(unique=True)
     user_type = models.CharField(default=1, choices=USER_TYPE, max_length=1)
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='users',
+        help_text="Null for Super Admin; required for all other roles"
+    )
     gender = models.CharField(max_length=1, choices=GENDER)
     profile_pic = models.ImageField(blank=True, null=True)
     address = models.TextField()
@@ -209,6 +351,14 @@ class Admin(models.Model):
 
 class Stream(models.Model):
     """Class streams (e.g., East, West, Blue, North)"""
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='streams',
+        help_text="Null for legacy data; required for multi-tenant"
+    )
     name = models.CharField(max_length=50)
     code = models.CharField(max_length=10, blank=True, null=True, help_text="Short code e.g., E, W, B")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -230,6 +380,14 @@ class SchoolClass(models.Model):
     Class entity - represents a group of learners in a grade and stream.
     Kenyan structure: CBC (Grade 1–6, Junior Secondary, Senior Secondary) or 8-4-4 (Form 1–4).
     """
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='classes',
+        help_text="Null for legacy data; required for multi-tenant"
+    )
     name = models.CharField(max_length=120, help_text="e.g., Grade 4 East, Form 2 Blue")
     grade_level = models.ForeignKey(
         GradeLevel, 
@@ -302,6 +460,14 @@ Course = SchoolClass
 
 class AdmissionSetting(models.Model):
     """Stores admission numbering configuration."""
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='admission_settings',
+        help_text="Null for legacy data; one per school for multi-tenant"
+    )
     prefix = models.CharField(max_length=10, default='ADM')
     start_number = models.PositiveIntegerField(default=1000)
     next_number = models.PositiveIntegerField(default=1000)
@@ -1428,6 +1594,66 @@ class StudentTermResult(models.Model):
 
 
 # ============================================
+# KNEC REPORT CARD MODELS
+# ============================================
+
+class KNECReportCardResult(models.Model):
+    """
+    Kenyan KNEC-based report card marks per subject per student per term.
+    Stores Opener, Midterm, End-Term exam marks. Average = (Opener + Midterm + Endterm) / 3.
+    Grade, points, remarks calculated using KNEC grading scale.
+    """
+    student = models.ForeignKey(
+        Student, on_delete=models.CASCADE, related_name='knec_report_results'
+    )
+    subject = models.ForeignKey(
+        Subject, on_delete=models.CASCADE, related_name='knec_report_results'
+    )
+    academic_term = models.ForeignKey(
+        'AcademicTerm', on_delete=models.CASCADE, related_name='knec_report_results',
+        help_text="Term for this result"
+    )
+    session = models.ForeignKey(
+        Session, on_delete=models.CASCADE, related_name='knec_report_results',
+        null=True, blank=True, help_text="Academic year/session"
+    )
+    opener_marks = models.FloatField(default=0, help_text="Opener exam marks (out of 100)")
+    midterm_marks = models.FloatField(default=0, help_text="Midterm exam marks (out of 100)")
+    endterm_marks = models.FloatField(default=0, help_text="End-term exam marks (out of 100)")
+    average = models.FloatField(default=0, help_text="(Opener + Midterm + Endterm) / 3")
+    grade = models.CharField(max_length=5, blank=True, null=True)
+    points = models.FloatField(default=0)
+    remarks = models.CharField(max_length=50, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.student} - {self.subject} - {self.get_term_display()}"
+
+    def get_term_display(self):
+        return str(self.academic_term) if self.academic_term else "N/A"
+
+    def calculate_average_and_grade(self):
+        """Calculate average and KNEC grade from opener, midterm, endterm."""
+        from .knec_utils import get_knec_grade
+        o = self.opener_marks or 0
+        m = self.midterm_marks or 0
+        e = self.endterm_marks or 0
+        self.average = round((o + m + e) / 3, 2)  # KNEC: (Opener + Midterm + Endterm) / 3
+        self.grade, self.points, self.remarks = get_knec_grade(self.average)
+
+    def save(self, *args, **kwargs):
+        self.calculate_average_and_grade()
+        super().save(*args, **kwargs)
+
+    class Meta:
+        unique_together = ['student', 'subject', 'academic_term']
+        ordering = ['student', 'subject']
+        verbose_name = "KNEC Report Card Result"
+        verbose_name_plural = "KNEC Report Card Results"
+
+
+# ============================================
 # CLASS ATTENDANCE MODELS
 # ============================================
 
@@ -1635,7 +1861,15 @@ class StudentExamResult(models.Model):
 # ============================================
 
 class SchoolSettings(models.Model):
-    """School configuration settings"""
+    """School configuration settings - one per School (tenant)"""
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='settings',
+        help_text="Null = legacy single-school; one settings per school for multi-tenant"
+    )
     school_name = models.CharField(max_length=200, default="School Name")
     school_motto = models.CharField(max_length=200, blank=True, null=True)
     school_address = models.TextField(blank=True, null=True)
@@ -1669,9 +1903,10 @@ class SchoolSettings(models.Model):
         verbose_name_plural = "School Settings"
 
 
-# Ensure only one SchoolSettings instance
+# Ensure only one SchoolSettings per school (or one global when school is None)
 @receiver(post_save, sender=SchoolSettings)
 def ensure_single_settings(sender, instance, created, **kwargs):
     if created:
-        # Delete any other instances
-        SchoolSettings.objects.exclude(pk=instance.pk).delete()
+        qs = SchoolSettings.objects.filter(school=instance.school).exclude(pk=instance.pk)
+        if qs.exists():
+            qs.delete()

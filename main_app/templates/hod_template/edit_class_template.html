@@ -84,7 +84,7 @@
                                         <select name="class_teacher" class="form-control">
                                             <option value="">Select Class Teacher</option>
                                             {% for teacher in teachers %}
-                                            <option value="{{ teacher.id }}" {% if school_class.class_teacher.id == teacher.id %}selected{% endif %}>
+                                            <option value="{{ teacher.id }}" {% if school_class.class_teacher and school_class.class_teacher.id == teacher.id %}selected{% endif %}>
                                                 {{ teacher }}
                                             </option>
                                             {% endfor %}
@@ -113,6 +113,74 @@
                             <a href="{% url 'manage_classes' %}" class="btn btn-secondary">Cancel</a>
                         </div>
                     </form>
+                </div>
+
+                <!-- Class Subjects Section -->
+                <div class="card card-dark mt-4">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-book mr-2"></i>Class Subjects</h3>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">Manage subjects offered in this class. Add subjects below.</p>
+                        {% if not teachers %}
+                        <div class="alert alert-warning">No teachers found. <a href="{% url 'add_staff' %}">Add staff</a> first to assign as subject teachers.</div>
+                        {% endif %}
+
+                        <!-- Add Subject Form -->
+                        <form method="POST" class="mb-4">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="add_subject">
+                            <div class="row align-items-end">
+                                <div class="col-md-4">
+                                    <label>Subject Name</label>
+                                    <input type="text" name="subject_name" class="form-control" placeholder="e.g., Mathematics" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label>Teacher</label>
+                                    <select name="subject_teacher" class="form-control" required>
+                                        <option value="">Select Teacher</option>
+                                        {% for teacher in teachers %}
+                                        <option value="{{ teacher.id }}">{{ teacher }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-plus"></i> Add Subject
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+
+                        <!-- Existing Subjects List -->
+                        <table class="table table-bordered table-hover">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Subject</th>
+                                    <th>Teacher</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for subject in class_subjects %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ subject.name }}</td>
+                                    <td>{{ subject.staff.admin.first_name }} {{ subject.staff.admin.last_name }}</td>
+                                    <td>
+                                        <a href="{% url 'edit_subject' subject.id %}" class="btn btn-sm btn-info"><i class="fas fa-edit"></i> Edit</a>
+                                        <a href="{% url 'delete_subject' subject.id %}?next={% url 'edit_class' class_id %}" class="btn btn-sm btn-danger" onclick="return confirm('Remove this subject from the class?')"><i class="fas fa-trash"></i> Remove</a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">No subjects yet. Add one above.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

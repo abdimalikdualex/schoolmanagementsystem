@@ -53,34 +53,39 @@ Section = Stream
 
 
 def admin_home(request):
-    total_staff = Staff.objects.all().count()
-    total_students = Student.objects.all().count()
-    subjects = Subject.objects.all()
-    total_subject = subjects.count()
-    total_course = Course.objects.all().count()
-    attendance_list = Attendance.objects.filter(subject__in=subjects)
+    school = getattr(request, 'school', None)
+    staff_qs = Staff.objects.filter(admin__school=school) if school else Staff.objects.all()
+    student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    course_qs = Course.objects.filter(school=school) if school else Course.objects.all()
+    total_staff = staff_qs.count()
+    total_students = student_qs.count()
+    total_course = course_qs.count()
+    subjects_qs = Subject.objects.filter(course__school=school) if school else Subject.objects.all()
+    total_subject = subjects_qs.count()
+    total_course = course_qs.count()
+    attendance_list = Attendance.objects.filter(subject__in=subjects_qs)
     total_attendance = attendance_list.count()
     attendance_list = []
     subject_list = []
-    for subject in subjects:
+    for subject in subjects_qs:
         attendance_count = Attendance.objects.filter(subject=subject).count()
         subject_list.append(subject.name[:7])
         attendance_list.append(attendance_count)
 
     # Total Subjects and students in Each Course
-    course_all = Course.objects.all()
+    course_all = course_qs
     course_name_list = []
     subject_count_list = []
     student_count_list_in_course = []
 
     for course in course_all:
-        subjects = Subject.objects.filter(course_id=course.id).count()
+        subject_count = Subject.objects.filter(course_id=course.id).count()
         students = Student.objects.filter(course_id=course.id).count()
         course_name_list.append(course.name)
-        subject_count_list.append(subjects)
+        subject_count_list.append(subject_count)
         student_count_list_in_course.append(students)
-    
-    subject_all = Subject.objects.all()
+
+    subject_all = subjects_qs
     subject_list = []
     student_count_list_in_subject = []
     for subject in subject_all:
@@ -95,7 +100,7 @@ def admin_home(request):
     student_attendance_leave_list=[]
     student_name_list=[]
 
-    students = Student.objects.all()
+    students = student_qs
     for student in students:
         
         attendance = AttendanceReport.objects.filter(student_id=student.id, status=True).count()
@@ -105,8 +110,11 @@ def admin_home(request):
         student_attendance_leave_list.append(leave+absent)
         student_name_list.append(student.admin.first_name)
 
+    # Onboarding: show setup steps when school has no data
+    is_new_school = school and total_students == 0 and total_staff == 0 and total_course == 0
     context = {
         'page_title': "Administrative Dashboard",
+        'is_new_school': is_new_school,
         'total_students': total_students,
         'total_staff': total_staff,
         'total_course': total_course,
@@ -125,9 +133,18 @@ def admin_home(request):
 
 
 def add_staff(request):
-    form = StaffForm(request.POST or None, request.FILES or None)
+    school = getattr(request, 'school', None)
+    form = StaffForm(request.POST or None, request.FILES or None, school=school)
     context = {'form': form, 'page_title': 'Add Staff'}
+    school = getattr(request, 'school', None)
     if request.method == 'POST':
+        if school and not school.can_add_teacher():
+            plan = school.subscription_plan
+            messages.error(
+                request,
+                f"Teacher limit reached ({plan.teacher_limit}). Upgrade your plan to add more teachers."
+            )
+            return render(request, 'hod_template/add_staff_template.html', context)
         if form.is_valid():
             first_name = form.cleaned_data.get('first_name')
             last_name = form.cleaned_data.get('last_name')
@@ -149,6 +166,7 @@ def add_staff(request):
                     email=email, password=password, user_type='2', first_name=first_name, last_name=last_name, profile_pic=passport_url)
                 user.gender = gender
                 user.address = address
+                user.school = getattr(request, 'school', None)
                 user.save()
                 
                 # Get or create the staff profile and update it
@@ -195,6 +213,7 @@ def add_finance_officer(request):
                 user.gender = gender
                 user.address = address
                 user.phone_number = phone_number
+                user.school = getattr(request, 'school', None)
                 user.save()
                 messages.success(request, f"Finance Officer {first_name} {last_name} added successfully.")
                 return redirect(reverse('add_finance_officer'))
@@ -207,7 +226,8 @@ def add_finance_officer(request):
 
 def manage_finance_officers(request):
     """Admin: List Finance Officers"""
-    officers = CustomUser.objects.filter(user_type='5').order_by('last_name')
+    school = getattr(request, 'school', None)
+    officers = CustomUser.objects.filter(user_type='5', school=school).order_by('last_name') if school else CustomUser.objects.filter(user_type='5').order_by('last_name')
     context = {'officers': officers, 'page_title': 'Manage Finance Officers'}
     return render(request, 'hod_template/manage_finance_officers.html', context)
 
@@ -238,15 +258,24 @@ def add_student(request):
     from .forms import AddStudentForm
     from .models import StudentSubjectEnrollment
 
-    form = AddStudentForm(request.POST or None, request.FILES or None)
-    active_term = AcademicTerm.get_active_term()
+    school = getattr(request, 'school', None)
+    form = AddStudentForm(request.POST or None, request.FILES or None, school=school)
+    active_term = AcademicTerm.get_active_term(school=school)
     context = {
         'form': form,
         'page_title': 'Add Student',
         'active_term': active_term,
     }
 
+    school = getattr(request, 'school', None)
     if request.method == 'POST':
+        if school and not school.can_add_student():
+            plan = school.subscription_plan
+            messages.error(
+                request,
+                f"Student limit reached ({plan.student_limit}). Upgrade your plan to add more students."
+            )
+            return render(request, 'hod_template/add_student_template.html', context)
         if form.is_valid():
             first_name = form.cleaned_data['first_name'].strip()
             last_name = form.cleaned_data['last_name'].strip()
@@ -284,6 +313,7 @@ def add_student(request):
                     user.gender = gender
                     user.address = address
                     user.phone_number = form.cleaned_data.get('phone_number') or ''
+                    user.school = getattr(request, 'school', None)
                     user.save()
 
                     # Signal create_user_profile already created Student - update it
@@ -303,9 +333,15 @@ def add_student(request):
                         is_primary=True,
                     )
 
-                    session = Session.objects.filter(
-                        academic_year=timezone.now().year
-                    ).first() or Session.objects.first()
+                    if school:
+                        session = Session.objects.filter(
+                            school=school,
+                            academic_year=timezone.now().year
+                        ).first() or Session.objects.filter(school=school).first()
+                    else:
+                        session = Session.objects.filter(
+                            academic_year=timezone.now().year
+                        ).first() or Session.objects.first()
                     if session:
                         student.session = session
                         student.save()
@@ -321,9 +357,7 @@ def add_student(request):
                         status='active',
                     )
 
-                    subjects = Subject.objects.filter(
-                        course=course
-                    ).filter(
+                    subjects = Subject.objects.filter(course=course).filter(
                         Q(term=active_term) | Q(term__isnull=True)
                     )
                     for subj in subjects:
@@ -345,19 +379,22 @@ def add_student(request):
 
 
 def add_course(request):
-    form = CourseForm(request.POST or None)
+    school = getattr(request, 'school', None)
+    form = CourseForm(request.POST or None, school=school)
     context = {
         'form': form,
         'page_title': 'Add Class',
-        'grade_levels': GradeLevel.objects.filter(is_active=True),
-        'streams': Stream.objects.all(),
-        'teachers': Staff.objects.all(),
-        'sessions': Session.objects.all()
+        'grade_levels': GradeLevel.objects.filter(school=school, is_active=True) if school else GradeLevel.objects.none(),
+        'streams': Stream.objects.filter(school=school) if school else Stream.objects.none(),
+        'teachers': Staff.objects.filter(admin__school=school) if school else Staff.objects.none(),
+        'sessions': Session.objects.filter(school=school) if school else Session.objects.none()
     }
     if request.method == 'POST':
         if form.is_valid():
             try:
                 course = form.save(commit=False)
+                if school:
+                    course.school = school
                 # Auto-generate name if grade_level and stream are selected
                 if course.grade_level and course.stream:
                     course.name = f"{course.grade_level.code} {course.stream.name}"
@@ -372,7 +409,8 @@ def add_course(request):
 
 
 def add_subject(request):
-    form = SubjectForm(request.POST or None)
+    school = getattr(request, 'school', None)
+    form = SubjectForm(request.POST or None, school=school)
     context = {
         'form': form,
         'page_title': 'Add Subject'
@@ -400,7 +438,8 @@ def add_subject(request):
 
 
 def manage_staff(request):
-    allStaff = CustomUser.objects.filter(user_type=2)
+    school = getattr(request, 'school', None)
+    allStaff = CustomUser.objects.filter(user_type=2, school=school) if school else CustomUser.objects.filter(user_type=2)
     context = {
         'allStaff': allStaff,
         'page_title': 'Manage Staff'
@@ -409,11 +448,11 @@ def manage_staff(request):
 
 
 def manage_student(request):
-    # Filter only users who have a valid Student profile
-    students = CustomUser.objects.filter(
-        user_type=3, 
-        student__isnull=False
-    ).select_related('student', 'student__course')
+    school = getattr(request, 'school', None)
+    qs = CustomUser.objects.filter(user_type=3, student__isnull=False)
+    if school:
+        qs = qs.filter(school=school)
+    students = qs.select_related('student', 'student__course')
     context = {
         'students': students,
         'page_title': 'Manage Students'
@@ -426,7 +465,8 @@ def admission_setting_view(request):
     if not request.user.is_authenticated or int(request.user.user_type) not in [1, 2]:
         return redirect('login_page')
 
-    setting = AdmissionSetting.objects.first()
+    school = getattr(request, 'school', None)
+    setting = AdmissionSetting.objects.filter(school=school).first() if school else AdmissionSetting.objects.first()
     if request.method == 'POST':
         prefix = request.POST.get('prefix', 'ADM').strip()
         start = request.POST.get('start_number')
@@ -436,7 +476,10 @@ def admission_setting_view(request):
             start = None
 
         if not setting:
-            setting = AdmissionSetting.objects.create(prefix=prefix, start_number=start or 1000, next_number=start or 1000, created_by=request.user)
+            setting = AdmissionSetting.objects.create(
+                prefix=prefix, start_number=start or 1000, next_number=start or 1000,
+                created_by=request.user, school=school
+            )
             messages.success(request, 'Admission setting created')
         else:
             if prefix:
@@ -460,12 +503,18 @@ def student_search(request):
     if not request.user.is_authenticated or int(request.user.user_type) not in [1, 2]:
         return redirect('login_page')
 
+    school = getattr(request, 'school', None)
     q = request.GET.get('q', '').strip()
     students = []
     if q:
-        students = Student.objects.filter(models.Q(admission_number__iexact=q) |
-                                          models.Q(admin__first_name__icontains=q) |
-                                          models.Q(admin__last_name__icontains=q))
+        qs = Student.objects.filter(
+            models.Q(admission_number__iexact=q) |
+            models.Q(admin__first_name__icontains=q) |
+            models.Q(admin__last_name__icontains=q)
+        )
+        if school:
+            qs = qs.filter(admin__school=school)
+        students = qs
 
     context = {
         'students': students,
@@ -480,7 +529,9 @@ def student_profile(request, student_id):
     if not request.user.is_authenticated or int(request.user.user_type) not in [1, 2]:
         return redirect('login_page')
 
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(qs, id=student_id)
     results = StudentResult.objects.filter(student=student).select_related('subject')
     fees = StudentFees.objects.filter(student=student).order_by('-created_at')
     notifications = NotificationStudent.objects.filter(student=student).order_by('-created_at')[:10]
@@ -508,7 +559,8 @@ def student_profile(request, student_id):
 
 
 def manage_course(request):
-    courses = Course.objects.all().select_related('grade_level', 'stream', 'class_teacher__admin')
+    school = getattr(request, 'school', None)
+    courses = Course.objects.filter(school=school).select_related('grade_level', 'stream', 'class_teacher__admin') if school else Course.objects.all().select_related('grade_level', 'stream', 'class_teacher__admin')
     context = {
         'courses': courses,
         'page_title': 'Manage Classes'
@@ -517,7 +569,8 @@ def manage_course(request):
 
 
 def manage_subject(request):
-    subjects = Subject.objects.all()
+    school = getattr(request, 'school', None)
+    subjects = Subject.objects.filter(course__school=school) if school else Subject.objects.all()
     context = {
         'subjects': subjects,
         'page_title': 'Manage Subjects'
@@ -526,8 +579,10 @@ def manage_subject(request):
 
 
 def edit_staff(request, staff_id):
-    staff = get_object_or_404(Staff, id=staff_id)
-    form = StaffForm(request.POST or None, instance=staff)
+    school = getattr(request, 'school', None)
+    qs = Staff.objects.filter(admin__school=school) if school else Staff.objects.all()
+    staff = get_object_or_404(qs, id=staff_id)
+    form = StaffForm(request.POST or None, request.FILES or None, instance=staff, school=school)
     context = {
         'form': form,
         'staff_id': staff_id,
@@ -573,8 +628,10 @@ def edit_staff(request, staff_id):
 
 
 def edit_student(request, student_id):
-    student = get_object_or_404(Student, id=student_id)
-    form = StudentForm(request.POST or None, instance=student)
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(qs, id=student_id)
+    form = StudentForm(request.POST or None, instance=student, school=school)
     context = {
         'form': form,
         'student_id': student_id,
@@ -622,16 +679,18 @@ def edit_student(request, student_id):
 
 
 def edit_course(request, course_id):
-    instance = get_object_or_404(Course, id=course_id)
-    form = CourseForm(request.POST or None, instance=instance)
+    school = getattr(request, 'school', None)
+    qs = Course.objects.filter(school=school) if school else Course.objects.all()
+    instance = get_object_or_404(qs, id=course_id)
+    form = CourseForm(request.POST or None, instance=instance, school=school)
     context = {
         'form': form,
         'course_id': course_id,
         'page_title': 'Edit Class',
-        'grade_levels': GradeLevel.objects.filter(is_active=True),
-        'streams': Stream.objects.all(),
-        'teachers': Staff.objects.all(),
-        'sessions': Session.objects.all()
+        'grade_levels': GradeLevel.objects.filter(school=school, is_active=True) if school else GradeLevel.objects.none(),
+        'streams': Stream.objects.filter(school=school) if school else Stream.objects.none(),
+        'teachers': Staff.objects.filter(admin__school=school) if school else Staff.objects.none(),
+        'sessions': Session.objects.filter(school=school) if school else Session.objects.none()
     }
     if request.method == 'POST':
         if form.is_valid():
@@ -651,8 +710,10 @@ def edit_course(request, course_id):
 
 
 def edit_subject(request, subject_id):
-    instance = get_object_or_404(Subject, id=subject_id)
-    form = SubjectForm(request.POST or None, instance=instance)
+    school = getattr(request, 'school', None)
+    qs = Subject.objects.filter(course__school=school) if school else Subject.objects.all()
+    instance = get_object_or_404(qs, id=subject_id)
+    form = SubjectForm(request.POST or None, instance=instance, school=school)
     context = {
         'form': form,
         'subject_id': subject_id,
@@ -684,7 +745,9 @@ def add_session(request):
     if request.method == 'POST':
         if form.is_valid():
             try:
-                form.save()
+                session = form.save(commit=False)
+                session.school = getattr(request, 'school', None)
+                session.save()
                 messages.success(request, "Session Created")
                 return redirect(reverse('add_session'))
             except Exception as e:
@@ -695,13 +758,16 @@ def add_session(request):
 
 
 def manage_session(request):
-    sessions = Session.objects.all()
+    school = getattr(request, 'school', None)
+    sessions = Session.objects.filter(school=school) if school else Session.objects.all()
     context = {'sessions': sessions, 'page_title': 'Manage Sessions'}
     return render(request, "hod_template/manage_session.html", context)
 
 
 def edit_session(request, session_id):
-    instance = get_object_or_404(Session, id=session_id)
+    school = getattr(request, 'school', None)
+    qs = Session.objects.filter(school=school) if school else Session.objects.all()
+    instance = get_object_or_404(qs, id=session_id)
     form = SessionForm(request.POST or None, instance=instance)
     context = {'form': form, 'session_id': session_id,
                'page_title': 'Edit Session'}
@@ -726,8 +792,9 @@ def edit_session(request, session_id):
 # ============ Academic Terms ============
 def manage_academic_terms(request):
     """List all academic terms"""
-    terms = AcademicTerm.objects.all()
-    active_term = AcademicTerm.get_active_term()
+    school = getattr(request, 'school', None)
+    terms = AcademicTerm.objects.filter(school=school) if school else AcademicTerm.objects.all()
+    active_term = AcademicTerm.get_active_term(school=getattr(request, 'school', None))
     context = {
         'terms': terms,
         'active_term': active_term,
@@ -739,12 +806,16 @@ def manage_academic_terms(request):
 def add_academic_term(request):
     """Create a new academic term"""
     from .forms import AcademicTermForm
+    school = getattr(request, 'school', None)
     form = AcademicTermForm(request.POST or None)
     context = {'form': form, 'page_title': 'Add Academic Term'}
     if request.method == 'POST':
         if form.is_valid():
             try:
-                form.save()
+                term = form.save(commit=False)
+                if school:
+                    term.school = school
+                term.save()
                 messages.success(request, "Academic term created successfully.")
                 return redirect(reverse('manage_academic_terms'))
             except Exception as e:
@@ -759,7 +830,9 @@ def add_academic_term(request):
 def edit_academic_term(request, term_id):
     """Edit an academic term"""
     from .forms import AcademicTermForm
-    term = get_object_or_404(AcademicTerm, id=term_id)
+    school = getattr(request, 'school', None)
+    qs = AcademicTerm.objects.filter(school=school) if school else AcademicTerm.objects.all()
+    term = get_object_or_404(qs, id=term_id)
     form = AcademicTermForm(request.POST or None, instance=term)
     context = {'form': form, 'term': term, 'term_id': term_id, 'page_title': 'Edit Academic Term'}
     if request.method == 'POST':
@@ -1071,8 +1144,14 @@ def delete_course(request, course_id):
 
 def delete_subject(request, subject_id):
     subject = get_object_or_404(Subject, id=subject_id)
+    course_id = subject.course_id
     subject.delete()
     messages.success(request, "Subject deleted successfully!")
+    next_url = request.GET.get('next')
+    if next_url:
+        return redirect(next_url)
+    if course_id:
+        return redirect(reverse('edit_class', args=[course_id]))
     return redirect(reverse('manage_subject'))
 
 
@@ -1210,92 +1289,62 @@ def admin_fetch_student_result(request):
 
 
 def admin_view_transcript(request):
-    """Automatically generate and display transcripts for all students"""
-    students = Student.objects.all().select_related('admin', 'course', 'session')
-    transcripts_data = []
-    
-    for student in students:
-        results = StudentResult.objects.filter(student=student).select_related('subject')
-        
-        if results.exists():  # Only include students with results
-            # Generate serial number
-            serial_hash = hashlib.md5(f"{student.id}{student.admin.username}".encode()).hexdigest()[:8].upper()
-            serial_number = f"100{serial_hash}"
-            
-            total_marks = 0
-            total_subjects = 0
-            passed_subjects = 0
-            results_list = []
-            
-            for result in results:
-                total = result.test + result.exam
-                total_marks += total
-                total_subjects += 1
-                
-                # Calculate attendance
-                attendance_records = Attendance.objects.filter(subject=result.subject)
-                if attendance_records.exists():
-                    attendance_reports = AttendanceReport.objects.filter(
-                        student=student,
-                        attendance__in=attendance_records
-                    )
-                    total_attendance = attendance_reports.count()
-                    present_count = attendance_reports.filter(status=True).count()
-                    attendance_percentage = round((present_count / total_attendance) * 100) if total_attendance > 0 else 0
-                else:
-                    attendance_percentage = 0
-                
-                # Calculate grade
-                if total >= 70:
-                    grade = 'A'
-                elif total >= 60:
-                    grade = 'B'
-                elif total >= 50:
-                    grade = 'C'
-                elif total >= 40:
-                    grade = 'D'
-                else:
-                    grade = 'F'
-                
-                if total >= 40:
-                    passed_subjects += 1
-                
-                # Generate unit code
-                subject_code = ''.join([word[0].upper() for word in result.subject.name.split()[:3]])[:6]
-                if len(subject_code) < 3:
-                    subject_code = result.subject.name[:6].upper().replace(' ', '')
-                
-                results_list.append({
-                    'unit_code': subject_code,
-                    'subject': result.subject.name,
-                    'attendance': attendance_percentage,
-                    'test': result.test,
-                    'exam': result.exam,
-                    'total': total,
-                    'grade': grade
-                })
-            
-            average = round(total_marks / total_subjects, 2) if total_subjects > 0 else 0
-            
-            transcripts_data.append({
-                'student': student,
-                'serial_number': serial_number,
-                'student_name': f"{student.admin.last_name}, {student.admin.first_name}",
-                'reg_number': student.admin.username,
-                'admission_number': student.admission_number if student.admission_number else student.admin.username,
-                'course': student.course.name if student.course else 'N/A',
-                'session': str(student.session) if student.session else 'N/A',
-                'results': results_list,
-                'total_marks': total_marks,
-                'average': average,
-                'passed_subjects': passed_subjects,
-                'total_subjects': total_subjects
-            })
-    
+    """Display student report cards (KNEC format) - select term and class"""
+    from .report_card_views import _build_report_card_context
+    from django.db.models import Q
+
+    school = getattr(request, 'school', None)
+    if not school:
+        context = {
+            'report_cards': [],
+            'academic_terms': [],
+            'courses': [],
+            'page_title': 'Student Report Cards',
+            'REPORTLAB_AVAILABLE': REPORTLAB_AVAILABLE,
+            'selected_term': None,
+            'selected_class': None,
+            'term_id': None,
+            'class_id': None,
+            'no_school': True,
+        }
+        return render(request, 'hod_template/admin_view_transcript.html', context)
+
+    academic_terms = AcademicTerm.objects.filter(school=school).order_by('-academic_year', 'term_name')
+    courses = Course.objects.filter(school=school, is_active=True).order_by('name')
+
+    term_id = request.GET.get('term')
+    class_id = request.GET.get('course') or request.GET.get('class')
+
+    report_cards = []
+    selected_term = None
+    selected_class = None
+
+    if term_id and class_id:
+        selected_term = get_object_or_404(AcademicTerm, id=term_id, school=school)
+        selected_class = get_object_or_404(Course, id=class_id, school=school)
+        enrollments = StudentClassEnrollment.objects.filter(
+            school_class=selected_class,
+            status='active',
+            student__admin__school=school
+        ).filter(
+            Q(term=selected_term) | Q(academic_year__academic_year=selected_term.academic_year)
+        ).select_related('student__admin')
+        for enr in enrollments:
+            ctx = _build_report_card_context(enr.student, selected_term, school)
+            ctx['serial_number'] = hashlib.md5(f"{enr.student.id}{enr.student.admin.username}".encode()).hexdigest()[:8].upper()
+            report_cards.append(ctx)
+
     context = {
-        'transcripts': transcripts_data,
-        'page_title': 'Student Transcripts',
-        'REPORTLAB_AVAILABLE': REPORTLAB_AVAILABLE
+        'report_cards': report_cards,
+        'academic_terms': academic_terms,
+        'courses': courses,
+        'page_title': 'Student Report Cards',
+        'REPORTLAB_AVAILABLE': REPORTLAB_AVAILABLE,
+        'selected_term': selected_term,
+        'selected_class': selected_class,
+        'term_id': term_id,
+        'class_id': class_id,
+        'no_school': False,
     }
     return render(request, 'hod_template/admin_view_transcript.html', context)
 
@@ -1803,8 +1852,8 @@ def send_all_results_sms(request):
 
 def admin_view_fees(request):
     """View and manage student fees"""
-    if not request.user.is_superuser:
-        # Check if admin has permission to view fees
+    # School Admin (user_type=1) and superuser have full access
+    if not request.user.is_superuser and str(request.user.user_type) != '1':
         try:
             perm = AdminPermission.objects.get(admin=request.user)
             if not perm.can_view_fees:
@@ -1826,7 +1875,7 @@ def admin_view_fees(request):
 
 def admin_post_fees(request):
     """Post/Create fees for students"""
-    if not request.user.is_superuser:
+    if not request.user.is_superuser and str(request.user.user_type) != '1':
         try:
             perm = AdminPermission.objects.get(admin=request.user)
             if not perm.can_manage_fees:
@@ -1899,7 +1948,7 @@ def admin_get_fees(request):
 
 def admin_clear_fees(request):
     """Clear/Update fees payment"""
-    if not request.user.is_superuser:
+    if not request.user.is_superuser and str(request.user.user_type) != '1':
         try:
             perm = AdminPermission.objects.get(admin=request.user)
             if not perm.can_manage_fees:
@@ -1932,12 +1981,17 @@ def admin_clear_fees(request):
 
 
 def admin_manage_permissions(request):
-    """Super admin manage permissions for other admins"""
-    if not request.user.is_superuser:
-        messages.error(request, "Only super admin can manage permissions")
+    """Manage permissions for admins. Super admin: all admins. School admin: admins in their school."""
+    school = getattr(request, 'school', None)
+    if not request.user.is_superuser and str(request.user.user_type) != '1':
+        messages.error(request, "Only admin can manage permissions")
         return redirect('admin_home')
-    
-    admins = CustomUser.objects.filter(user_type=1).exclude(is_superuser=True)
+
+    if request.user.is_superuser:
+        admins = CustomUser.objects.filter(user_type=1).exclude(is_superuser=True)
+    else:
+        # School admin: only admins in their school
+        admins = CustomUser.objects.filter(user_type=1, school=school).exclude(is_superuser=True) if school else CustomUser.objects.none()
     context = {
         'admins': admins,
         'page_title': 'Manage Admin Permissions'
@@ -1946,17 +2000,21 @@ def admin_manage_permissions(request):
 
 
 def admin_update_permission(request):
-    """Update admin permissions"""
-    if not request.user.is_superuser:
+    """Update admin permissions. Super admin: any admin. School admin: only admins in their school."""
+    school = getattr(request, 'school', None)
+    if not request.user.is_superuser and str(request.user.user_type) != '1':
         return JsonResponse({'error': 'Unauthorized'}, status=403)
-    
+
     if request.method == 'POST':
         try:
             admin_id = request.POST.get('admin_id')
             permission_type = request.POST.get('permission_type')
             value = request.POST.get('value').lower() == 'true'
-            
+
             admin_user = get_object_or_404(CustomUser, id=admin_id)
+            # School admin can only update admins in their school
+            if not request.user.is_superuser and school and admin_user.school_id != school.id:
+                return JsonResponse({'error': 'You can only manage permissions for admins in your school'}, status=403)
             perm = AdminPermission.objects.get(admin=admin_user)
             
             if permission_type == 'can_view_fees':
@@ -2153,6 +2211,7 @@ def add_parent(request):
                     )
                     user.gender = gender
                     user.address = address
+                    user.school = getattr(request, 'school', None)
                     user.save()
                     
                     # Create Parent record (required before linking children)
@@ -2419,7 +2478,8 @@ def delete_announcement(request, announcement_id):
 # Grade Level Management
 def manage_grade_levels(request):
     """View all Kenya CBC grade levels"""
-    grade_levels = GradeLevel.objects.all()
+    school = getattr(request, 'school', None)
+    grade_levels = GradeLevel.objects.filter(school=school) if school else GradeLevel.objects.all()
     context = {
         'grade_levels': grade_levels,
         'page_title': 'Manage Grade Levels (Kenya CBC)'
@@ -2430,13 +2490,17 @@ def manage_grade_levels(request):
 def add_grade_level(request):
     """Add a new grade level"""
     from .forms import GradeLevelForm
+    school = getattr(request, 'school', None)
     form = GradeLevelForm(request.POST or None)
     context = {'form': form, 'page_title': 'Add Grade Level'}
     
     if request.method == 'POST':
         if form.is_valid():
             try:
-                form.save()
+                obj = form.save(commit=False)
+                if school:
+                    obj.school = school
+                obj.save()
                 messages.success(request, "Grade level added successfully!")
                 return redirect(reverse('manage_grade_levels'))
             except Exception as e:
@@ -2450,7 +2514,9 @@ def add_grade_level(request):
 def edit_grade_level(request, grade_level_id):
     """Edit an existing grade level"""
     from .forms import GradeLevelForm
-    grade_level = get_object_or_404(GradeLevel, id=grade_level_id)
+    school = getattr(request, 'school', None)
+    qs = GradeLevel.objects.filter(school=school) if school else GradeLevel.objects.all()
+    grade_level = get_object_or_404(qs, id=grade_level_id)
     form = GradeLevelForm(request.POST or None, instance=grade_level)
     context = {'form': form, 'grade_level_id': grade_level_id, 'page_title': 'Edit Grade Level'}
     
@@ -2470,7 +2536,9 @@ def edit_grade_level(request, grade_level_id):
 
 def delete_grade_level(request, grade_level_id):
     """Delete a grade level"""
-    grade_level = get_object_or_404(GradeLevel, id=grade_level_id)
+    school = getattr(request, 'school', None)
+    qs = GradeLevel.objects.filter(school=school) if school else GradeLevel.objects.all()
+    grade_level = get_object_or_404(qs, id=grade_level_id)
     try:
         grade_level.delete()
         messages.success(request, "Grade level deleted successfully!")
@@ -2482,7 +2550,8 @@ def delete_grade_level(request, grade_level_id):
 # Stream Management
 def manage_streams(request):
     """View all class streams"""
-    streams = Stream.objects.all()
+    school = getattr(request, 'school', None)
+    streams = Stream.objects.filter(school=school) if school else Stream.objects.all()
     context = {
         'streams': streams,
         'page_title': 'Manage Streams'
@@ -2493,13 +2562,17 @@ def manage_streams(request):
 def add_stream(request):
     """Add a new stream"""
     from .forms import StreamForm
+    school = getattr(request, 'school', None)
     form = StreamForm(request.POST or None)
     context = {'form': form, 'page_title': 'Add Stream'}
     
     if request.method == 'POST':
         if form.is_valid():
             try:
-                form.save()
+                obj = form.save(commit=False)
+                if school:
+                    obj.school = school
+                obj.save()
                 messages.success(request, "Stream added successfully!")
                 return redirect(reverse('manage_streams'))
             except Exception as e:
@@ -2513,7 +2586,9 @@ def add_stream(request):
 def edit_stream(request, stream_id):
     """Edit an existing stream"""
     from .forms import StreamForm
-    stream = get_object_or_404(Stream, id=stream_id)
+    school = getattr(request, 'school', None)
+    qs = Stream.objects.filter(school=school) if school else Stream.objects.all()
+    stream = get_object_or_404(qs, id=stream_id)
     form = StreamForm(request.POST or None, instance=stream)
     context = {'form': form, 'stream_id': stream_id, 'page_title': 'Edit Stream'}
     
@@ -2533,7 +2608,9 @@ def edit_stream(request, stream_id):
 
 def delete_stream(request, stream_id):
     """Delete a stream"""
-    stream = get_object_or_404(Stream, id=stream_id)
+    school = getattr(request, 'school', None)
+    qs = Stream.objects.filter(school=school) if school else Stream.objects.all()
+    stream = get_object_or_404(qs, id=stream_id)
     try:
         stream.delete()
         messages.success(request, "Stream deleted successfully!")
@@ -2545,11 +2622,15 @@ def delete_stream(request, stream_id):
 # Class Management (Enhanced Course)
 def manage_classes(request):
     """View all classes with CBC structure"""
-    classes = Course.objects.filter(is_active=True).select_related(
+    school = getattr(request, 'school', None)
+    qs = Course.objects.filter(is_active=True)
+    if school:
+        qs = qs.filter(school=school)
+    classes = qs.select_related(
         'grade_level', 'stream', 'class_teacher__admin', 'academic_year'
     )
-    grade_levels = GradeLevel.objects.filter(is_active=True)
-    streams = Stream.objects.all()
+    grade_levels = GradeLevel.objects.filter(school=school, is_active=True) if school else GradeLevel.objects.none()
+    streams = Stream.objects.filter(school=school) if school else Stream.objects.none()
     
     context = {
         'classes': classes,
@@ -2578,10 +2659,12 @@ def add_class(request):
         for field in ('academic_year', 'class_teacher'):
             if post_data.get(field) == '':
                 del post_data[field]
-        form = CourseForm(post_data)
+        form = CourseForm(post_data, school=getattr(request, 'school', None))
         if form.is_valid():
             try:
-                school_class = form.save()
+                school_class = form.save(commit=False)
+                school_class.school = getattr(request, 'school', None)
+                school_class.save()
                 messages.success(request, "Class added successfully!")
                 return redirect(reverse('manage_classes'))
             except Exception as e:
@@ -2592,15 +2675,16 @@ def add_class(request):
                 for err in errors:
                     messages.error(request, f"{label}: {err}")
     else:
-        form = CourseForm()
+        form = CourseForm(school=getattr(request, 'school', None))
     
+    school = getattr(request, 'school', None)
     context = {
         'form': form, 
         'page_title': 'Add Class',
-        'grade_levels': GradeLevel.objects.filter(is_active=True),
-        'streams': Stream.objects.all(),
-        'teachers': Staff.objects.all(),
-        'sessions': Session.objects.all()
+        'grade_levels': GradeLevel.objects.filter(school=school, is_active=True) if school else GradeLevel.objects.none(),
+        'streams': Stream.objects.filter(school=school) if school else Stream.objects.none(),
+        'teachers': Staff.objects.filter(admin__school=school) if school else Staff.objects.none(),
+        'sessions': Session.objects.filter(school=school) if school else Session.objects.none()
     }
     return render(request, 'hod_template/add_class_template.html', context)
 
@@ -2608,11 +2692,32 @@ def add_class(request):
 def edit_class(request, class_id=None, course_id=None):
     """Edit an existing class (accepts class_id or course_id for URL compatibility)"""
     from .forms import CourseForm
+    school = getattr(request, 'school', None)
     cid = class_id or course_id
     school_class = get_object_or_404(Course, id=cid)
-    form = CourseForm(request.POST or None, instance=school_class)
-    
-    if request.method == 'POST':
+    if school and school_class.school_id != school.id:
+        messages.error(request, "You do not have permission to edit this class.")
+        return redirect(reverse('manage_classes'))
+    form = CourseForm(request.POST or None, instance=school_class, school=school)
+
+    # Handle add subject (inline form)
+    if request.method == 'POST' and request.POST.get('action') == 'add_subject':
+        subj_name = request.POST.get('subject_name', '').strip()
+        staff_id = request.POST.get('subject_teacher')
+        if subj_name and staff_id:
+            try:
+                staff = Staff.objects.get(id=staff_id, admin__school=school) if school else Staff.objects.get(id=staff_id)
+                Subject.objects.create(name=subj_name, staff=staff, course=school_class)
+                messages.success(request, f"Subject '{subj_name}' added successfully!")
+            except Staff.DoesNotExist:
+                messages.error(request, "Invalid teacher selected.")
+            except Exception as e:
+                messages.error(request, f"Could not add subject: {str(e)}")
+        else:
+            messages.error(request, "Subject name and teacher are required.")
+        return redirect(reverse('edit_class', args=[cid]))
+
+    if request.method == 'POST' and request.POST.get('action') != 'add_subject':
         if form.is_valid():
             try:
                 updated_class = form.save(commit=False)
@@ -2626,24 +2731,31 @@ def edit_class(request, class_id=None, course_id=None):
                 messages.error(request, f"Could not update class: {str(e)}")
         else:
             messages.error(request, "Please fill form properly")
-    
+
+    class_subjects = Subject.objects.filter(course=school_class).select_related('staff__admin')
+
     context = {
-        'form': form, 
-        'class_id': cid, 
+        'form': form,
+        'class_id': cid,
         'school_class': school_class,
+        'class_subjects': class_subjects,
         'page_title': 'Edit Class',
-        'grade_levels': GradeLevel.objects.filter(is_active=True),
-        'streams': Stream.objects.all(),
-        'teachers': Staff.objects.all(),
-        'sessions': Session.objects.all()
+        'grade_levels': GradeLevel.objects.filter(school=school, is_active=True) if school else GradeLevel.objects.none(),
+        'streams': Stream.objects.filter(school=school) if school else Stream.objects.none(),
+        'teachers': Staff.objects.filter(admin__school=school) if school else Staff.objects.none(),
+        'sessions': Session.objects.filter(school=school) if school else Session.objects.none()
     }
     return render(request, 'hod_template/edit_class_template.html', context)
 
 
 def delete_class(request, class_id=None, course_id=None):
     """Soft delete a class (accepts class_id or course_id for URL compatibility)"""
+    school = getattr(request, 'school', None)
     cid = class_id or course_id
     school_class = get_object_or_404(Course, id=cid)
+    if school and school_class.school_id != school.id:
+        messages.error(request, "You do not have permission to delete this class.")
+        return redirect(reverse('manage_classes'))
     try:
         school_class.is_active = False
         school_class.save()
@@ -2693,7 +2805,7 @@ def add_enrollment(request):
     from .forms import StudentClassEnrollmentForm
     from .models import StudentSubjectEnrollment
     form = StudentClassEnrollmentForm(request.POST or None)
-    active_term = AcademicTerm.get_active_term()
+    active_term = AcademicTerm.get_active_term(school=getattr(request, 'school', None))
     
     if request.method == 'POST':
         if not active_term:
@@ -2759,7 +2871,7 @@ def add_enrollment(request):
 
 def bulk_enrollment(request):
     """Bulk enroll students in a class"""
-    active_term = AcademicTerm.get_active_term()
+    active_term = AcademicTerm.get_active_term(school=getattr(request, 'school', None))
     if request.method == 'POST':
         if not active_term:
             messages.error(request, "No active term. Please activate an academic term before enrolling students.")
@@ -2823,7 +2935,7 @@ def transfer_student(request, enrollment_id):
         
         try:
             new_class = Course.objects.get(id=new_class_id)
-            active_term = AcademicTerm.get_active_term()
+            active_term = AcademicTerm.get_active_term(school=getattr(request, 'school', None))
             if active_term and active_term.is_locked:
                 messages.error(request, "Term is closed. Transfers not allowed.")
             else:
@@ -3358,6 +3470,9 @@ def _check_finance_permission(request, require_manage=False):
         return True, None
     if request.user.is_superuser:
         return True, None
+    # School Admin (user_type='1') has full access to control all school activities
+    if str(request.user.user_type) == '1':
+        return True, None
     try:
         perm = AdminPermission.objects.get(admin=request.user)
         if require_manage:
@@ -3384,7 +3499,7 @@ def finance_dashboard(request):
         session = Session.objects.filter(id=session_id).first()
     else:
         # Default to active term's session when available
-        active_term = AcademicTerm.get_active_term()
+        active_term = AcademicTerm.get_active_term(school=getattr(request, 'school', None))
         if active_term:
             session = Session.objects.filter(
                 academic_year=active_term.academic_year
@@ -3501,7 +3616,7 @@ def fee_collection(request):
         try:
             student = Student.objects.get(id=student_id)
             # Use active term's session, or latest session
-            active_term = AcademicTerm.get_active_term()
+            active_term = AcademicTerm.get_active_term(school=getattr(request, 'school', None))
             if active_term:
                 session = Session.objects.filter(
                     academic_year=active_term.academic_year
@@ -3510,7 +3625,7 @@ def fee_collection(request):
                 session = Session.objects.order_by('-start_year').first()
 
             # Generate receipt number
-            school_settings = get_school_settings()
+            school_settings = get_school_settings(school=getattr(request, 'school', None))
             receipt_number = school_settings.get_next_receipt_number()
 
             # Create payment record
@@ -3597,7 +3712,7 @@ def print_fee_receipt(request, payment_id):
     styles = getSampleStyleSheet()
     
     # School Header
-    school = get_school_settings()
+    school = get_school_settings(school=getattr(request, 'school', None))
     title_style = ParagraphStyle('title', parent=styles['Heading1'], alignment=TA_CENTER)
     elements.append(Paragraph(school.school_name, title_style))
     elements.append(Paragraph("FEE PAYMENT RECEIPT", styles['Heading2']))
@@ -3659,7 +3774,7 @@ def print_fee_statement(request, student_id):
     styles = getSampleStyleSheet()
     
     # Header
-    school = get_school_settings()
+    school = get_school_settings(school=getattr(request, 'school', None))
     title_style = ParagraphStyle('title', parent=styles['Heading1'], alignment=TA_CENTER)
     elements.append(Paragraph(school.school_name, title_style))
     elements.append(Paragraph("STUDENT FEE STATEMENT", styles['Heading2']))
@@ -4017,7 +4132,7 @@ def manage_grading_scale(request):
 def enter_exam_results(request):
     """Enter exam results. MVP: Blocked when term closed or result entry not open."""
     if request.method == 'POST':
-        active_term = AcademicTerm.get_active_term()
+        active_term = AcademicTerm.get_active_term(school=getattr(request, 'school', None))
         if active_term and active_term.is_locked:
             messages.error(request, "Term is closed. Marks cannot be edited.")
             return redirect('enter_exam_results')
@@ -4070,7 +4185,7 @@ def enter_exam_results(request):
 
 def enter_cat_marks(request):
     """MVP: Enter Continuous Assessment (CAT) marks"""
-    active_term = AcademicTerm.get_active_term()
+    active_term = AcademicTerm.get_active_term(school=getattr(request, 'school', None))
     if request.method == 'POST':
         if active_term and active_term.is_locked:
             messages.error(request, "Term is closed. CAT marks cannot be edited.")
@@ -4192,7 +4307,7 @@ def print_result_slip(request, student_id, exam_schedule_id):
     styles = getSampleStyleSheet()
     
     # Header
-    school = get_school_settings()
+    school = get_school_settings(school=getattr(request, 'school', None))
     title_style = ParagraphStyle('title', parent=styles['Heading1'], alignment=TA_CENTER)
     elements.append(Paragraph(school.school_name, title_style))
     elements.append(Paragraph(f"{exam_schedule.name}", styles['Heading2']))
@@ -4326,7 +4441,7 @@ def attendance_dashboard(request):
 def take_class_attendance(request):
     """Take daily class attendance. MVP: Blocked when term is closed."""
     if request.method == 'POST':
-        active_term = AcademicTerm.get_active_term()
+        active_term = AcademicTerm.get_active_term(school=getattr(request, 'school', None))
         if active_term and active_term.is_locked:
             messages.error(request, "Term is closed. Attendance cannot be edited.")
             return redirect('take_class_attendance')
@@ -4495,7 +4610,7 @@ def student_attendance_report(request, student_id):
 
 def school_settings(request):
     """Manage school settings"""
-    settings_obj = get_school_settings()
+    settings_obj = get_school_settings(school=getattr(request, 'school', None))
     
     if request.method == 'POST':
         form = SchoolSettingsForm(request.POST, request.FILES, instance=settings_obj)
@@ -4589,7 +4704,7 @@ def student_add_fee_payment(request, student_id):
             paid_by = request.POST.get('paid_by', '')
             
             # Generate receipt number
-            settings_obj = get_school_settings()
+            settings_obj = get_school_settings(school=getattr(request, 'school', None))
             receipt_number = settings_obj.get_next_receipt_number() + '-' + student.admission_number
             
             # Get current session
@@ -4656,7 +4771,7 @@ def student_print_fee_receipt(request, student_id, payment_id):
     """Print fee receipt for a specific payment"""
     student = get_object_or_404(Student, id=student_id)
     payment = get_object_or_404(FeePayment, id=payment_id, student=student)
-    settings_obj = get_school_settings()
+    settings_obj = get_school_settings(school=getattr(request, 'school', None))
     
     # Create PDF
     response = HttpResponse(content_type='application/pdf')
@@ -4724,7 +4839,7 @@ def student_print_fee_receipt(request, student_id, payment_id):
 def student_print_fee_statement(request, student_id):
     """Print fee statement for student"""
     student = get_object_or_404(Student, id=student_id)
-    settings_obj = get_school_settings()
+    settings_obj = get_school_settings(school=getattr(request, 'school', None))
     
     payments = FeePayment.objects.filter(student=student, is_reversed=False).order_by('-created_at')
     total_billed = student.total_fee_billed

@@ -1,0 +1,103 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{page_title}}{% endblock page_title %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">{{page_title}}</h3>
+                        <div class="card-tools">
+                            <a href="{% url 'report_card_list' %}" class="btn btn-info btn-sm">
+                                <i class="fas fa-file-alt"></i> Report Cards
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <form method="get" class="form-inline mb-4">
+                            <div class="form-group mr-2">
+                                <label class="mr-1">Term</label>
+                                <select name="term" id="term_select" class="form-control form-control-sm">
+                                    <option value="">-- Select Term --</option>
+                                    {% for t in academic_terms %}
+                                    <option value="{{ t.id }}" {% if term_id == t.id|stringformat:"s" %}selected{% endif %}>{{ t }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group mr-2">
+                                <label class="mr-1">Class</label>
+                                <select name="course" id="class_select" class="form-control form-control-sm">
+                                    <option value="">-- Select Class --</option>
+                                    {% for c in courses %}
+                                    <option value="{{ c.id }}" {% if class_id == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group mr-2">
+                                <label class="mr-1">Subject</label>
+                                <select name="subject" id="subject_select" class="form-control form-control-sm">
+                                    <option value="">-- Select Subject --</option>
+                                    {% for s in subjects %}
+                                    <option value="{{ s.id }}" {% if subject_id == s.id|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-info btn-sm"><i class="fas fa-search"></i> Load</button>
+                        </form>
+
+                        {% if students %}
+                        <p class="text-muted mb-2">Enter Opener, Midterm, and Endterm marks (out of 100) for <strong>{{ selected_subject.name }}</strong> - {{ selected_term }}</p>
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="academic_term" value="{{ selected_term.id }}">
+                            <input type="hidden" name="school_class" value="{{ selected_class.id }}">
+                            <input type="hidden" name="subject" value="{{ selected_subject.id }}">
+                            <table class="table table-bordered table-hover">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Student Name</th>
+                                        <th>Admission No</th>
+                                        <th>Opener</th>
+                                        <th>Midterm</th>
+                                        <th>Endterm</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in students %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td>{{ item.student.admin.last_name }}, {{ item.student.admin.first_name }}</td>
+                                        <td>{{ item.student.admission_number|default:"-" }}</td>
+                                        <td>
+                                            <input type="number" name="opener_{{ item.student.id }}" value="{% if item.result %}{{ item.result.opener_marks|floatformat:0 }}{% endif %}" min="0" max="100" step="0.5" class="form-control form-control-sm" style="width: 70px;">
+                                        </td>
+                                        <td>
+                                            <input type="number" name="midterm_{{ item.student.id }}" value="{% if item.result %}{{ item.result.midterm_marks|floatformat:0 }}{% endif %}" min="0" max="100" step="0.5" class="form-control form-control-sm" style="width: 70px;">
+                                        </td>
+                                        <td>
+                                            <input type="number" name="endterm_{{ item.student.id }}" value="{% if item.result %}{{ item.result.endterm_marks|floatformat:0 }}{% endif %}" min="0" max="100" step="0.5" class="form-control form-control-sm" style="width: 70px;">
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Save Marks</button>
+                        </form>
+                        {% elif selected_term and selected_class and not selected_subject %}
+                        <p class="text-muted">Select a subject to enter marks.</p>
+                        {% elif selected_term and selected_class %}
+                        <p class="text-muted">No subjects found for this class.</p>
+                        {% else %}
+                        <p class="text-muted">Select term, class, and subject to enter marks.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

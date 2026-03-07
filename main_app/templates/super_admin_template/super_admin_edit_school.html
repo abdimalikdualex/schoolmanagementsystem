@@ -1,0 +1,74 @@
+{% extends 'super_admin_template/super_admin_base.html' %}
+{% load static %}
+{% block page_title %}Edit School{% endblock page_title %}
+{% block content_title %}Edit School: {{ school.name }}{% endblock content_title %}
+{% block breadcrumb %}Edit School{% endblock breadcrumb %}
+{% block content %}
+<div class="row">
+            <div class="col-md-8 offset-md-2">
+                <div class="card card-primary">
+                    <div class="card-header">
+                        <h3 class="card-title">Edit School: {{ school.name }}</h3>
+                        <div class="card-tools">
+                            <a href="{% url 'super_admin_dashboard' %}" class="btn btn-sm btn-secondary">Back to Dashboard</a>
+                        </div>
+                    </div>
+                    <form method="post" action="">
+                        {% csrf_token %}
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="name">School Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" name="name" required value="{{ school.name }}">
+                            </div>
+                            <div class="form-group">
+                                <label for="code">School Code <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="code" name="code" required value="{{ school.code }}" maxlength="20">
+                            </div>
+                            <div class="form-group">
+                                <label for="email">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" value="{{ school.email|default:'' }}">
+                            </div>
+                            <div class="form-group">
+                                <label for="phone">Phone</label>
+                                <input type="text" class="form-control" id="phone" name="phone" value="{{ school.phone|default:'' }}">
+                            </div>
+                            <div class="form-group">
+                                <label for="address">Address</label>
+                                <textarea class="form-control" id="address" name="address" rows="8">{{ school.address|default:'' }}</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="subscription_plan">Subscription Plan</label>
+                                <select class="form-control" id="subscription_plan" name="subscription_plan">
+                                    <option value="">— No plan —</option>
+                                    {% for plan in plans %}
+                                    <option value="{{ plan.id }}" {% if school.subscription_plan_id == plan.id %}selected{% endif %}>
+                                        {{ plan.name }} ({{ plan.student_limit }} students, {{ plan.teacher_limit }} teachers)
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="status">Status</label>
+                                <select class="form-control" id="status" name="status">
+                                    <option value="pending" {% if school.status == 'pending' %}selected{% endif %}>Pending</option>
+                                    <option value="approved" {% if school.status == 'approved' %}selected{% endif %}>Approved</option>
+                                    <option value="rejected" {% if school.status == 'rejected' %}selected{% endif %}>Rejected</option>
+                                    <option value="suspended" {% if school.status == 'suspended' %}selected{% endif %}>Suspended</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" id="is_active" name="is_active" {% if school.is_active %}checked{% endif %}>
+                                    <label class="custom-control-label" for="is_active">Active</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                            <a href="{% url 'super_admin_dashboard' %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+{% endblock content %}

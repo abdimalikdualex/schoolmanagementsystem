@@ -17,15 +17,24 @@ from django.urls import path
 
 from main_app.EditResultView import EditResultView
 
-from . import hod_views, staff_views, student_views, parent_views, views, finance_views
+from . import hod_views, staff_views, student_views, parent_views, views, finance_views, super_admin_views, report_card_views
 
 urlpatterns = [
     path("", views.login_page, name='login_page'),
     path("login/", views.login_page),
+    path("register/school/", views.school_registration, name='school_registration'),
     path("get_attendance", views.get_attendance, name='get_attendance'),
     path("firebase-messaging-sw.js", views.showFirebaseJS, name='showFirebaseJS'),
     path("doLogin/", views.doLogin, name='user_login'),
     path("logout_user/", views.logout_user, name='user_logout'),
+    path("superadmin/dashboard/", super_admin_views.super_admin_dashboard, name='super_admin_dashboard'),
+    path("superadmin/school/create/", super_admin_views.super_admin_create_school, name='super_admin_create_school'),
+    path("superadmin/school/<int:school_id>/edit/", super_admin_views.super_admin_edit_school, name='super_admin_edit_school'),
+    path("superadmin/school/<int:school_id>/approve/", super_admin_views.super_admin_approve_school, name='super_admin_approve_school'),
+    path("superadmin/school/<int:school_id>/reject/", super_admin_views.super_admin_reject_school, name='super_admin_reject_school'),
+    path("superadmin/school/<int:school_id>/suspend/", super_admin_views.super_admin_suspend_school, name='super_admin_suspend_school'),
+    path("superadmin/school/<int:school_id>/deactivate/", super_admin_views.super_admin_deactivate_school, name='super_admin_deactivate_school'),
+    path("superadmin/users/", super_admin_views.super_admin_user_monitoring, name='super_admin_user_monitoring'),
     path("admin/home/", hod_views.admin_home, name='admin_home'),
     path("staff/add", hod_views.add_staff, name='add_staff'),
     path("class/add", hod_views.add_class, name='add_course'),  # Legacy name for compatibility
@@ -349,6 +358,14 @@ urlpatterns = [
     path("exams/results/slip/<int:student_id>/<int:exam_schedule_id>/", hod_views.print_result_slip, name='print_result_slip'),
     path("exams/results/bulk-print/", hod_views.bulk_print_result_slips, name='bulk_print_result_slips'),
     path("api/students-for-results/", hod_views.get_students_for_results, name='get_students_for_results'),
+
+    # ============================================================
+    # KNEC REPORT CARDS
+    # ============================================================
+    path("report-cards/", report_card_views.report_card_list, name='report_card_list'),
+    path("report-cards/enter-marks/", report_card_views.knec_enter_marks, name='knec_enter_marks'),
+    path("report-cards/view/<int:student_id>/<int:term_id>/", report_card_views.report_card_view, name='report_card_view'),
+    path("report-cards/pdf/<int:student_id>/<int:term_id>/", report_card_views.report_card_pdf, name='report_card_pdf'),
 
     # ============================================================
     # CLASS ATTENDANCE MANAGEMENT

@@ -1,0 +1,34 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Report Card{% endblock %} - School Management System</title>
+    <link rel="stylesheet" href="{% static 'plugins/fontawesome-free/css/all.min.css' %}">
+    <link rel="stylesheet" href="{% static 'dist/css/adminlte.min.css' %}">
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 0; background: #fff; font-family: 'Times New Roman', serif; color: #000; }
+        .report-card-page { max-width: 210mm; margin: 20px auto; padding: 20px; background: #fff; min-height: 297mm; color: #000; }
+        .no-print { margin-top: 20px; text-align: center; }
+        .report-card-container { color: #000; }
+        .report-card-container table { border-collapse: collapse; }
+        .report-card-container .marks-header { background: #2c3e50 !important; color: #fff !important; }
+        @media print {
+            body { background: white !important; margin: 0 !important; padding: 0 !important; color: #000 !important; }
+            .report-card-page { max-width: 100% !important; margin: 0 !important; padding: 15px !important; box-shadow: none !important; }
+            .no-print { display: none !important; }
+            .report-card-container { color: #000 !important; }
+            @page { size: A4 portrait; margin: 15mm; }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="report-card-page">
+        {% block report_card_content %}{% endblock %}
+        {% block report_card_actions %}{% endblock %}
+    </div>
+</body>
+</html>

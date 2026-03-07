@@ -1,0 +1,130 @@
+{% extends 'super_admin_template/super_admin_base.html' %}
+{% load static %}
+{% block page_title %}Platform Dashboard{% endblock page_title %}
+{% block content_title %}Platform Dashboard{% endblock content_title %}
+{% block breadcrumb %}Dashboard{% endblock breadcrumb %}
+{% block content %}
+<!-- System Overview Cards -->
+<div class="row">
+    <div class="col-lg-4 col-6">
+        <div class="small-box bg-info">
+            <div class="inner">
+                <h3>{{ total_schools }}</h3>
+                <p>Total Schools Registered</p>
+            </div>
+            <div class="icon"><i class="fas fa-school"></i></div>
+            <a href="#schools-table" class="small-box-footer">View All <i class="fas fa-arrow-circle-right"></i></a>
+        </div>
+    </div>
+    <div class="col-lg-4 col-6">
+        <div class="small-box bg-success">
+            <div class="inner">
+                <h3>{{ active_schools }}</h3>
+                <p>Approved (Active)</p>
+            </div>
+            <div class="icon"><i class="fas fa-check-circle"></i></div>
+            <a href="#schools-table" class="small-box-footer">View <i class="fas fa-arrow-circle-right"></i></a>
+        </div>
+    </div>
+    <div class="col-lg-4 col-6">
+        <div class="small-box bg-warning">
+            <div class="inner">
+                <h3>{{ pending_approvals }}</h3>
+                <p>Pending Approval</p>
+            </div>
+            <div class="icon"><i class="fas fa-clock"></i></div>
+            <a href="#schools-table" class="small-box-footer">Review Now <i class="fas fa-arrow-circle-right"></i></a>
+        </div>
+    </div>
+</div>
+
+<!-- School Management -->
+<div class="row" id="schools-table">
+    <div class="col-12">
+        <div class="card card-outline card-primary">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-building mr-2"></i>School Management</h3>
+                <div class="card-tools">
+                    <a href="{% url 'super_admin_create_school' %}" class="btn btn-success btn-sm">
+                        <i class="fas fa-plus"></i> Create School
+                    </a>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover table-striped">
+                    <thead>
+                        <tr>
+                            <th>School</th>
+                            <th>Code</th>
+                            <th>Plan</th>
+                            <th>Contact</th>
+                            <th>Students</th>
+                            <th>Teachers</th>
+                            <th>Status</th>
+                            <th style="width: 180px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in school_list %}
+                        <tr>
+                            <td><strong>{{ item.school.name }}</strong></td>
+                            <td><code>{{ item.school.code }}</code></td>
+                            <td>{% if item.school.subscription_plan %}{{ item.school.subscription_plan.name }}{% else %}—{% endif %}</td>
+                            <td>
+                                {{ item.school.email|default:"-" }}<br>
+                                <small class="text-muted">{{ item.school.phone|default:"" }}</small>
+                            </td>
+                            <td>{{ item.student_count }}</td>
+                            <td>{{ item.teacher_count }}</td>
+                            <td>
+                                {% if item.school.status == 'approved' %}
+                                <span class="badge badge-success">Approved</span>
+                                {% elif item.school.status == 'pending' %}
+                                <span class="badge badge-warning">Pending</span>
+                                {% elif item.school.status == 'rejected' %}
+                                <span class="badge badge-danger">Rejected</span>
+                                {% elif item.school.status == 'suspended' %}
+                                <span class="badge badge-secondary">Suspended</span>
+                                {% else %}
+                                <span class="badge badge-secondary">{{ item.school.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.school.status == 'pending' %}
+                                <a href="{% url 'super_admin_approve_school' item.school.id %}" class="btn btn-xs btn-success" title="Approve" onclick="return confirm('Approve this school? They will be able to log in.');">
+                                    <i class="fas fa-check"></i>
+                                </a>
+                                <a href="{% url 'super_admin_reject_school' item.school.id %}" class="btn btn-xs btn-danger" title="Reject" onclick="return confirm('Reject this school registration?');">
+                                    <i class="fas fa-times"></i>
+                                </a>
+                                {% elif item.school.status == 'approved' %}
+                                <a href="{% url 'super_admin_suspend_school' item.school.id %}" class="btn btn-xs btn-warning" title="Suspend" onclick="return confirm('Suspend this school? They will not be able to access the system.');">
+                                    <i class="fas fa-ban"></i>
+                                </a>
+                                {% elif item.school.status == 'suspended' or item.school.status == 'rejected' %}
+                                <a href="{% url 'super_admin_approve_school' item.school.id %}" class="btn btn-xs btn-success" title="Approve" onclick="return confirm('Approve this school?');">
+                                    <i class="fas fa-check"></i>
+                                </a>
+                                {% endif %}
+                                <a href="{% url 'super_admin_edit_school' item.school.id %}" class="btn btn-xs btn-info" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4">
+                                <p class="text-muted mb-2">No schools registered yet.</p>
+                                <a href="{% url 'super_admin_create_school' %}" class="btn btn-success">
+                                    <i class="fas fa-plus"></i> Create First School
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

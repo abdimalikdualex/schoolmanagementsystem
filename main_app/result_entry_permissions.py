@@ -47,7 +47,8 @@ def can_teacher_enter_cat_marks(request):
     Uses active term - if term is closed, no entry.
     """
     from .models import AcademicTerm
-    active_term = AcademicTerm.get_active_term()
+    school = getattr(request, 'school', None)
+    active_term = AcademicTerm.get_active_term(school=school)
     if not active_term:
         return False
     if active_term.status == 'closed':

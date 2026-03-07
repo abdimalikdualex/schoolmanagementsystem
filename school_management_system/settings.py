@@ -4,8 +4,19 @@ Django settings for school_management_system project.
 
 import os
 from pathlib import Path
+
+try:
+    from decouple import config
+except ImportError:
+    def config(key, default=None, cast=None):
+        val = os.environ.get(key, default)
+        if cast is not None and val is not None:
+            if cast is bool:
+                return str(val).lower() in ("true", "1", "yes")
+            return cast(val)
+        return val
+
 import dj_database_url
-from decouple import config  # Ensure you have python-decouple installed
 
 # -------------------------------
 # BASE DIRECTORY
@@ -54,6 +65,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 
     # Custom Middleware
+    "main_app.middleware.SchoolContextMiddleware",
     "main_app.middleware.LoginCheckMiddleWare",
 ]
 

@@ -62,12 +62,17 @@ class StudentForm(CustomUserForm):
     admission_date = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}))
 
     def __init__(self, *args, **kwargs):
+        school = kwargs.pop('school', None)
         super(StudentForm, self).__init__(*args, **kwargs)
         if 'course' in self.fields:
             self.fields['course'].label = 'Class'
             self.fields['course'].required = False
+            if school:
+                self.fields['course'].queryset = Course.objects.filter(school=school, is_active=True)
         if 'session' in self.fields:
             self.fields['session'].required = False
+            if school:
+                self.fields['session'].queryset = Session.objects.filter(school=school)
 
     class Meta(CustomUserForm.Meta):
         model = Student
@@ -92,7 +97,7 @@ class AddStudentForm(forms.Form):
     profile_pic = forms.ImageField(required=False)
     address = forms.CharField(widget=forms.Textarea, required=True)
     course = forms.ModelChoiceField(
-        queryset=Course.objects.filter(is_active=True),
+        queryset=Course.objects.none(),  # Set in __init__ from school
         required=True,
         label='Class',
         empty_label='--------'
@@ -102,7 +107,13 @@ class AddStudentForm(forms.Form):
     guardian_phone = forms.CharField(max_length=20, required=True, label="Guardian's Phone Number")
 
     def __init__(self, *args, **kwargs):
+        school = kwargs.pop('school', None)
         super().__init__(*args, **kwargs)
+        self._school = school
+        if school:
+            self.fields['course'].queryset = Course.objects.filter(school=school, is_active=True)
+        else:
+            self.fields['course'].queryset = Course.objects.none()
         for field in self.visible_fields():
             field.field.widget.attrs['class'] = 'form-control'
 
@@ -116,7 +127,10 @@ class AddStudentForm(forms.Form):
         admission_number = self.cleaned_data.get('admission_number', '').strip()
         if not admission_number:
             raise forms.ValidationError("Admission number is required.")
-        if Student.objects.filter(admission_number__iexact=admission_number).exists():
+        qs = Student.objects.filter(admission_number__iexact=admission_number)
+        if hasattr(self, '_school') and self._school:
+            qs = qs.filter(admin__school=self._school)
+        if qs.exists():
             raise forms.ValidationError("This admission number already exists.")
         return admission_number
 
@@ -132,8 +146,13 @@ class AdminForm(CustomUserForm):
 
 class StaffForm(CustomUserForm):
     def __init__(self, *args, **kwargs):
+        school = kwargs.pop('school', None)
         super(StaffForm, self).__init__(*args, **kwargs)
         self.fields['course'].label = 'Class'
+        if school:
+            self.fields['course'].queryset = Course.objects.filter(school=school, is_active=True)
+        else:
+            self.fields['course'].queryset = Course.objects.none()
 
     class Meta(CustomUserForm.Meta):
         model = Staff
@@ -184,11 +203,22 @@ class StreamForm(FormSettings):
 
 class CourseForm(FormSettings):
     def __init__(self, *args, **kwargs):
+        school = kwargs.pop('school', None)
         super(CourseForm, self).__init__(*args, **kwargs)
         self.fields['grade_level'].required = True
         self.fields['stream'].required = True
         self.fields['grade_level'].label = 'Grade Level'
         self.fields['stream'].label = 'Stream'
+        if school:
+            self.fields['grade_level'].queryset = GradeLevel.objects.filter(school=school, is_active=True)
+            self.fields['stream'].queryset = Stream.objects.filter(school=school)
+            self.fields['academic_year'].queryset = Session.objects.filter(school=school)
+            self.fields['class_teacher'].queryset = Staff.objects.filter(admin__school=school)
+        else:
+            self.fields['grade_level'].queryset = GradeLevel.objects.none()
+            self.fields['stream'].queryset = Stream.objects.none()
+            self.fields['academic_year'].queryset = Session.objects.none()
+            self.fields['class_teacher'].queryset = Staff.objects.none()
 
     class Meta:
         fields = ['name', 'grade_level', 'stream', 'academic_year', 'class_teacher', 'capacity', 'is_active']
@@ -269,8 +299,15 @@ class BulkPromotionForm(forms.Form):
 class SubjectForm(FormSettings):
 
     def __init__(self, *args, **kwargs):
+        school = kwargs.pop('school', None)
         super(SubjectForm, self).__init__(*args, **kwargs)
         self.fields['course'].label = 'Class'
+        if school:
+            self.fields['course'].queryset = Course.objects.filter(school=school, is_active=True)
+            self.fields['staff'].queryset = Staff.objects.filter(admin__school=school)
+        else:
+            self.fields['course'].queryset = Course.objects.none()
+            self.fields['staff'].queryset = Staff.objects.none()
 
     class Meta:
         model = Subject

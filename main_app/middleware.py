@@ -4,11 +4,44 @@ from django.urls import reverse
 from django.shortcuts import redirect
 
 
+class SchoolContextMiddleware(MiddlewareMixin):
+    """Set request.school for multi-tenant data isolation. Super Admin has school=None.
+    Blocks access for school users whose school is not approved (pending/rejected/suspended)."""
+    def process_request(self, request):
+        request.school = None
+        if request.user.is_authenticated and hasattr(request.user, 'school'):
+            school = getattr(request.user, 'school', None)
+            # Super Admin has no school - allow
+            if school is None:
+                return None
+            # School user - must have approved school
+            if school.status != 'approved':
+                from django.contrib.auth import logout
+                logout(request)
+                from django.contrib import messages
+                messages.error(
+                    request,
+                    "Your school access has been suspended or is pending approval. "
+                    "Contact the platform administrator."
+                )
+                return redirect(reverse('login_page'))
+            request.school = school
+        return None
+
+
 class LoginCheckMiddleWare(MiddlewareMixin):
     def process_view(self, request, view_func, view_args, view_kwargs):
         modulename = view_func.__module__
         user = request.user # Who is the current user ?
         if user.is_authenticated:
+            # Super Admin (user_type='0' or is_superuser) - platform owner, only super_admin views
+            if str(user.user_type) == '0' or user.is_superuser:
+                url_name = request.resolver_match.url_name if request.resolver_match else None
+                if url_name == 'user_logout':
+                    return None  # Allow logout
+                if modulename != 'main_app.super_admin_views':
+                    return redirect(reverse('super_admin_dashboard'))
+                return None
             # Finance Officer (user_type='5') - ONLY finance URLs allowed
             if str(user.user_type) == '5':
                 # Allow static/media assets
@@ -34,7 +67,11 @@ class LoginCheckMiddleWare(MiddlewareMixin):
             else: # None of the aforementioned ? Please take the user to login page
                 return redirect(reverse('login_page'))
         else:
-            if request.path == reverse('login_page') or modulename == 'django.contrib.auth.views' or request.path == reverse('user_login'): # If the path is login or has anything to do with authentication, pass
+            # Allow unauthenticated access to login, registration, and static/media
+            url_name = request.resolver_match.url_name if request.resolver_match else None
+            if (request.path == reverse('login_page') or request.path == reverse('user_login') or
+                    url_name == 'school_registration' or modulename == 'django.contrib.auth.views' or
+                    request.path.startswith('/static/') or request.path.startswith('/media/')):
                 pass
             else:
                 return redirect(reverse('login_page'))
