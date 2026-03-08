@@ -140,7 +140,7 @@ class SchoolSubscription(models.Model):
         ('expired', 'Expired'),
     )
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='subscriptions')
-    plan = models.ForeignKey(SubscriptionPlan, on_delete=models.PROTECT, related_name='school_subscriptions')
+    plan = models.ForeignKey(SubscriptionPlan, on_delete=models.SET_NULL, null=True, blank=True, related_name='school_subscriptions')
     start_date = models.DateField()
     end_date = models.DateField()
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='pending')

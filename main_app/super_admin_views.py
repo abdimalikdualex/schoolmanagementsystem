@@ -10,6 +10,8 @@ from django.urls import reverse
 from datetime import timedelta
 from django.utils import timezone
 
+from django.db import connection, transaction
+
 from .models import School, Student, Staff, SubscriptionPlan, CustomUser, SchoolSettings, SchoolSubscription
 from .email_service import send_school_approval_email
 
@@ -258,8 +260,25 @@ def super_admin_delete_school(request, school_id):
     """Delete a school and all related data. Only platform owner. Requires confirmation."""
     school = get_object_or_404(School, id=school_id)
     school_name = school.name
-    school.delete()  # CASCADE deletes related users, courses, etc.
-    messages.success(request, f"School '{school_name}' and all related data have been permanently deleted.")
+    try:
+        # SQLite: disable FK checks during delete to avoid constraint order issues
+        # PRAGMA must be set when no transaction is active
+        if connection.vendor == 'sqlite':
+            with connection.cursor() as cursor:
+                cursor.execute("PRAGMA foreign_keys = OFF")
+        try:
+            with transaction.atomic():
+                SchoolSubscription.objects.filter(school=school).delete()
+                school.subscription_plan = None
+                school.save(update_fields=['subscription_plan'])
+                school.delete()
+            messages.success(request, f"School '{school_name}' and all related data have been permanently deleted.")
+        finally:
+            if connection.vendor == 'sqlite':
+                with connection.cursor() as cursor:
+                    cursor.execute("PRAGMA foreign_keys = ON")
+    except Exception as e:
+        messages.error(request, f"Could not delete school: {str(e)}")
     return redirect('super_admin_dashboard')
 
 
