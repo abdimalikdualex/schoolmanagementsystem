@@ -312,6 +312,7 @@ def student_submit_homework(request, homework_id):
 def student_view_announcements(request):
     """Student view announcements"""
     student = get_object_or_404(Student, admin=request.user)
+    school = getattr(request, 'school', None)
     
     from django.db.models import Q
     announcements = Announcement.objects.filter(
@@ -319,7 +320,10 @@ def student_view_announcements(request):
         Q(target_audience='students') |
         Q(target_audience='class', target_course=student.course),
         is_active=True
-    ).order_by('-publish_date')
+    )
+    if school:
+        announcements = announcements.filter(created_by__school=school)
+    announcements = announcements.order_by('-publish_date')
     
     context = {
         'announcements': announcements,
@@ -388,6 +392,7 @@ def student_view_classmates(request):
     from .models import StudentClassEnrollment
     
     student = get_object_or_404(Student, admin=request.user)
+    school = getattr(request, 'school', None)
     
     # Get student's current class
     school_class = student.current_class or student.course
@@ -397,16 +402,22 @@ def student_view_classmates(request):
         return redirect(reverse('student_home'))
     
     # Get classmates from enrollments
-    enrollments = StudentClassEnrollment.objects.filter(
+    enrollments_qs = StudentClassEnrollment.objects.filter(
         school_class=school_class,
         status='active'
-    ).select_related('student__admin').exclude(student=student)
+    )
+    if school:
+        enrollments_qs = enrollments_qs.filter(school_class__school=school)
+    enrollments = enrollments_qs.select_related('student__admin').exclude(student=student)
     
     # Also get students directly assigned (backward compatibility)
     from django.db.models import Q
-    direct_classmates = Student.objects.filter(
+    direct_classmates_qs = Student.objects.filter(
         Q(course=school_class) | Q(current_class=school_class)
-    ).exclude(id=student.id).select_related('admin')
+    ).exclude(id=student.id)
+    if school:
+        direct_classmates_qs = direct_classmates_qs.filter(admin__school=school)
+    direct_classmates = direct_classmates_qs.select_related('admin')
     
     context = {
         'school_class': school_class,

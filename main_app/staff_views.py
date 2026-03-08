@@ -43,8 +43,9 @@ def staff_home(request):
 
 def staff_take_attendance(request):
     staff = get_object_or_404(Staff, admin=request.user)
+    school = getattr(request, 'school', None)
     subjects = Subject.objects.filter(staff_id=staff)
-    sessions = Session.objects.all()
+    sessions = Session.objects.filter(school=school) if school else Session.objects.all()
     context = {
         'subjects': subjects,
         'sessions': sessions,
@@ -65,17 +66,22 @@ def get_students(request):
     if not request.user.is_superuser and request.user.user_type != '1':
         if not can_teacher_enter_legacy_results(request, session_id):
             return JsonResponse({'error': 'Result upload is currently closed. Please contact the administrator.'}, status=403)
+    school = getattr(request, 'school', None)
     try:
-        subject = get_object_or_404(Subject, id=subject_id)
-        session = get_object_or_404(Session, id=session_id)
+        subject_qs = Subject.objects.filter(course__school=school) if school else Subject.objects.all()
+        session_qs = Session.objects.filter(school=school) if school else Session.objects.all()
+        subject = get_object_or_404(subject_qs, id=subject_id)
+        session = get_object_or_404(session_qs, id=session_id)
         course = subject.course
         if not course:
             return JsonResponse([], safe=False)
-        # Find students: legacy (course+session) OR via StudentClassEnrollment
+        # Find students: legacy (course+session) OR via StudentClassEnrollment (school-scoped)
         students = Student.objects.filter(
             Q(course=course, session=session) |
             Q(enrollments__school_class=course, enrollments__academic_year=session, enrollments__status='active')
         ).distinct()
+        if school:
+            students = students.filter(admin__school=school)
         student_data = []
         for student in students:
             data = {
@@ -100,14 +106,18 @@ def save_attendance(request):
         students = json.loads(student_data)
     except (json.JSONDecodeError, TypeError):
         return JsonResponse({'error': 'Invalid student data format'}, status=400)
+    school = getattr(request, 'school', None)
     try:
-        session = get_object_or_404(Session, id=session_id)
-        subject = get_object_or_404(Subject, id=subject_id)
+        session_qs = Session.objects.filter(school=school) if school else Session.objects.all()
+        subject_qs = Subject.objects.filter(course__school=school) if school else Subject.objects.all()
+        student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+        session = get_object_or_404(session_qs, id=session_id)
+        subject = get_object_or_404(subject_qs, id=subject_id)
         attendance = Attendance(session=session, subject=subject, date=date)
         attendance.save()
 
         for student_dict in students:
-            student = get_object_or_404(Student, id=student_dict.get('id'))
+            student = get_object_or_404(student_qs, id=student_dict.get('id'))
             attendance_report = AttendanceReport(student=student, attendance=attendance, status=student_dict.get('status'))
             attendance_report.save()
     except Exception as e:
@@ -118,8 +128,9 @@ def save_attendance(request):
 
 def staff_update_attendance(request):
     staff = get_object_or_404(Staff, admin=request.user)
+    school = getattr(request, 'school', None)
     subjects = Subject.objects.filter(staff_id=staff)
-    sessions = Session.objects.all()
+    sessions = Session.objects.filter(school=school) if school else Session.objects.all()
     context = {
         'subjects': subjects,
         'sessions': sessions,
@@ -132,8 +143,10 @@ def staff_update_attendance(request):
 @csrf_exempt
 def get_student_attendance(request):
     attendance_date_id = request.POST.get('attendance_date_id')
+    school = getattr(request, 'school', None)
     try:
-        date = get_object_or_404(Attendance, id=attendance_date_id)
+        att_qs = Attendance.objects.filter(subject__course__school=school) if school else Attendance.objects.all()
+        date = get_object_or_404(att_qs, id=attendance_date_id)
         attendance_data = AttendanceReport.objects.filter(attendance=date)
         student_data = []
         for attendance in attendance_data:
@@ -156,12 +169,15 @@ def update_attendance(request):
         students = json.loads(student_data)
     except (json.JSONDecodeError, TypeError):
         return JsonResponse({'error': 'Invalid student data format'}, status=400)
+    school = getattr(request, 'school', None)
     try:
-        attendance = get_object_or_404(Attendance, id=date)
+        att_qs = Attendance.objects.filter(subject__course__school=school) if school else Attendance.objects.all()
+        attendance = get_object_or_404(att_qs, id=date)
+        student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
 
         for student_dict in students:
             student = get_object_or_404(
-                Student, admin_id=student_dict.get('id'))
+                student_qs, admin_id=student_dict.get('id'))
             attendance_report = get_object_or_404(AttendanceReport, student=student, attendance=attendance)
             attendance_report.status = student_dict.get('status')
             attendance_report.save()
@@ -290,13 +306,14 @@ def staff_add_result(request):
                 'page_title': 'Result Entry Closed',
                 'message': 'Result upload is currently closed. Please contact the administrator.'
             }, status=403)
+    school = getattr(request, 'school', None)
     # If user is superuser allow all subjects; otherwise limit to staff's subjects
     if request.user.is_superuser:
-        subjects = Subject.objects.all()
+        subjects = Subject.objects.filter(course__school=school) if school else Subject.objects.all()
     else:
         staff = get_object_or_404(Staff, admin=request.user)
         subjects = Subject.objects.filter(staff=staff)
-    sessions = Session.objects.all()
+    sessions = Session.objects.filter(school=school) if school else Session.objects.all()
     context = {
         'page_title': 'Result Upload',
         'subjects': subjects,
@@ -317,8 +334,10 @@ def staff_add_result(request):
             subject_id = request.POST.get('subject')
             test = request.POST.get('test')
             exam = request.POST.get('exam')
-            student = get_object_or_404(Student, id=student_id)
-            subject = get_object_or_404(Subject, id=subject_id)
+            student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+            subject_qs = Subject.objects.filter(course__school=school) if school else Subject.objects.all()
+            student = get_object_or_404(student_qs, id=student_id)
+            subject = get_object_or_404(subject_qs, id=subject_id)
 
             # Permission check: non-superuser staff must own the subject
             if not request.user.is_superuser:
@@ -352,8 +371,11 @@ def fetch_student_result(request):
     try:
         subject_id = request.POST.get('subject')
         student_id = request.POST.get('student')
-        student = get_object_or_404(Student, id=student_id)
-        subject = get_object_or_404(Subject, id=subject_id)
+        school = getattr(request, 'school', None)
+        student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+        subject_qs = Subject.objects.filter(course__school=school) if school else Subject.objects.all()
+        student = get_object_or_404(student_qs, id=student_id)
+        subject = get_object_or_404(subject_qs, id=subject_id)
 
         # Permission check: non-superuser staff must own the subject
         if not request.user.is_superuser:
@@ -374,8 +396,9 @@ def fetch_student_result(request):
 # Homework Management
 def staff_add_homework(request):
     staff = get_object_or_404(Staff, admin=request.user)
+    school = getattr(request, 'school', None)
     subjects = Subject.objects.filter(staff=staff)
-    sessions = Session.objects.all()
+    sessions = Session.objects.filter(school=school) if school else Session.objects.all()
     courses = Course.objects.filter(id__in=subjects.values_list('course_id', flat=True))
     
     context = {
@@ -396,9 +419,12 @@ def staff_add_homework(request):
         attachment = request.FILES.get('attachment')
         
         try:
-            subject = Subject.objects.get(id=subject_id)
-            course = Course.objects.get(id=course_id)
-            session = Session.objects.get(id=session_id)
+            subject_qs = Subject.objects.filter(course__school=school) if school else Subject.objects.all()
+            course_qs = Course.objects.filter(school=school) if school else Course.objects.all()
+            session_qs = Session.objects.filter(school=school) if school else Session.objects.all()
+            subject = subject_qs.get(id=subject_id)
+            course = course_qs.get(id=course_id)
+            session = session_qs.get(id=session_id)
             
             homework = Homework.objects.create(
                 subject=subject,
@@ -432,9 +458,10 @@ def staff_manage_homework(request):
 
 def staff_edit_homework(request, homework_id):
     staff = get_object_or_404(Staff, admin=request.user)
+    school = getattr(request, 'school', None)
     homework = get_object_or_404(Homework, id=homework_id, staff=staff)
     subjects = Subject.objects.filter(staff=staff)
-    sessions = Session.objects.all()
+    sessions = Session.objects.filter(school=school) if school else Session.objects.all()
     courses = Course.objects.filter(id__in=subjects.values_list('course_id', flat=True))
     
     if request.method == 'POST':
@@ -626,7 +653,9 @@ def staff_view_class_roster(request, class_id):
     from .models import StudentClassEnrollment
     
     staff = get_object_or_404(Staff, admin=request.user)
-    school_class = get_object_or_404(Course, id=class_id)
+    school = getattr(request, 'school', None)
+    course_qs = Course.objects.filter(school=school) if school else Course.objects.all()
+    school_class = get_object_or_404(course_qs, id=class_id)
     
     # Verify staff has access to this class
     is_class_teacher = school_class.class_teacher == staff

@@ -604,7 +604,13 @@ class FeeGroupItemForm(FormSettings):
 
 class FeeStructureForm(FormSettings):
     def __init__(self, *args, **kwargs):
+        school = kwargs.pop('school', None)
         super(FeeStructureForm, self).__init__(*args, **kwargs)
+        if school:
+            self.fields['fee_group'].queryset = FeeGroup.objects.filter(school=school)
+            self.fields['session'].queryset = Session.objects.filter(school=school)
+            self.fields['grade_level'].queryset = GradeLevel.objects.filter(school=school)
+            self.fields['course'].queryset = Course.objects.filter(school=school)
 
     class Meta:
         model = FeeStructure
@@ -674,7 +680,13 @@ class ExamTypeForm(FormSettings):
 
 class ExamScheduleForm(FormSettings):
     def __init__(self, *args, **kwargs):
+        school = kwargs.pop('school', None)
         super(ExamScheduleForm, self).__init__(*args, **kwargs)
+        if school:
+            if 'exam_type' in self.fields:
+                self.fields['exam_type'].queryset = ExamType.objects.filter(school=school, is_active=True)
+            if 'session' in self.fields:
+                self.fields['session'].queryset = Session.objects.filter(school=school)
 
     class Meta:
         model = ExamSchedule

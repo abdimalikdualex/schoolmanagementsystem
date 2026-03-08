@@ -99,6 +99,15 @@
             <!-- Content Header (Page header) -->
             <div class="content-header">
                 <div class="container-fluid">
+                    {% if request.school %}
+                    <div class="row mb-2">
+                        <div class="col-12">
+                            <h2 class="school-name-header text-center text-uppercase font-weight-bold text-primary mb-0 py-2" style="letter-spacing: 0.08em; text-shadow: 0 1px 2px rgba(0,0,0,0.08); border-bottom: 1px solid rgba(0,0,0,0.08);">
+                                {{ request.school.name }}
+                            </h2>
+                        </div>
+                    </div>
+                    {% endif %}
                     <div class="row mb-2">
                         <div class="col-sm-6">
                             <h1 class="m-0 text-dark">{% block page_title %}{% endblock page_title %}</h1>

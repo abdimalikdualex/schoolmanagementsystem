@@ -38,6 +38,7 @@
                             <th>Type</th>
                             <th>School</th>
                             <th>Status</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -63,10 +64,15 @@
                                 <span class="badge badge-warning">{{ u.school.status|default:"—" }}</span>
                                 {% endif %}
                             </td>
+                            <td>
+                                <a href="{% url 'super_admin_reset_password' user_id=u.id %}" class="btn btn-xs btn-warning" title="Reset Password">
+                                    <i class="fas fa-key"></i> Reset
+                                </a>
+                            </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="5" class="text-center py-4 text-muted">No users found.</td>
+                            <td colspan="6" class="text-center py-4 text-muted">No users found.</td>
                         </tr>
                         {% endfor %}
                     </tbody>

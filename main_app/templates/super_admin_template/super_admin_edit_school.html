@@ -42,7 +42,7 @@
                                     <option value="">— No plan —</option>
                                     {% for plan in plans %}
                                     <option value="{{ plan.id }}" {% if school.subscription_plan_id == plan.id %}selected{% endif %}>
-                                        {{ plan.name }} ({{ plan.student_limit }} students, {{ plan.teacher_limit }} teachers)
+                                        {{ plan.name }} ({% if plan.student_limit == 0 %}Unlimited{% else %}{{ plan.student_limit }}{% endif %} students, {% if plan.teacher_limit == 0 %}Unlimited{% else %}{{ plan.teacher_limit }}{% endif %} teachers{% if plan.monthly_price %} - ${{ plan.monthly_price }}/mo{% endif %})
                                     </option>
                                     {% endfor %}
                                 </select>

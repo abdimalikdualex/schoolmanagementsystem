@@ -739,7 +739,7 @@
 
                 {% elif request.user.user_type == '2' %}
                 <!-- Brand Logo -->
-                <a href="#" class="brand-link">
+                <a href="{% url 'staff_home' %}" class="brand-link">
                     <img src="{% static 'dist/img/AdminLTELogo.png' %} " alt="AdminLTE Logo"
                         class="brand-image img-circle elevation-3" style="opacity: .8">
                     <span class="brand-text font-weight-light">Staff Panel</span>
@@ -972,8 +972,7 @@
 
                             {% elif request.user.user_type == '3' %}
                             <!-- Brand Logo -->
-                            <a href="" class="brand-link">
-
+                            <a href="{% url 'student_home' %}" class="brand-link">
                                 <img src="{% static 'dist/img/AdminLTELogo.png' %} " alt="AdminLTE Logo"
                                     class="brand-image img-circle elevation-3" style="opacity: .8">
                                 <span class="brand-text font-weight-light">Student Panel</span>
@@ -1114,7 +1113,7 @@
 <a href="{% url 'parent_home' %}" class="brand-link">
     <img src="{% static 'dist/img/AdminLTELogo.png' %}" alt="Logo"
         class="brand-image img-circle elevation-3" style="opacity: .8">
-    <span class="brand-text font-weight-light">Parent Portal</span>
+    <span class="brand-text font-weight-light">Parent Panel</span>
 </a>
 
 <div class="sidebar">

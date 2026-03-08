@@ -140,9 +140,10 @@ def add_staff(request):
     if request.method == 'POST':
         if school and not school.can_add_teacher():
             plan = school.subscription_plan
+            limit_str = "Unlimited" if plan.teacher_limit == 0 else str(plan.teacher_limit)
             messages.error(
                 request,
-                f"Teacher limit reached ({plan.teacher_limit}). Upgrade your plan to add more teachers."
+                f"Teacher limit reached ({limit_str}). Upgrade your plan to add more teachers."
             )
             return render(request, 'hod_template/add_staff_template.html', context)
         if form.is_valid():
@@ -271,9 +272,10 @@ def add_student(request):
     if request.method == 'POST':
         if school and not school.can_add_student():
             plan = school.subscription_plan
+            limit_str = "Unlimited" if plan.student_limit == 0 else str(plan.student_limit)
             messages.error(
                 request,
-                f"Student limit reached ({plan.student_limit}). Upgrade your plan to add more students."
+                f"Student limit reached ({limit_str}). Upgrade your plan to add more students."
             )
             return render(request, 'hod_template/add_student_template.html', context)
         if form.is_valid():
@@ -852,7 +854,9 @@ def edit_academic_term(request, term_id):
 
 def activate_academic_term(request, term_id):
     """Set term as active (closes all others)"""
-    term = get_object_or_404(AcademicTerm, id=term_id)
+    school = getattr(request, 'school', None)
+    qs = AcademicTerm.objects.filter(school=school) if school else AcademicTerm.objects.all()
+    term = get_object_or_404(qs, id=term_id)
     try:
         term.activate()
         messages.success(request, f"{term} is now the active term.")
@@ -863,12 +867,25 @@ def activate_academic_term(request, term_id):
 
 def close_academic_term(request, term_id):
     """Close an academic term - MVP: Locks attendance and marks editing"""
-    term = get_object_or_404(AcademicTerm, id=term_id)
+    school = getattr(request, 'school', None)
+    qs = AcademicTerm.objects.filter(school=school) if school else AcademicTerm.objects.all()
+    term = get_object_or_404(qs, id=term_id)
     try:
         term.close()
         messages.success(request, f"{term.term_name} closed. Attendance and marks are now locked.")
     except Exception as e:
         messages.error(request, f"Could not close term: {str(e)}")
+    return redirect(reverse('manage_academic_terms'))
+
+
+def delete_academic_term(request, term_id):
+    """Delete an academic term. School admin: only terms in their school."""
+    school = getattr(request, 'school', None)
+    qs = AcademicTerm.objects.filter(school=school) if school else AcademicTerm.objects.all()
+    term = get_object_or_404(qs, id=term_id)
+    term_name = str(term)
+    term.delete()
+    messages.success(request, f"Term '{term_name}' has been deleted.")
     return redirect(reverse('manage_academic_terms'))
 
 
@@ -884,8 +901,9 @@ def check_email_availability(request):
 
 @csrf_exempt
 def student_feedback_message(request):
+    school = getattr(request, 'school', None)
     if request.method != 'POST':
-        feedbacks = FeedbackStudent.objects.all()
+        feedbacks = FeedbackStudent.objects.filter(student__admin__school=school) if school else FeedbackStudent.objects.all()
         context = {
             'feedbacks': feedbacks,
             'page_title': 'Student Feedback Messages'
@@ -894,7 +912,8 @@ def student_feedback_message(request):
     else:
         feedback_id = request.POST.get('id')
         try:
-            feedback = get_object_or_404(FeedbackStudent, id=feedback_id)
+            qs = FeedbackStudent.objects.filter(student__admin__school=school) if school else FeedbackStudent.objects.all()
+            feedback = get_object_or_404(qs, id=feedback_id)
             reply = request.POST.get('reply')
             feedback.reply = reply
             feedback.save()
@@ -905,8 +924,9 @@ def student_feedback_message(request):
 
 @csrf_exempt
 def staff_feedback_message(request):
+    school = getattr(request, 'school', None)
     if request.method != 'POST':
-        feedbacks = FeedbackStaff.objects.all()
+        feedbacks = FeedbackStaff.objects.filter(staff__admin__school=school) if school else FeedbackStaff.objects.all()
         context = {
             'feedbacks': feedbacks,
             'page_title': 'Staff Feedback Messages'
@@ -915,7 +935,8 @@ def staff_feedback_message(request):
     else:
         feedback_id = request.POST.get('id')
         try:
-            feedback = get_object_or_404(FeedbackStaff, id=feedback_id)
+            qs = FeedbackStaff.objects.filter(staff__admin__school=school) if school else FeedbackStaff.objects.all()
+            feedback = get_object_or_404(qs, id=feedback_id)
             reply = request.POST.get('reply')
             feedback.reply = reply
             feedback.save()
@@ -926,8 +947,9 @@ def staff_feedback_message(request):
 
 @csrf_exempt
 def view_staff_leave(request):
+    school = getattr(request, 'school', None)
     if request.method != 'POST':
-        allLeave = LeaveReportStaff.objects.all()
+        allLeave = LeaveReportStaff.objects.filter(staff__admin__school=school) if school else LeaveReportStaff.objects.all()
         context = {
             'allLeave': allLeave,
             'page_title': 'Leave Applications From Staff'
@@ -941,7 +963,8 @@ def view_staff_leave(request):
         else:
             status = -1
         try:
-            leave = get_object_or_404(LeaveReportStaff, id=id)
+            qs = LeaveReportStaff.objects.filter(staff__admin__school=school) if school else LeaveReportStaff.objects.all()
+            leave = get_object_or_404(qs, id=id)
             leave.status = status
             leave.save()
             return JsonResponse({'success': True})
@@ -951,8 +974,9 @@ def view_staff_leave(request):
 
 @csrf_exempt
 def view_student_leave(request):
+    school = getattr(request, 'school', None)
     if request.method != 'POST':
-        allLeave = LeaveReportStudent.objects.all()
+        allLeave = LeaveReportStudent.objects.filter(student__admin__school=school) if school else LeaveReportStudent.objects.all()
         context = {
             'allLeave': allLeave,
             'page_title': 'Leave Applications From Students'
@@ -966,7 +990,8 @@ def view_student_leave(request):
         else:
             status = -1
         try:
-            leave = get_object_or_404(LeaveReportStudent, id=id)
+            qs = LeaveReportStudent.objects.filter(student__admin__school=school) if school else LeaveReportStudent.objects.all()
+            leave = get_object_or_404(qs, id=id)
             leave.status = status
             leave.save()
             return JsonResponse({'success': True})
@@ -975,8 +1000,9 @@ def view_student_leave(request):
 
 
 def admin_view_attendance(request):
-    subjects = Subject.objects.all()
-    sessions = Session.objects.all()
+    school = getattr(request, 'school', None)
+    subjects = Subject.objects.filter(course__school=school) if school else Subject.objects.all()
+    sessions = Session.objects.filter(school=school) if school else Session.objects.all()
     context = {
         'subjects': subjects,
         'sessions': sessions,
@@ -988,12 +1014,15 @@ def admin_view_attendance(request):
 
 @csrf_exempt
 def get_admin_attendance(request):
+    school = getattr(request, 'school', None)
     subject_id = request.POST.get('subject')
     session_id = request.POST.get('session')
     attendance_date_id = request.POST.get('attendance_date_id')
     try:
-        subject = get_object_or_404(Subject, id=subject_id)
-        session = get_object_or_404(Session, id=session_id)
+        subject_qs = Subject.objects.filter(course__school=school) if school else Subject.objects.all()
+        session_qs = Session.objects.filter(school=school) if school else Session.objects.all()
+        subject = get_object_or_404(subject_qs, id=subject_id)
+        session = get_object_or_404(session_qs, id=session_id)
         attendance = get_object_or_404(
             Attendance, id=attendance_date_id, session=session)
         attendance_reports = AttendanceReport.objects.filter(
@@ -1046,7 +1075,8 @@ def admin_view_profile(request):
 
 
 def admin_notify_staff(request):
-    staff = CustomUser.objects.filter(user_type=2)
+    school = getattr(request, 'school', None)
+    staff = CustomUser.objects.filter(user_type=2, school=school) if school else CustomUser.objects.filter(user_type=2)
     context = {
         'page_title': "Send Notifications To Staff",
         'allStaff': staff
@@ -1055,7 +1085,8 @@ def admin_notify_staff(request):
 
 
 def admin_notify_student(request):
-    student = CustomUser.objects.filter(user_type=3)
+    school = getattr(request, 'school', None)
+    student = CustomUser.objects.filter(user_type=3, school=school) if school else CustomUser.objects.filter(user_type=3)
     context = {
         'page_title': "Send Notifications To Students",
         'students': student
@@ -1067,7 +1098,9 @@ def admin_notify_student(request):
 def send_student_notification(request):
     id = request.POST.get('id')
     message = request.POST.get('message')
-    student = get_object_or_404(Student, admin_id=id)
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(qs, admin_id=id)
     try:
         url = "https://fcm.googleapis.com/fcm/send"
         body = {
@@ -1094,7 +1127,9 @@ def send_student_notification(request):
 def send_staff_notification(request):
     id = request.POST.get('id')
     message = request.POST.get('message')
-    staff = get_object_or_404(Staff, admin_id=id)
+    school = getattr(request, 'school', None)
+    qs = Staff.objects.filter(admin__school=school) if school else Staff.objects.all()
+    staff = get_object_or_404(qs, admin_id=id)
     try:
         url = "https://fcm.googleapis.com/fcm/send"
         body = {
@@ -1118,21 +1153,27 @@ def send_staff_notification(request):
 
 
 def delete_staff(request, staff_id):
-    staff = get_object_or_404(CustomUser, staff__id=staff_id)
+    school = getattr(request, 'school', None)
+    qs = CustomUser.objects.filter(school=school) if school else CustomUser.objects.all()
+    staff = get_object_or_404(qs, staff__id=staff_id)
     staff.delete()
     messages.success(request, "Staff deleted successfully!")
     return redirect(reverse('manage_staff'))
 
 
 def delete_student(request, student_id):
-    student = get_object_or_404(CustomUser, student__id=student_id)
+    school = getattr(request, 'school', None)
+    qs = CustomUser.objects.filter(school=school) if school else CustomUser.objects.all()
+    student = get_object_or_404(qs, student__id=student_id)
     student.delete()
     messages.success(request, "Student deleted successfully!")
     return redirect(reverse('manage_student'))
 
 
 def delete_course(request, course_id):
-    course = get_object_or_404(Course, id=course_id)
+    school = getattr(request, 'school', None)
+    qs = Course.objects.filter(school=school) if school else Course.objects.all()
+    course = get_object_or_404(qs, id=course_id)
     try:
         course.delete()
         messages.success(request, "Class deleted successfully!")
@@ -1143,7 +1184,9 @@ def delete_course(request, course_id):
 
 
 def delete_subject(request, subject_id):
-    subject = get_object_or_404(Subject, id=subject_id)
+    school = getattr(request, 'school', None)
+    qs = Subject.objects.filter(course__school=school) if school else Subject.objects.all()
+    subject = get_object_or_404(qs, id=subject_id)
     course_id = subject.course_id
     subject.delete()
     messages.success(request, "Subject deleted successfully!")
@@ -1156,7 +1199,9 @@ def delete_subject(request, subject_id):
 
 
 def delete_session(request, session_id):
-    session = get_object_or_404(Session, id=session_id)
+    school = getattr(request, 'school', None)
+    qs = Session.objects.filter(school=school) if school else Session.objects.all()
+    session = get_object_or_404(qs, id=session_id)
     try:
         session.delete()
         messages.success(request, "Session deleted successfully!")
@@ -1167,9 +1212,10 @@ def delete_session(request, session_id):
 
 
 def admin_view_result(request):
-    """Admin can view all student results"""
-    courses = Course.objects.all()
-    subjects = Subject.objects.all()
+    """Admin can view all student results (school-scoped)"""
+    school = getattr(request, 'school', None)
+    courses = Course.objects.filter(school=school) if school else Course.objects.all()
+    subjects = Subject.objects.filter(course__school=school) if school else Subject.objects.all()
     context = {
         'page_title': 'View Student Results',
         'courses': courses,
@@ -1180,14 +1226,18 @@ def admin_view_result(request):
 
 @csrf_exempt
 def admin_get_students_for_result(request):
-    """Fetch students by course and subject for admin"""
+    """Fetch students by course and subject for admin (school-scoped)"""
+    school = getattr(request, 'school', None)
     try:
         course_id = request.POST.get('course_id')
         subject_id = request.POST.get('subject_id')
         
         if course_id and subject_id:
             students = Student.objects.filter(course_id=course_id)
-            subject = get_object_or_404(Subject, id=subject_id)
+            if school:
+                students = students.filter(admin__school=school)
+            subject_qs = Subject.objects.filter(course__school=school) if school else Subject.objects.all()
+            subject = get_object_or_404(subject_qs, id=subject_id)
             
             student_result_data = []
             for student in students:
@@ -1223,9 +1273,10 @@ def admin_edit_result(request):
         messages.error(request, "Only super admin and staff can edit student results")
         return redirect('admin_home')
     
-    subjects = Subject.objects.all()
-    courses = Course.objects.all()
-    students = Student.objects.all()
+    school = getattr(request, 'school', None)
+    subjects = Subject.objects.filter(course__school=school) if school else Subject.objects.all()
+    courses = Course.objects.filter(school=school) if school else Course.objects.all()
+    students = Student.objects.filter(admin__school=school) if school else Student.objects.all()
     context = {
         'page_title': 'Edit Student Results',
         'subjects': subjects,
@@ -1240,8 +1291,10 @@ def admin_edit_result(request):
             test = request.POST.get('test')
             exam = request.POST.get('exam')
             
-            student = get_object_or_404(Student, id=student_id)
-            subject = get_object_or_404(Subject, id=subject_id)
+            student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+            subject_qs = Subject.objects.filter(course__school=school) if school else Subject.objects.all()
+            student = get_object_or_404(student_qs, id=student_id)
+            subject = get_object_or_404(subject_qs, id=subject_id)
             
             try:
                 result = StudentResult.objects.get(student=student, subject=subject)
@@ -1263,13 +1316,16 @@ def admin_edit_result(request):
 
 @csrf_exempt
 def admin_fetch_student_result(request):
-    """Fetch specific student result for admin"""
+    """Fetch specific student result for admin (school-scoped)"""
+    school = getattr(request, 'school', None)
     try:
         subject_id = request.POST.get('subject_id')
         student_id = request.POST.get('student_id')
         
-        student = get_object_or_404(Student, id=student_id)
-        subject = get_object_or_404(Subject, id=subject_id)
+        student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+        subject_qs = Subject.objects.filter(course__school=school) if school else Subject.objects.all()
+        student = get_object_or_404(student_qs, id=student_id)
+        subject = get_object_or_404(subject_qs, id=subject_id)
         
         result = StudentResult.objects.get(student=student, subject=subject)
         result_data = {
@@ -1350,10 +1406,12 @@ def admin_view_transcript(request):
 
 
 def admin_get_student_transcript(request):
-    """Get detailed transcript for a specific student"""
+    """Get detailed transcript for a specific student (school-scoped)"""
+    school = getattr(request, 'school', None)
     try:
         student_id = request.POST.get('student_id')
-        student = get_object_or_404(Student, id=student_id)
+        student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+        student = get_object_or_404(student_qs, id=student_id)
         
         results = StudentResult.objects.filter(student=student).select_related('subject')
         
@@ -1450,8 +1508,10 @@ def admin_download_transcript_pdf(request, student_id):
         messages.error(request, 'PDF generation is not available. Please install reportlab by running: pip install reportlab. Then restart your Django server.')
         return redirect('admin_view_transcript')
     
+    school = getattr(request, 'school', None)
+    student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
     try:
-        student = get_object_or_404(Student, id=student_id)
+        student = get_object_or_404(student_qs, id=student_id)
         results = StudentResult.objects.filter(student=student).select_related('subject')
         
         # Create response with PDF content type
@@ -1740,8 +1800,10 @@ def send_results_sms(request, student_id):
     if not request.user.is_authenticated or int(request.user.user_type) not in [1, 2]:
         return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
     
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
     try:
-        student = get_object_or_404(Student, id=student_id)
+        student = get_object_or_404(qs, id=student_id)
         
         # Check if student has phone number
         if not student.admin.phone_number:
@@ -1793,12 +1855,13 @@ def send_results_sms(request, student_id):
 
 @csrf_exempt
 def send_all_results_sms(request):
-    """Send results via SMS to all students"""
+    """Send results via SMS to all students (school-scoped)"""
     if not request.user.is_authenticated or int(request.user.user_type) not in [1, 2]:
         return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
     
+    school = getattr(request, 'school', None)
     try:
-        students = Student.objects.all()
+        students = Student.objects.filter(admin__school=school) if school else Student.objects.all()
         success_count = 0
         error_count = 0
         errors = []
@@ -1863,8 +1926,9 @@ def admin_view_fees(request):
             messages.error(request, "You don't have permission to view fees")
             return redirect('admin_home')
     
-    students = Student.objects.all()
-    sessions = Session.objects.all()
+    school = getattr(request, 'school', None)
+    students = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    sessions = Session.objects.filter(school=school) if school else Session.objects.all()
     context = {
         'students': students,
         'sessions': sessions,
@@ -1884,6 +1948,7 @@ def admin_post_fees(request):
             return JsonResponse({'error': 'You do not have permission to manage fees'}, status=403)
     
     if request.method == 'POST':
+        school = getattr(request, 'school', None)
         try:
             student_id = request.POST.get('student_id')
             session_id = request.POST.get('session_id')
@@ -1891,8 +1956,10 @@ def admin_post_fees(request):
             due_date = request.POST.get('due_date')
             notes = request.POST.get('notes', '')
             
-            student = get_object_or_404(Student, id=student_id)
-            session = get_object_or_404(Session, id=session_id)
+            student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+            session_qs = Session.objects.filter(school=school) if school else Session.objects.all()
+            student = get_object_or_404(student_qs, id=student_id)
+            session = get_object_or_404(session_qs, id=session_id)
             
             # Check if fees already exist for this student and session
             try:
@@ -1919,13 +1986,16 @@ def admin_post_fees(request):
 
 
 def admin_get_fees(request):
-    """Fetch fees for a student via AJAX"""
+    """Fetch fees for a student via AJAX (school-scoped)"""
+    school = getattr(request, 'school', None)
     try:
         student_id = request.POST.get('student_id')
         session_id = request.POST.get('session_id')
         
-        student = get_object_or_404(Student, id=student_id)
-        session = get_object_or_404(Session, id=session_id)
+        student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+        session_qs = Session.objects.filter(school=school) if school else Session.objects.all()
+        student = get_object_or_404(student_qs, id=student_id)
+        session = get_object_or_404(session_qs, id=session_id)
         
         try:
             fees = StudentFees.objects.get(student=student, session=session)
@@ -1957,12 +2027,14 @@ def admin_clear_fees(request):
             return JsonResponse({'error': 'You do not have permission to manage fees'}, status=403)
     
     if request.method == 'POST':
+        school = getattr(request, 'school', None)
         try:
             fees_id = request.POST.get('fees_id')
             amount_paid = Decimal(request.POST.get('amount_paid'))
             payment_date = request.POST.get('payment_date', datetime.now().date())
             
-            fees = get_object_or_404(StudentFees, id=fees_id)
+            fees_qs = StudentFees.objects.filter(student__admin__school=school) if school else StudentFees.objects.all()
+            fees = get_object_or_404(fees_qs, id=fees_id)
             fees.amount_paid += amount_paid
             
             # Update status
@@ -2392,8 +2464,10 @@ def delete_timetable(request, timetable_id):
 
 
 def view_class_timetable(request, class_id=None, course_id=None):
+    school = getattr(request, 'school', None)
     cid = class_id or course_id
-    course = get_object_or_404(Course, id=cid)
+    course_qs = Course.objects.filter(school=school) if school else Course.objects.all()
+    course = get_object_or_404(course_qs, id=cid)
     timetables = Timetable.objects.filter(course=course).select_related(
         'subject', 'staff__admin'
     ).order_by('day', 'start_time')
@@ -2436,14 +2510,17 @@ def add_announcement(request):
 
 
 def manage_announcement(request):
-    announcements = Announcement.objects.all().select_related('created_by', 'target_course')
+    school = getattr(request, 'school', None)
+    announcements = Announcement.objects.filter(created_by__school=school).select_related('created_by', 'target_course') if school else Announcement.objects.all().select_related('created_by', 'target_course')
     context = {'announcements': announcements, 'page_title': 'Manage Announcements'}
     return render(request, 'hod_template/manage_announcement.html', context)
 
 
 def edit_announcement(request, announcement_id):
     from .forms import AnnouncementForm
-    announcement = get_object_or_404(Announcement, id=announcement_id)
+    school = getattr(request, 'school', None)
+    ann_qs = Announcement.objects.filter(created_by__school=school) if school else Announcement.objects.all()
+    announcement = get_object_or_404(ann_qs, id=announcement_id)
     form = AnnouncementForm(request.POST or None, request.FILES or None, instance=announcement)
     context = {'form': form, 'announcement_id': announcement_id, 'page_title': 'Edit Announcement'}
     
@@ -2462,7 +2539,9 @@ def edit_announcement(request, announcement_id):
 
 
 def delete_announcement(request, announcement_id):
-    announcement = get_object_or_404(Announcement, id=announcement_id)
+    school = getattr(request, 'school', None)
+    ann_qs = Announcement.objects.filter(created_by__school=school) if school else Announcement.objects.all()
+    announcement = get_object_or_404(ann_qs, id=announcement_id)
     try:
         announcement.delete()
         messages.success(request, "Announcement deleted successfully!")
@@ -2694,7 +2773,8 @@ def edit_class(request, class_id=None, course_id=None):
     from .forms import CourseForm
     school = getattr(request, 'school', None)
     cid = class_id or course_id
-    school_class = get_object_or_404(Course, id=cid)
+    course_qs = Course.objects.filter(school=school) if school else Course.objects.all()
+    school_class = get_object_or_404(course_qs, id=cid)
     if school and school_class.school_id != school.id:
         messages.error(request, "You do not have permission to edit this class.")
         return redirect(reverse('manage_classes'))
@@ -2752,7 +2832,8 @@ def delete_class(request, class_id=None, course_id=None):
     """Soft delete a class (accepts class_id or course_id for URL compatibility)"""
     school = getattr(request, 'school', None)
     cid = class_id or course_id
-    school_class = get_object_or_404(Course, id=cid)
+    course_qs = Course.objects.filter(school=school) if school else Course.objects.all()
+    school_class = get_object_or_404(course_qs, id=cid)
     if school and school_class.school_id != school.id:
         messages.error(request, "You do not have permission to delete this class.")
         return redirect(reverse('manage_classes'))
@@ -2767,7 +2848,9 @@ def delete_class(request, class_id=None, course_id=None):
 
 def view_class_students(request, class_id):
     """View students enrolled in a class"""
-    school_class = get_object_or_404(Course, id=class_id)
+    school = getattr(request, 'school', None)
+    course_qs = Course.objects.filter(school=school) if school else Course.objects.all()
+    school_class = get_object_or_404(course_qs, id=class_id)
     enrollments = StudentClassEnrollment.objects.filter(
         school_class=school_class,
         status='active'
@@ -2789,10 +2872,13 @@ def view_class_students(request, class_id):
 
 # Student Enrollment Management
 def manage_enrollments(request):
-    """View all student enrollments"""
-    enrollments = StudentClassEnrollment.objects.all().select_related(
+    """View all student enrollments (school-scoped)"""
+    school = getattr(request, 'school', None)
+    enrollments = StudentClassEnrollment.objects.select_related(
         'student__admin', 'school_class__grade_level', 'school_class__stream', 'academic_year'
     )
+    if school:
+        enrollments = enrollments.filter(school_class__school=school)
     context = {
         'enrollments': enrollments,
         'page_title': 'Manage Student Enrollments'
@@ -2858,11 +2944,15 @@ def add_enrollment(request):
         else:
             messages.error(request, "Please fill form properly")
     
+    school = getattr(request, 'school', None)
+    students_qs = Student.objects.filter(admin__school=school).select_related('admin') if school else Student.objects.select_related('admin').all()
+    classes_qs = Course.objects.filter(school=school, is_active=True) if school else Course.objects.filter(is_active=True)
+    sessions_qs = Session.objects.filter(school=school) if school else Session.objects.all()
     context = {
         'form': form,
-        'students': Student.objects.all().select_related('admin'),
-        'classes': Course.objects.filter(is_active=True),
-        'sessions': Session.objects.all(),
+        'students': students_qs,
+        'classes': classes_qs,
+        'sessions': sessions_qs,
         'active_term': active_term,
         'page_title': 'Enroll Student'
     }
@@ -2879,13 +2969,17 @@ def bulk_enrollment(request):
             student_ids = request.POST.getlist('students')
             class_id = request.POST.get('school_class')
             academic_year_id = request.POST.get('academic_year')
+            school = getattr(request, 'school', None)
             try:
-                school_class = Course.objects.get(id=class_id)
-                academic_year = Session.objects.get(id=academic_year_id)
+                course_qs = Course.objects.filter(school=school) if school else Course.objects.all()
+                session_qs = Session.objects.filter(school=school) if school else Session.objects.all()
+                school_class = course_qs.get(id=class_id)
+                academic_year = session_qs.get(id=academic_year_id)
                 enrolled_count = 0
                 skipped_count = 0
+                student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
                 for student_id in student_ids:
-                    student = Student.objects.get(id=student_id)
+                    student = student_qs.get(id=student_id)
                     existing = StudentClassEnrollment.objects.filter(
                         student=student,
                         academic_year=academic_year,
@@ -2914,11 +3008,15 @@ def bulk_enrollment(request):
             except Exception as e:
                 messages.error(request, f"Bulk enrollment failed: {str(e)}")
     
+    school = getattr(request, 'school', None)
+    students_qs = Student.objects.filter(admin__school=school).select_related('admin') if school else Student.objects.select_related('admin').all()
+    classes_qs = Course.objects.filter(school=school, is_active=True).select_related('grade_level', 'stream') if school else Course.objects.filter(is_active=True).select_related('grade_level', 'stream')
+    sessions_qs = Session.objects.filter(school=school) if school else Session.objects.all()
     context = {
         'active_term': active_term,
-        'students': Student.objects.all().select_related('admin'),
-        'classes': Course.objects.filter(is_active=True).select_related('grade_level', 'stream'),
-        'sessions': Session.objects.all(),
+        'students': students_qs,
+        'classes': classes_qs,
+        'sessions': sessions_qs,
         'page_title': 'Bulk Enrollment'
     }
     return render(request, 'hod_template/bulk_enrollment_template.html', context)
@@ -2927,14 +3025,17 @@ def bulk_enrollment(request):
 def transfer_student(request, enrollment_id):
     """Transfer a student to a different class (or stream)"""
     from .models import StudentSubjectEnrollment
-    enrollment = get_object_or_404(StudentClassEnrollment, id=enrollment_id)
+    school = getattr(request, 'school', None)
+    enrollment_qs = StudentClassEnrollment.objects.filter(school_class__school=school) if school else StudentClassEnrollment.objects.all()
+    enrollment = get_object_or_404(enrollment_qs, id=enrollment_id)
     
     if request.method == 'POST':
         new_class_id = request.POST.get('new_class')
         notes = request.POST.get('notes', '')
         
         try:
-            new_class = Course.objects.get(id=new_class_id)
+            course_qs = Course.objects.filter(school=school) if school else Course.objects.all()
+            new_class = course_qs.get(id=new_class_id)
             active_term = AcademicTerm.get_active_term(school=getattr(request, 'school', None))
             if active_term and active_term.is_locked:
                 messages.error(request, "Term is closed. Transfers not allowed.")
@@ -2989,12 +3090,13 @@ def transfer_student(request, enrollment_id):
     
     # For stream transfer: show only same-grade classes (different stream)
     same_grade = enrollment.school_class.grade_level_id if enrollment.school_class else None
+    base = Course.objects.filter(is_active=True)
+    if school:
+        base = base.filter(school=school)
     if same_grade:
-        stream_classes = Course.objects.filter(
-            is_active=True, grade_level_id=same_grade
-        ).exclude(id=enrollment.school_class.id).select_related('stream')
+        stream_classes = base.filter(grade_level_id=same_grade).exclude(id=enrollment.school_class.id).select_related('stream')
     else:
-        stream_classes = Course.objects.filter(is_active=True).exclude(id=enrollment.school_class.id)
+        stream_classes = base.exclude(id=enrollment.school_class.id)
     
     context = {
         'enrollment': enrollment,
@@ -3006,11 +3108,12 @@ def transfer_student(request, enrollment_id):
 
 # Promotion Management
 def promotion_dashboard(request):
-    """Dashboard for student promotions"""
-    sessions = Session.objects.all().order_by('-start_year')
-    grade_levels = GradeLevel.objects.filter(is_active=True)
-    classes = Course.objects.filter(is_active=True).select_related('grade_level', 'stream')
-    recent_promotions = PromotionRecord.objects.all()[:10]
+    """Dashboard for student promotions (school-scoped)"""
+    school = getattr(request, 'school', None)
+    sessions = Session.objects.filter(school=school).order_by('-start_year') if school else Session.objects.all().order_by('-start_year')
+    grade_levels = GradeLevel.objects.filter(school=school, is_active=True) if school else GradeLevel.objects.filter(is_active=True)
+    classes = Course.objects.filter(school=school, is_active=True).select_related('grade_level', 'stream') if school else Course.objects.filter(is_active=True).select_related('grade_level', 'stream')
+    recent_promotions = PromotionRecord.objects.filter(from_academic_year__school=school)[:10] if school else PromotionRecord.objects.all()[:10]
     
     context = {
         'sessions': sessions,
@@ -3031,11 +3134,14 @@ def bulk_promote(request):
         to_year_id = request.POST.get('to_academic_year')
         student_ids = request.POST.getlist('students')
         
+        school = getattr(request, 'school', None)
         try:
-            from_class = Course.objects.get(id=from_class_id)
-            to_class = Course.objects.get(id=to_class_id)
-            from_year = Session.objects.get(id=from_year_id)
-            to_year = Session.objects.get(id=to_year_id)
+            course_qs = Course.objects.filter(school=school) if school else Course.objects.all()
+            session_qs = Session.objects.filter(school=school) if school else Session.objects.all()
+            from_class = course_qs.get(id=from_class_id)
+            to_class = course_qs.get(id=to_class_id)
+            from_year = session_qs.get(id=from_year_id)
+            to_year = session_qs.get(id=to_year_id)
             
             # Create promotion record
             promotion_record = PromotionRecord.objects.create(
@@ -3050,9 +3156,10 @@ def bulk_promote(request):
             promoted_count = 0
             failed_count = 0
             
-            # Get students to promote
+            # Get students to promote (school-scoped)
             if student_ids:
-                students = Student.objects.filter(id__in=student_ids)
+                students_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+                students = students_qs.filter(id__in=student_ids)
             else:
                 # Promote all active students in the class
                 enrollments = StudentClassEnrollment.objects.filter(
@@ -3108,9 +3215,12 @@ def bulk_promote(request):
         except Exception as e:
             messages.error(request, f"Promotion failed: {str(e)}")
     
+    school = getattr(request, 'school', None)
+    classes_qs = Course.objects.filter(school=school, is_active=True).select_related('grade_level', 'stream') if school else Course.objects.filter(is_active=True).select_related('grade_level', 'stream')
+    sessions_qs = Session.objects.filter(school=school).order_by('-start_year') if school else Session.objects.all().order_by('-start_year')
     context = {
-        'classes': Course.objects.filter(is_active=True).select_related('grade_level', 'stream'),
-        'sessions': Session.objects.all().order_by('-start_year'),
+        'classes': classes_qs,
+        'sessions': sessions_qs,
         'page_title': 'Bulk Promotion'
     }
     return render(request, 'hod_template/bulk_promote_template.html', context)
@@ -3118,16 +3228,20 @@ def bulk_promote(request):
 
 @csrf_exempt
 def get_class_students(request):
-    """AJAX endpoint to get students in a class for a specific academic year"""
+    """AJAX endpoint to get students in a class for a specific academic year (school-scoped)"""
     class_id = request.GET.get('class_id')
     academic_year_id = request.GET.get('academic_year_id')
+    school = getattr(request, 'school', None)
     
     try:
-        enrollments = StudentClassEnrollment.objects.filter(
+        base = StudentClassEnrollment.objects.filter(
             school_class_id=class_id,
             academic_year_id=academic_year_id,
             status='active'
-        ).select_related('student__admin')
+        )
+        if school:
+            base = base.filter(school_class__school=school)
+        enrollments = base.select_related('student__admin')
         
         students = []
         for enrollment in enrollments:
@@ -3138,7 +3252,10 @@ def get_class_students(request):
             })
         
         # Also include students directly assigned (backward compatibility)
-        direct_students = Student.objects.filter(course_id=class_id).select_related('admin')
+        direct_qs = Student.objects.filter(course_id=class_id)
+        if school:
+            direct_qs = direct_qs.filter(admin__school=school)
+        direct_students = direct_qs.select_related('admin')
         for student in direct_students:
             if not any(s['id'] == student.id for s in students):
                 students.append({
@@ -3154,22 +3271,27 @@ def get_class_students(request):
 
 @csrf_exempt
 def get_next_grade_class(request):
-    """AJAX endpoint to get suggested next class based on grade progression"""
+    """AJAX endpoint to get suggested next class based on grade progression (school-scoped)"""
     current_class_id = request.GET.get('class_id')
+    school = getattr(request, 'school', None)
     
     try:
-        current_class = Course.objects.get(id=current_class_id)
+        course_qs = Course.objects.filter(school=school) if school else Course.objects.all()
+        current_class = course_qs.get(id=current_class_id)
         
         if current_class.grade_level:
             next_grade = current_class.grade_level.get_next_grade()
             
             if next_grade:
                 # Find a class with the same stream in the next grade
-                suggested_class = Course.objects.filter(
+                suggested_qs = Course.objects.filter(
                     grade_level=next_grade,
                     stream=current_class.stream,
                     is_active=True
-                ).first()
+                )
+                if school:
+                    suggested_qs = suggested_qs.filter(school=school)
+                suggested_class = suggested_qs.first()
                 
                 if suggested_class:
                     return JsonResponse({
@@ -3186,10 +3308,12 @@ def get_next_grade_class(request):
 
 
 def promotion_history(request):
-    """View promotion history"""
-    promotions = PromotionRecord.objects.all().select_related(
+    """View promotion history (school-scoped)"""
+    school = getattr(request, 'school', None)
+    base = PromotionRecord.objects.select_related(
         'from_academic_year', 'to_academic_year', 'from_class', 'to_class', 'promoted_by'
     )
+    promotions = base.filter(from_academic_year__school=school) if school else base
     context = {
         'promotions': promotions,
         'page_title': 'Promotion History'
@@ -3202,7 +3326,8 @@ def promotion_history(request):
 # ============================================
 
 def bulk_sms(request):
-    """Bulk SMS composition and sending"""
+    """Bulk SMS composition and sending (school-scoped)"""
+    school = getattr(request, 'school', None)
     if request.method == 'POST':
         recipient_type = request.POST.get('recipient_type')
         message = request.POST.get('message')
@@ -3217,37 +3342,43 @@ def bulk_sms(request):
             errors = []
             
             if recipient_type == 'all_students':
-                students = Student.objects.all()
+                students = Student.objects.filter(admin__school=school) if school else Student.objects.all()
                 result = send_bulk_sms_to_students(students, message, created_by=request.user)
                 queued = result['queued']
                 errors = result['errors']
                 
             elif recipient_type == 'all_parents':
-                students = Student.objects.all()
+                students = Student.objects.filter(admin__school=school) if school else Student.objects.all()
                 result = send_bulk_sms_to_parents(students, message, created_by=request.user)
                 queued = result['queued']
                 errors = result['errors']
                 
             elif recipient_type == 'class_students' and course_id:
-                course = Course.objects.get(id=course_id)
+                course_qs = Course.objects.filter(school=school) if school else Course.objects.all()
+                course = course_qs.get(id=course_id)
                 result = send_bulk_sms_to_class(course, message, include_parents=False, created_by=request.user)
                 queued = result['queued']
                 errors = result['errors']
                 
             elif recipient_type == 'class_parents' and course_id:
-                course = Course.objects.get(id=course_id)
+                course_qs = Course.objects.filter(school=school) if school else Course.objects.all()
+                course = course_qs.get(id=course_id)
                 result = send_bulk_sms_to_class(course, message, include_parents=True, created_by=request.user)
                 queued = result['queued']
                 errors = result['errors']
                 
             elif recipient_type == 'grade_students' and grade_level_id:
                 students = Student.objects.filter(course__grade_level_id=grade_level_id)
+                if school:
+                    students = students.filter(admin__school=school)
                 result = send_bulk_sms_to_students(students, message, created_by=request.user)
                 queued = result['queued']
                 errors = result['errors']
                 
             elif recipient_type == 'grade_parents' and grade_level_id:
                 students = Student.objects.filter(course__grade_level_id=grade_level_id)
+                if school:
+                    students = students.filter(admin__school=school)
                 result = send_bulk_sms_to_parents(students, message, created_by=request.user)
                 queued = result['queued']
                 errors = result['errors']
@@ -3278,9 +3409,9 @@ def bulk_sms(request):
         return redirect('bulk_sms')
     
     context = {
-        'courses': Course.objects.filter(is_active=True).select_related('grade_level'),
-        'grade_levels': GradeLevel.objects.filter(is_active=True),
-        'templates': SMSTemplate.objects.filter(is_active=True),
+        'courses': Course.objects.filter(school=school, is_active=True).select_related('grade_level') if school else Course.objects.filter(is_active=True).select_related('grade_level'),
+        'grade_levels': GradeLevel.objects.filter(school=school, is_active=True) if school else GradeLevel.objects.filter(is_active=True),
+        'templates': SMSTemplate.objects.filter(created_by__school=school, is_active=True) if school else SMSTemplate.objects.filter(is_active=True),
         'page_title': 'Send Bulk SMS'
     }
     return render(request, 'hod_template/bulk_sms.html', context)
@@ -3299,7 +3430,8 @@ def sms_templates(request):
     else:
         form = SMSTemplateForm()
     
-    templates = SMSTemplate.objects.all()
+    school = getattr(request, 'school', None)
+    templates = SMSTemplate.objects.filter(created_by__school=school) if school else SMSTemplate.objects.all()
     context = {
         'form': form,
         'templates': templates,
@@ -3310,7 +3442,9 @@ def sms_templates(request):
 
 def edit_sms_template(request, template_id):
     """Edit SMS template"""
-    template = get_object_or_404(SMSTemplate, id=template_id)
+    school = getattr(request, 'school', None)
+    template_qs = SMSTemplate.objects.filter(created_by__school=school) if school else SMSTemplate.objects.all()
+    template = get_object_or_404(template_qs, id=template_id)
     
     if request.method == 'POST':
         form = SMSTemplateForm(request.POST, instance=template)
@@ -3331,7 +3465,9 @@ def edit_sms_template(request, template_id):
 
 def delete_sms_template(request, template_id):
     """Delete SMS template"""
-    template = get_object_or_404(SMSTemplate, id=template_id)
+    school = getattr(request, 'school', None)
+    template_qs = SMSTemplate.objects.filter(created_by__school=school) if school else SMSTemplate.objects.all()
+    template = get_object_or_404(template_qs, id=template_id)
     template.delete()
     messages.success(request, "Template deleted")
     return redirect('sms_templates')
@@ -3364,17 +3500,21 @@ def process_sms_queue_view(request):
 # ============================================
 
 def manage_fee_types(request):
-    """Manage fee types"""
+    """Manage fee types (school-scoped - each school has its own)"""
+    school = getattr(request, 'school', None)
     if request.method == 'POST':
         form = FeeTypeForm(request.POST)
         if form.is_valid():
-            form.save()
+            obj = form.save(commit=False)
+            if school:
+                obj.school = school
+            obj.save()
             messages.success(request, "Fee type created successfully")
             return redirect('manage_fee_types')
     else:
         form = FeeTypeForm()
     
-    fee_types = FeeType.objects.all()
+    fee_types = FeeType.objects.filter(school=school) if school else FeeType.objects.all()
     context = {
         'form': form,
         'fee_types': fee_types,
@@ -3385,7 +3525,9 @@ def manage_fee_types(request):
 
 def edit_fee_type(request, fee_type_id):
     """Edit fee type"""
-    fee_type = get_object_or_404(FeeType, id=fee_type_id)
+    school = getattr(request, 'school', None)
+    qs = FeeType.objects.filter(school=school) if school else FeeType.objects.all()
+    fee_type = get_object_or_404(qs, id=fee_type_id)
     
     if request.method == 'POST':
         form = FeeTypeForm(request.POST, instance=fee_type)
@@ -3405,17 +3547,21 @@ def edit_fee_type(request, fee_type_id):
 
 
 def manage_fee_groups(request):
-    """Manage fee groups"""
+    """Manage fee groups (school-scoped - each school has its own)"""
+    school = getattr(request, 'school', None)
     if request.method == 'POST':
         form = FeeGroupForm(request.POST)
         if form.is_valid():
-            form.save()
+            obj = form.save(commit=False)
+            if school:
+                obj.school = school
+            obj.save()
             messages.success(request, "Fee group created successfully")
             return redirect('manage_fee_groups')
     else:
         form = FeeGroupForm()
     
-    fee_groups = FeeGroup.objects.prefetch_related('fee_items__fee_type').all()
+    fee_groups = FeeGroup.objects.filter(school=school).prefetch_related('fee_items__fee_type') if school else FeeGroup.objects.prefetch_related('fee_items__fee_type').all()
     context = {
         'form': form,
         'fee_groups': fee_groups,
@@ -3426,15 +3572,17 @@ def manage_fee_groups(request):
 
 def edit_fee_group(request, group_id):
     """Edit fee group and its items"""
-    fee_group = get_object_or_404(FeeGroup, id=group_id)
+    school = getattr(request, 'school', None)
+    qs = FeeGroup.objects.filter(school=school) if school else FeeGroup.objects.all()
+    fee_group = get_object_or_404(qs, id=group_id)
     
     if request.method == 'POST':
         form = FeeGroupForm(request.POST, instance=fee_group)
         if form.is_valid():
             form.save()
             
-            # Update fee items
-            fee_types = FeeType.objects.filter(is_active=True)
+            # Update fee items (use school's fee types only)
+            fee_types = FeeType.objects.filter(school=school, is_active=True) if school else FeeType.objects.filter(is_active=True)
             for fee_type in fee_types:
                 amount_key = f'amount_{fee_type.id}'
                 if amount_key in request.POST and request.POST[amount_key]:
@@ -3450,7 +3598,7 @@ def edit_fee_group(request, group_id):
     else:
         form = FeeGroupForm(instance=fee_group)
     
-    fee_types = FeeType.objects.filter(is_active=True)
+    fee_types = FeeType.objects.filter(school=school, is_active=True) if school else FeeType.objects.filter(is_active=True)
     existing_items = {item.fee_type_id: item.amount for item in fee_group.fee_items.all()}
     
     context = {
@@ -3487,25 +3635,24 @@ def _check_finance_permission(request, require_manage=False):
 
 
 def finance_dashboard(request):
-    """Finance Dashboard - summary cards, revenue by class, defaulters, recent transactions"""
+    """Finance Dashboard - summary cards, revenue by class, defaulters, recent transactions (school-scoped)"""
     allowed, resp = _check_finance_permission(request)
     if not allowed:
         messages.error(request, "You don't have permission to view the finance dashboard")
         return resp
 
-    sessions = Session.objects.order_by('-start_year').all()
+    school = getattr(request, 'school', None)
+    sessions = Session.objects.filter(school=school).order_by('-start_year') if school else Session.objects.order_by('-start_year').all()
     session_id = request.GET.get('session_id')
     if session_id:
-        session = Session.objects.filter(id=session_id).first()
+        session = sessions.filter(id=session_id).first()
     else:
         # Default to active term's session when available
-        active_term = AcademicTerm.get_active_term(school=getattr(request, 'school', None))
+        active_term = AcademicTerm.get_active_term(school=school)
         if active_term:
-            session = Session.objects.filter(
-                academic_year=active_term.academic_year
-            ).first() or Session.objects.order_by('-start_year').first()
+            session = sessions.filter(academic_year=active_term.academic_year).first() or sessions.first()
         else:
-            session = Session.objects.order_by('-start_year').first()
+            session = sessions.first()
 
     # If no session in DB, use empty aggregates
     if not session:
@@ -3523,16 +3670,19 @@ def finance_dashboard(request):
         }
         return render(request, 'hod_template/finance_dashboard.html', context)
 
-    # Summary KPIs
+    # Summary KPIs (filter by school)
     fee_balances = FeeBalance.objects.filter(session=session)
+    if school:
+        fee_balances = fee_balances.filter(student__admin__school=school)
     total_expected = fee_balances.aggregate(t=Sum('total_fees'))['t'] or Decimal('0')
     total_collected = fee_balances.aggregate(t=Sum('total_paid'))['t'] or Decimal('0')
     total_outstanding = fee_balances.aggregate(t=Sum('balance'))['t'] or Decimal('0')
     students_with_arrears = fee_balances.filter(balance__gt=0).count()
 
-    # Revenue by class (Course)
+    # Revenue by class (Course) - school-scoped
+    courses_qs = Course.objects.filter(school=school, is_active=True) if school else Course.objects.filter(is_active=True)
     revenue_by_class = []
-    for course in Course.objects.filter(is_active=True).order_by('name'):
+    for course in courses_qs.order_by('name'):
         balances = fee_balances.filter(student__course=course)
         exp = balances.aggregate(t=Sum('total_fees'))['t'] or Decimal('0')
         paid = balances.aggregate(t=Sum('total_paid'))['t'] or Decimal('0')
@@ -3550,10 +3700,13 @@ def finance_dashboard(request):
         'student__admin', 'student__course'
     ).order_by('-balance')[:50]
 
-    # Recent transactions
+    # Recent transactions - school-scoped
     recent_transactions = FeePayment.objects.filter(
         session=session, is_reversed=False
-    ).select_related('student__admin', 'received_by').order_by('-payment_date')[:20]
+    ).select_related('student__admin', 'received_by')
+    if school:
+        recent_transactions = recent_transactions.filter(student__admin__school=school)
+    recent_transactions = recent_transactions.order_by('-payment_date')[:20]
 
     context = {
         'session': session,
@@ -3571,24 +3724,27 @@ def finance_dashboard(request):
 
 
 def manage_fee_structures(request):
-    """Manage fee structures"""
+    """Manage fee structures - school-scoped, new schools see empty list"""
     allowed, resp = _check_finance_permission(request, require_manage=True)
     if not allowed:
         messages.error(request, "You don't have permission to manage fee structures")
         return resp
 
+    school = getattr(request, 'school', None)
     if request.method == 'POST':
-        form = FeeStructureForm(request.POST)
+        form = FeeStructureForm(request.POST, school=school)
         if form.is_valid():
             form.save()
             messages.success(request, "Fee structure created")
             return redirect('manage_fee_structures')
     else:
-        form = FeeStructureForm()
-    
+        form = FeeStructureForm(school=school)
+
     structures = FeeStructure.objects.select_related(
         'fee_group', 'grade_level', 'course', 'session'
-    ).all()
+    )
+    if school:
+        structures = structures.filter(session__school=school)
     
     context = {
         'form': form,
@@ -3613,16 +3769,17 @@ def fee_collection(request):
         transaction_ref = request.POST.get('transaction_ref', '')
         description = request.POST.get('notes', '')  # Form field is 'notes', model field is 'description'
 
+        school = getattr(request, 'school', None)
         try:
-            student = Student.objects.get(id=student_id)
-            # Use active term's session, or latest session
-            active_term = AcademicTerm.get_active_term(school=getattr(request, 'school', None))
+            student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+            student = student_qs.get(id=student_id)
+            # Use active term's session, or latest session (school-scoped)
+            session_qs = Session.objects.filter(school=school) if school else Session.objects.all()
+            active_term = AcademicTerm.get_active_term(school=school)
             if active_term:
-                session = Session.objects.filter(
-                    academic_year=active_term.academic_year
-                ).first() or Session.objects.order_by('-start_year').first()
+                session = session_qs.filter(academic_year=active_term.academic_year).first() or session_qs.order_by('-start_year').first()
             else:
-                session = Session.objects.order_by('-start_year').first()
+                session = session_qs.order_by('-start_year').first()
 
             # Generate receipt number
             school_settings = get_school_settings(school=getattr(request, 'school', None))
@@ -3659,8 +3816,9 @@ def fee_collection(request):
         except Exception as e:
             messages.error(request, f"Error: {str(e)}")
     
-    students = Student.objects.select_related('admin', 'course').all()
-    recent_payments = FeePayment.objects.select_related('student__admin').order_by('-created_at')[:20]
+    school = getattr(request, 'school', None)
+    students = Student.objects.filter(admin__school=school).select_related('admin', 'course') if school else Student.objects.select_related('admin', 'course').all()
+    recent_payments = FeePayment.objects.filter(student__admin__school=school).select_related('student__admin').order_by('-created_at')[:20] if school else FeePayment.objects.select_related('student__admin').order_by('-created_at')[:20]
     
     context = {
         'students': students,
@@ -3673,8 +3831,11 @@ def fee_collection(request):
 
 def student_fee_statement(request, student_id):
     """View student fee statement"""
-    student = get_object_or_404(Student, id=student_id)
-    session = Session.objects.order_by('-start_year').first()
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(qs, id=student_id)
+    session_qs = Session.objects.filter(school=school) if school else Session.objects.all()
+    session = session_qs.order_by('-start_year').first()
     
     payments = FeePayment.objects.filter(
         student=student,
@@ -3697,7 +3858,9 @@ def student_fee_statement(request, student_id):
 
 def print_fee_receipt(request, payment_id):
     """Generate and print fee receipt PDF"""
-    payment = get_object_or_404(FeePayment, id=payment_id)
+    school = getattr(request, 'school', None)
+    payment_qs = FeePayment.objects.filter(student__admin__school=school) if school else FeePayment.objects.all()
+    payment = get_object_or_404(payment_qs, id=payment_id)
     
     if not REPORTLAB_AVAILABLE:
         messages.error(request, 'PDF generation not available. Install reportlab.')
@@ -3822,18 +3985,22 @@ def print_fee_statement(request, student_id):
 
 
 def finance_term_report(request):
-    """Term Revenue Report - print-friendly"""
+    """Term Revenue Report - print-friendly (school-scoped)"""
     allowed, resp = _check_finance_permission(request)
     if not allowed:
         return resp
 
+    school = getattr(request, 'school', None)
+    session_qs = Session.objects.filter(school=school) if school else Session.objects.all()
     session_id = request.GET.get('session_id')
-    session = Session.objects.filter(id=session_id).first() if session_id else Session.objects.order_by('-start_year').first()
+    session = session_qs.filter(id=session_id).first() if session_id else session_qs.order_by('-start_year').first()
     if not session:
         messages.error(request, "No session selected")
         return redirect('finance_dashboard')
 
     fee_balances = FeeBalance.objects.filter(session=session)
+    if school:
+        fee_balances = fee_balances.filter(student__admin__school=school)
     total_expected = fee_balances.aggregate(t=Sum('total_fees'))['t'] or Decimal('0')
     total_collected = fee_balances.aggregate(t=Sum('total_paid'))['t'] or Decimal('0')
     total_outstanding = fee_balances.aggregate(t=Sum('balance'))['t'] or Decimal('0')
@@ -3886,20 +4053,25 @@ def _create_fee_balance_for_enrollment(student, school_class, session, active_te
 
 
 def finance_generate_invoices(request):
-    """Generate FeeBalance records for enrolled students from FeeStructure"""
+    """Generate FeeBalance records for enrolled students from FeeStructure (school-scoped)"""
     allowed, resp = _check_finance_permission(request, require_manage=True)
     if not allowed:
         return resp
 
+    school = getattr(request, 'school', None)
+    session_qs = Session.objects.filter(school=school) if school else Session.objects.all()
     session_id = request.GET.get('session_id')
-    session = Session.objects.filter(id=session_id).first() if session_id else Session.objects.order_by('-start_year').first()
+    session = session_qs.filter(id=session_id).first() if session_id else session_qs.order_by('-start_year').first()
     if not session:
         messages.error(request, "No session selected")
         return redirect('finance_dashboard')
 
     created = 0
     updated = 0
-    for student in Student.objects.filter(course__isnull=False).select_related('course'):
+    students_qs = Student.objects.filter(course__isnull=False).select_related('course')
+    if school:
+        students_qs = students_qs.filter(admin__school=school)
+    for student in students_qs:
         # Get fee structure for this class + session
         structure = FeeStructure.objects.filter(
             course=student.course,
@@ -3933,20 +4105,25 @@ def finance_generate_invoices(request):
 
 
 def finance_class_report(request):
-    """Class Collection Report - print-friendly"""
+    """Class Collection Report - print-friendly (school-scoped)"""
     allowed, resp = _check_finance_permission(request)
     if not allowed:
         return resp
 
+    school = getattr(request, 'school', None)
+    session_qs = Session.objects.filter(school=school) if school else Session.objects.all()
     session_id = request.GET.get('session_id')
-    session = Session.objects.filter(id=session_id).first() if session_id else Session.objects.order_by('-start_year').first()
+    session = session_qs.filter(id=session_id).first() if session_id else session_qs.order_by('-start_year').first()
     if not session:
         messages.error(request, "No session selected")
         return redirect('finance_dashboard')
 
     fee_balances = FeeBalance.objects.filter(session=session)
+    if school:
+        fee_balances = fee_balances.filter(student__admin__school=school)
     revenue_by_class = []
-    for course in Course.objects.filter(is_active=True).order_by('name'):
+    courses_qs = Course.objects.filter(school=school, is_active=True) if school else Course.objects.filter(is_active=True)
+    for course in courses_qs.order_by('name'):
         balances = fee_balances.filter(student__course=course)
         exp = balances.aggregate(t=Sum('total_fees'))['t'] or Decimal('0')
         paid = balances.aggregate(t=Sum('total_paid'))['t'] or Decimal('0')
@@ -3962,16 +4139,23 @@ def finance_class_report(request):
 
 
 def send_fee_reminders(request):
-    """Send fee reminders to students with outstanding balances"""
+    """Send fee reminders to students with outstanding balances (school-scoped)"""
     allowed, resp = _check_finance_permission(request, require_manage=True)
     if not allowed:
         return resp
 
-    session = Session.objects.order_by('-start_year').first()
+    school = getattr(request, 'school', None)
+    session_qs = Session.objects.filter(school=school) if school else Session.objects.all()
+    session = session_qs.order_by('-start_year').first()
+    if not session:
+        messages.info(request, "No session found. Create a session first.")
+        return redirect('finance_dashboard')
     balances = FeeBalance.objects.filter(
         session=session,
         balance__gt=0
     ).select_related('student__admin')
+    if school:
+        balances = balances.filter(student__admin__school=school)
     
     sent_count = 0
     for balance in balances:
@@ -3992,17 +4176,21 @@ def send_fee_reminders(request):
 # ============================================
 
 def manage_exam_types(request):
-    """Manage exam types"""
+    """Manage exam types (school-scoped)"""
+    school = getattr(request, 'school', None)
     if request.method == 'POST':
         form = ExamTypeForm(request.POST)
         if form.is_valid():
-            form.save()
+            obj = form.save(commit=False)
+            if school:
+                obj.school = school
+            obj.save()
             messages.success(request, "Exam type created")
             return redirect('manage_exam_types')
     else:
         form = ExamTypeForm()
     
-    exam_types = ExamType.objects.all()
+    exam_types = ExamType.objects.filter(school=school) if school else ExamType.objects.all()
     context = {
         'form': form,
         'exam_types': exam_types,
@@ -4012,12 +4200,14 @@ def manage_exam_types(request):
 
 
 def manage_exam_schedules(request):
-    """Manage exam schedules and result entry windows"""
+    """Manage exam schedules and result entry windows (school-scoped)"""
+    school = getattr(request, 'school', None)
+    schedule_qs = ExamSchedule.objects.filter(session__school=school) if school else ExamSchedule.objects.all()
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'open_result_entry':
             schedule_id = request.POST.get('schedule_id')
-            schedule = get_object_or_404(ExamSchedule, id=schedule_id)
+            schedule = get_object_or_404(schedule_qs, id=schedule_id)
             schedule.result_entry_open = True
             schedule.result_entry_status = 'open'
             schedule.save()
@@ -4025,7 +4215,7 @@ def manage_exam_schedules(request):
             return redirect('manage_exam_schedules')
         elif action == 'close_result_entry':
             schedule_id = request.POST.get('schedule_id')
-            schedule = get_object_or_404(ExamSchedule, id=schedule_id)
+            schedule = get_object_or_404(schedule_qs, id=schedule_id)
             schedule.result_entry_open = False
             schedule.result_entry_status = 'closed'
             schedule.save()
@@ -4034,38 +4224,45 @@ def manage_exam_schedules(request):
         elif action == 'set_deadline':
             schedule_id = request.POST.get('schedule_id')
             end_date = request.POST.get('result_entry_end_date')
-            schedule = get_object_or_404(ExamSchedule, id=schedule_id)
+            schedule = get_object_or_404(schedule_qs, id=schedule_id)
             if end_date:
                 schedule.result_entry_end_date = end_date
                 schedule.save()
                 messages.success(request, f"Upload deadline set for {schedule.name}")
             return redirect('manage_exam_schedules')
-        form = ExamScheduleForm(request.POST)
+        form = ExamScheduleForm(request.POST, school=school)
         if form.is_valid():
             form.save()
             messages.success(request, "Exam schedule created")
             return redirect('manage_exam_schedules')
     else:
-        form = ExamScheduleForm()
-    
-    schedules = ExamSchedule.objects.select_related('exam_type', 'session').all()
-    result_windows = ResultEntryWindow.objects.select_related('session', 'academic_term').all()
+        form = ExamScheduleForm(school=school)
+    schedules_qs = ExamSchedule.objects.select_related('exam_type', 'session')
+    result_windows_qs = ResultEntryWindow.objects.select_related('session', 'academic_term')
+    if school:
+        schedules_qs = schedules_qs.filter(session__school=school)
+        result_windows_qs = result_windows_qs.filter(session__school=school)
     context = {
         'form': form,
-        'schedules': schedules,
-        'result_windows': result_windows,
+        'schedules': schedules_qs.all(),
+        'result_windows': result_windows_qs.all(),
         'page_title': 'Manage Exam Schedules'
     }
     return render(request, 'hod_template/manage_exam_schedules.html', context)
 
 
 def manage_result_entry(request):
-    """MVP: Admin controls when teachers can enter legacy results (Add Result, Edit Result)."""
+    """MVP: Admin controls when teachers can enter legacy results (Add Result, Edit Result). School-scoped."""
+    school = getattr(request, 'school', None)
+    window_qs = ResultEntryWindow.objects.filter(session__school=school) if school else ResultEntryWindow.objects.all()
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'create_window':
             session_id = request.POST.get('session')
             name = request.POST.get('name', 'Result Entry')
+            if school and not Session.objects.filter(school=school, id=session_id).exists():
+                messages.error(request, "Invalid session for your school.")
+                return redirect('manage_result_entry')
             window = ResultEntryWindow.objects.create(
                 session_id=session_id,
                 name=name,
@@ -4076,7 +4273,7 @@ def manage_result_entry(request):
             return redirect('manage_result_entry')
         elif action == 'open_upload':
             window_id = request.POST.get('window_id')
-            window = get_object_or_404(ResultEntryWindow, id=window_id)
+            window = get_object_or_404(window_qs, id=window_id)
             window.result_entry_open = True
             window.status = 'open'
             window.save()
@@ -4099,28 +4296,35 @@ def manage_result_entry(request):
                 window.save()
                 messages.success(request, f"Upload deadline set for {window.name}")
             return redirect('manage_result_entry')
-    windows = ResultEntryWindow.objects.select_related('session', 'academic_term').all()
-    sessions = Session.objects.all()
+    windows_qs = ResultEntryWindow.objects.select_related('session', 'academic_term')
+    sessions_qs = Session.objects.all()
+    if school:
+        windows_qs = windows_qs.filter(session__school=school)
+        sessions_qs = sessions_qs.filter(school=school)
     context = {
-        'windows': windows,
-        'sessions': sessions,
+        'windows': windows_qs.all(),
+        'sessions': sessions_qs,
         'page_title': 'Manage Result Entry'
     }
     return render(request, 'hod_template/manage_result_entry.html', context)
 
 
 def manage_grading_scale(request):
-    """Manage grading scale"""
+    """Manage grading scale (school-scoped)"""
+    school = getattr(request, 'school', None)
     if request.method == 'POST':
         form = GradingScaleForm(request.POST)
         if form.is_valid():
-            form.save()
+            obj = form.save(commit=False)
+            if school:
+                obj.school = school
+            obj.save()
             messages.success(request, "Grading scale entry added")
             return redirect('manage_grading_scale')
     else:
         form = GradingScaleForm()
     
-    grading_scales = GradingScale.objects.all()
+    grading_scales = GradingScale.objects.filter(school=school) if school else GradingScale.objects.all()
     context = {
         'form': form,
         'grading_scales': grading_scales,
@@ -4513,12 +4717,14 @@ def take_class_attendance(request):
 
 @csrf_exempt
 def get_class_students_for_attendance(request):
-    """AJAX: Get students for attendance marking"""
+    """AJAX: Get students for attendance marking (school-scoped)"""
     class_id = request.GET.get('class_id')
     date = request.GET.get('date')
+    school = getattr(request, 'school', None)
     
     try:
-        school_class = Course.objects.get(id=class_id)
+        course_qs = Course.objects.filter(school=school) if school else Course.objects.all()
+        school_class = course_qs.get(id=class_id)
         
         # Get students
         enrolled = Student.objects.filter(
@@ -4555,7 +4761,9 @@ def get_class_students_for_attendance(request):
 
 def view_class_attendance(request, class_id):
     """View attendance for a specific class"""
-    school_class = get_object_or_404(Course, id=class_id)
+    school = getattr(request, 'school', None)
+    course_qs = Course.objects.filter(school=school) if school else Course.objects.all()
+    school_class = get_object_or_404(course_qs, id=class_id)
     
     month = request.GET.get('month', timezone.now().month)
     year = request.GET.get('year', timezone.now().year)
@@ -4578,7 +4786,9 @@ def view_class_attendance(request, class_id):
 
 def student_attendance_report(request, student_id):
     """View attendance report for a student"""
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(qs, id=student_id)
     
     records = ClassAttendanceRecord.objects.filter(
         student=student
@@ -4640,7 +4850,9 @@ def student_detail(request, student_id):
 
 def student_detail_general(request, student_id):
     """Student detail - General tab with basic info and guardians"""
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(qs, id=student_id)
     guardians = student.guardians.all()
     
     # Get class info
@@ -4660,7 +4872,9 @@ def student_detail_general(request, student_id):
 
 def student_detail_fees(request, student_id):
     """Student detail - Fee Payment tab"""
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(qs, id=student_id)
     
     # Get fee payments for this student
     payments = FeePayment.objects.filter(student=student).order_by('-created_at')
@@ -4692,7 +4906,9 @@ def student_detail_fees(request, student_id):
 
 def student_add_fee_payment(request, student_id):
     """Add new fee payment for student"""
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(qs, id=student_id)
     
     if request.method == 'POST':
         try:
@@ -4735,7 +4951,9 @@ def student_add_fee_payment(request, student_id):
 
 def student_edit_fee_payment(request, student_id, payment_id):
     """Edit fee payment"""
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(qs, id=student_id)
     payment = get_object_or_404(FeePayment, id=payment_id, student=student)
     
     if request.method == 'POST':
@@ -4755,7 +4973,9 @@ def student_edit_fee_payment(request, student_id, payment_id):
 
 def student_delete_fee_payment(request, student_id, payment_id):
     """Delete fee payment"""
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(qs, id=student_id)
     payment = get_object_or_404(FeePayment, id=payment_id, student=student)
     
     if request.method == 'POST':
@@ -4769,7 +4989,9 @@ def student_delete_fee_payment(request, student_id, payment_id):
 
 def student_print_fee_receipt(request, student_id, payment_id):
     """Print fee receipt for a specific payment"""
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(qs, id=student_id)
     payment = get_object_or_404(FeePayment, id=payment_id, student=student)
     settings_obj = get_school_settings(school=getattr(request, 'school', None))
     
@@ -4838,7 +5060,9 @@ def student_print_fee_receipt(request, student_id, payment_id):
 
 def student_print_fee_statement(request, student_id):
     """Print fee statement for student"""
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(qs, id=student_id)
     settings_obj = get_school_settings(school=getattr(request, 'school', None))
     
     payments = FeePayment.objects.filter(student=student, is_reversed=False).order_by('-created_at')
@@ -4921,7 +5145,9 @@ def student_print_fee_statement(request, student_id):
 
 def student_detail_results(request, student_id):
     """Student detail - Exam Results tab"""
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(qs, id=student_id)
     
     # Get filters
     academic_year_id = request.GET.get('academic_year')
@@ -4963,7 +5189,9 @@ def student_detail_results(request, student_id):
 
 def student_add_result(request, student_id):
     """Add exam result for student"""
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(qs, id=student_id)
     
     if request.method == 'POST':
         try:
@@ -5000,7 +5228,9 @@ def student_add_result(request, student_id):
 
 def student_edit_result(request, student_id, result_id):
     """Edit exam result"""
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(qs, id=student_id)
     result = get_object_or_404(StudentExamResult, id=result_id, student=student)
     
     if request.method == 'POST':
@@ -5019,7 +5249,9 @@ def student_edit_result(request, student_id, result_id):
 
 def student_delete_result(request, student_id, result_id):
     """Delete exam result"""
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(qs, id=student_id)
     result = get_object_or_404(StudentExamResult, id=result_id, student=student)
     
     if request.method == 'POST':
@@ -5031,7 +5263,9 @@ def student_delete_result(request, student_id, result_id):
 
 def student_detail_sms(request, student_id):
     """Student detail - SMS Messages tab"""
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(qs, id=student_id)
     guardians = student.guardians.all()
     
     # Get SMS history for this student
@@ -5049,7 +5283,9 @@ def student_detail_sms(request, student_id):
 
 def student_send_sms(request, student_id):
     """Send SMS to student's guardian"""
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(qs, id=student_id)
     
     if request.method == 'POST':
         phone_number = request.POST.get('phone_number')
@@ -5101,7 +5337,9 @@ def student_send_sms(request, student_id):
 
 def student_add_guardian(request, student_id):
     """Add guardian for student"""
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(qs, id=student_id)
     
     if request.method == 'POST':
         try:
@@ -5133,7 +5371,9 @@ def student_add_guardian(request, student_id):
 
 def student_edit_guardian(request, student_id, guardian_id):
     """Edit guardian"""
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(qs, id=student_id)
     guardian = get_object_or_404(Guardian, id=guardian_id, student=student)
     
     if request.method == 'POST':
@@ -5158,7 +5398,9 @@ def student_edit_guardian(request, student_id, guardian_id):
 
 def student_delete_guardian(request, student_id, guardian_id):
     """Delete guardian"""
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(qs, id=student_id)
     guardian = get_object_or_404(Guardian, id=guardian_id, student=student)
     
     if request.method == 'POST':

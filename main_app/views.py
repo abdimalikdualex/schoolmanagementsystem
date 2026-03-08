@@ -100,11 +100,11 @@ def school_registration(request):
                     gender="M",
                     address=school_address or "N/A",
                 )
+                user.save()
 
             messages.success(
                 request,
-                f"School '{school_name}' registered successfully! Your registration is pending approval. "
-                f"You will be able to log in once the platform administrator approves your school.",
+                "Registration successful. Your school account is pending approval from the System Administrator. You will be notified once your account has been approved.",
             )
             return redirect(reverse("login_page"))
         except Exception as e:
@@ -112,6 +112,20 @@ def school_registration(request):
             return render(request, "main_app/school_registration.html", {"page_title": "Register Your School"})
 
     return render(request, "main_app/school_registration.html", {"page_title": "Register Your School"})
+
+
+def verify_email(request, token):
+    """Verify school admin email when they click the link."""
+    ev = EmailVerification.objects.filter(token=token).select_related('user').first()
+    if not ev:
+        messages.error(request, "Invalid or expired verification link.")
+        return redirect(reverse("login_page"))
+    user = ev.user
+    user.email_verified = True
+    user.save()
+    ev.delete()
+    messages.success(request, "Email verified. Your school is pending approval from the system administrator.")
+    return redirect(reverse("login_page"))
 
 
 def login_page(request):
@@ -179,8 +193,7 @@ def doLogin(request, **kwargs):
             if user.school_id and user.school.status != 'approved':
                 messages.error(
                     request,
-                    "Your school is awaiting approval from the platform administrator. "
-                    "You will be notified when your school is approved."
+                    "Your school is awaiting approval from the system administrator."
                 )
                 return redirect(reverse("login_page"))
             login(request, user)

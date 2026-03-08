@@ -40,9 +40,9 @@
                                 <label for="subscription_plan">Subscription Plan</label>
                                 <select class="form-control" id="subscription_plan" name="subscription_plan">
                                     <option value="">— No plan (unlimited) —</option>
-                                    {% for plan in plans %}
-                                    <option value="{{ plan.id }}">{{ plan.name }} ({{ plan.student_limit }} students, {{ plan.teacher_limit }} teachers)</option>
-                                    {% endfor %}
+{% for plan in plans %}
+                                    <option value="{{ plan.id }}">{{ plan.name }} ({% if plan.student_limit == 0 %}Unlimited{% else %}{{ plan.student_limit }}{% endif %} students, {% if plan.teacher_limit == 0 %}Unlimited{% else %}{{ plan.teacher_limit }}{% endif %} teachers{% if plan.monthly_price %} - ${{ plan.monthly_price }}/mo{% endif %})</option>
+                                {% endfor %}
                                 </select>
                             </div>
                         </div>

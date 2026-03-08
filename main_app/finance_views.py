@@ -61,10 +61,12 @@ def finance_profile(request):
 
 @finance_officer_required
 def finance_student_billing(request):
-    """Student billing - view students with fee status"""
+    """Student billing - view students with fee status (school-scoped)"""
+    school = getattr(request, 'school', None)
+    session_qs = Session.objects.filter(school=school) if school else Session.objects.all()
     session_id = request.GET.get('session_id')
-    session = Session.objects.filter(id=session_id).first() if session_id else Session.objects.order_by('-start_year').first()
-    sessions = Session.objects.order_by('-start_year').all()
+    session = session_qs.filter(id=session_id).first() if session_id else session_qs.order_by('-start_year').first()
+    sessions = session_qs.order_by('-start_year').all()
 
     if not session:
         context = {
@@ -75,10 +77,12 @@ def finance_student_billing(request):
         }
         return render(request, 'finance_template/finance_student_billing.html', context)
 
-    # Get fee balances for this session
+    # Get fee balances for this session (school-scoped)
     balances = FeeBalance.objects.filter(session=session).select_related(
         'student__admin', 'student__course'
     ).order_by('student__admin__last_name')
+    if school:
+        balances = balances.filter(student__admin__school=school)
 
     context = {
         'session': session,
@@ -91,10 +95,12 @@ def finance_student_billing(request):
 
 @finance_officer_required
 def finance_defaulters(request):
-    """Defaulters list - students with unpaid balances"""
+    """Defaulters list - students with unpaid balances (school-scoped)"""
+    school = getattr(request, 'school', None)
+    session_qs = Session.objects.filter(school=school) if school else Session.objects.all()
     session_id = request.GET.get('session_id')
-    session = Session.objects.filter(id=session_id).first() if session_id else Session.objects.order_by('-start_year').first()
-    sessions = Session.objects.order_by('-start_year').all()
+    session = session_qs.filter(id=session_id).first() if session_id else session_qs.order_by('-start_year').first()
+    sessions = session_qs.order_by('-start_year').all()
 
     if not session:
         defaulters = []
@@ -102,6 +108,8 @@ def finance_defaulters(request):
         defaulters = FeeBalance.objects.filter(
             session=session, balance__gt=0
         ).select_related('student__admin', 'student__course').order_by('-balance')
+        if school:
+            defaulters = defaulters.filter(student__admin__school=school)
 
     context = {
         'session': session,

@@ -60,6 +60,9 @@
                                         <a href="{% url 'close_academic_term' term.id %}" class="btn btn-warning btn-sm" title="Close">Close</a>
                                         {% endif %}
                                         <a href="{% url 'edit_academic_term' term.id %}" class="btn btn-info btn-sm">Edit</a>
+                                        <a href="{% url 'delete_academic_term' term.id %}" class="btn btn-danger btn-sm" title="Delete" onclick="return confirm('Are you sure you want to delete this term? This action cannot be undone.');">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
                                     </td>
                                 </tr>
                                 {% empty %}

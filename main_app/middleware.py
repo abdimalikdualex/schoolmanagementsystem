@@ -70,7 +70,8 @@ class LoginCheckMiddleWare(MiddlewareMixin):
             # Allow unauthenticated access to login, registration, and static/media
             url_name = request.resolver_match.url_name if request.resolver_match else None
             if (request.path == reverse('login_page') or request.path == reverse('user_login') or
-                    url_name == 'school_registration' or modulename == 'django.contrib.auth.views' or
+                    url_name == 'school_registration' or url_name == 'verify_email' or
+                    modulename == 'django.contrib.auth.views' or
                     request.path.startswith('/static/') or request.path.startswith('/media/')):
                 pass
             else:

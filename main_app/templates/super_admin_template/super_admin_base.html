@@ -82,6 +82,12 @@
                             <p>Create School</p>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="{% url 'super_admin_manage_plans' %}" class="nav-link {% if request.resolver_match.url_name == 'super_admin_manage_plans' or request.resolver_match.url_name == 'super_admin_create_plan' or request.resolver_match.url_name == 'super_admin_edit_plan' %}active{% endif %}">
+                            <i class="nav-icon fas fa-credit-card"></i>
+                            <p>Subscription Plans</p>
+                        </a>
+                    </li>
                     <li class="nav-header">System</li>
                     <li class="nav-item">
                         <a href="{% url 'user_logout' %}" class="nav-link">

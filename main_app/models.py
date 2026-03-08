@@ -45,6 +45,7 @@ class SubscriptionPlan(models.Model):
     name = models.CharField(max_length=50, unique=True)  # Starter, Standard, Premium
     student_limit = models.PositiveIntegerField(default=100, help_text="Max students allowed")
     teacher_limit = models.PositiveIntegerField(default=20, help_text="Max teachers allowed")
+    monthly_price = models.DecimalField(max_digits=8, decimal_places=2, default=0, help_text="Monthly price (e.g. 15.00)")
     description = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -113,16 +114,52 @@ class School(models.Model):
         return Staff.objects.filter(admin__school=self).count()
 
     def can_add_student(self):
-        """Check if school can add more students based on plan limit."""
+        """Check if school can add more students based on plan limit. 0 = unlimited."""
         if not self.subscription_plan:
             return True
-        return self.get_student_count() < self.subscription_plan.student_limit
+        limit = self.subscription_plan.student_limit
+        if limit == 0:
+            return True  # Unlimited
+        return self.get_student_count() < limit
 
     def can_add_teacher(self):
-        """Check if school can add more teachers based on plan limit."""
+        """Check if school can add more teachers based on plan limit. 0 = unlimited."""
         if not self.subscription_plan:
             return True
-        return self.get_teacher_count() < self.subscription_plan.teacher_limit
+        limit = self.subscription_plan.teacher_limit
+        if limit == 0:
+            return True  # Unlimited
+        return self.get_teacher_count() < limit
+
+
+class SchoolSubscription(models.Model):
+    """Track school subscription with start/end dates and payment status."""
+    PAYMENT_STATUS = (
+        ('paid', 'Paid'),
+        ('pending', 'Pending'),
+        ('expired', 'Expired'),
+    )
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='subscriptions')
+    plan = models.ForeignKey(SubscriptionPlan, on_delete=models.PROTECT, related_name='school_subscriptions')
+    start_date = models.DateField()
+    end_date = models.DateField()
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='pending')
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-start_date']
+        verbose_name = "School Subscription"
+        verbose_name_plural = "School Subscriptions"
+
+    def __str__(self):
+        return f"{self.school.name} - {self.plan.name} ({self.start_date} to {self.end_date})"
+
+    @property
+    def is_expired(self):
+        from django.utils import timezone
+        return self.end_date < timezone.now().date()
 
 
 class Session(models.Model):
@@ -335,6 +372,7 @@ class CustomUser(AbstractUser):
     address = models.TextField()
     phone_number = models.CharField(max_length=15, blank=True, null=True, help_text="Phone number in format: 254712345678")
     fcm_token = models.TextField(default="")  # For firebase notifications
+    email_verified = models.BooleanField(default=True, help_text="False for new school admins until they verify")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     USERNAME_FIELD = "email"
@@ -343,6 +381,18 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return self.last_name + ", " + self.first_name
+
+
+class EmailVerification(models.Model):
+    """Token for verifying school admin email during registration."""
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='email_verifications')
+    token = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Email Verification"
+        verbose_name_plural = "Email Verifications"
 
 
 class Admin(models.Model):
@@ -391,7 +441,7 @@ class SchoolClass(models.Model):
     name = models.CharField(max_length=120, help_text="e.g., Grade 4 East, Form 2 Blue")
     grade_level = models.ForeignKey(
         GradeLevel, 
-        on_delete=models.PROTECT, 
+        on_delete=models.SET_NULL, 
         null=True, 
         blank=True,
         related_name='classes'
@@ -1098,13 +1148,14 @@ class NotificationParent(models.Model):
 
 @receiver(post_save, sender=Student)
 def assign_admission_number(sender, instance, created, **kwargs):
-    """Assign an admission number to a new student using AdmissionSetting."""
+    """Assign an admission number to a new student using AdmissionSetting (school-scoped)."""
     if created and (not instance.admission_number):
-        setting = AdmissionSetting.objects.first()
+        school = instance.admin.school if instance.admin_id else None
+        setting = AdmissionSetting.objects.filter(school=school).first() if school else AdmissionSetting.objects.filter(school__isnull=True).first()
         if not setting:
-            # create a default setting
-            setting = AdmissionSetting.objects.create(next_number=1000)
-        # generate next admission and assign
+            setting = AdmissionSetting.objects.create(
+                prefix='ADM', start_number=1000, next_number=1000, school=school
+            )
         instance.admission_number = setting.get_next_admission()
         instance.save()
 
@@ -1205,9 +1256,17 @@ class SMSLog(models.Model):
 # ============================================
 
 class FeeType(models.Model):
-    """Different types of fees: Tuition, Transport, Uniform, etc."""
+    """Different types of fees: Tuition, Transport, Uniform, etc. School-scoped for data isolation."""
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='fee_types',
+        help_text="Null for legacy; each school has its own fee types"
+    )
     name = models.CharField(max_length=100)
-    code = models.CharField(max_length=20, unique=True)
+    code = models.CharField(max_length=20)
     description = models.TextField(blank=True, null=True)
     is_mandatory = models.BooleanField(default=True)
     is_recurring = models.BooleanField(default=True, help_text="Charged every term/year")
@@ -1220,10 +1279,19 @@ class FeeType(models.Model):
 
     class Meta:
         ordering = ['name']
+        unique_together = [['school', 'code']]
 
 
 class FeeGroup(models.Model):
-    """Fee groups for different categories: Day Scholar, Boarder, etc."""
+    """Fee groups for different categories: Day Scholar, Boarder, etc. School-scoped for data isolation."""
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='fee_groups',
+        help_text="Null for legacy; each school has its own fee groups"
+    )
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
@@ -1378,9 +1446,13 @@ class FeeBalance(models.Model):
 # ============================================
 
 class ExamType(models.Model):
-    """Types of exams: CAT, Mid-Term, End-Term, Mock, etc."""
+    """Types of exams: CAT, Mid-Term, End-Term, Mock, etc. - per school for isolation."""
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, null=True, blank=True,
+        related_name='exam_types', help_text="Null = legacy/global; new schools create their own"
+    )
     name = models.CharField(max_length=50)
-    code = models.CharField(max_length=20, unique=True)
+    code = models.CharField(max_length=20)
     weight = models.FloatField(default=1.0, help_text="Weight for calculating weighted average")
     max_marks = models.PositiveIntegerField(default=100)
     is_active = models.BooleanField(default=True)
@@ -1391,6 +1463,7 @@ class ExamType(models.Model):
 
     class Meta:
         ordering = ['name']
+        unique_together = [['school', 'code']]
 
 
 class ExamSchedule(models.Model):
@@ -1492,7 +1565,11 @@ class ResultEntryWindow(models.Model):
 
 
 class GradingScale(models.Model):
-    """Grading scale configuration"""
+    """Grading scale configuration - per school for isolation."""
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, null=True, blank=True,
+        related_name='grading_scales', help_text="Null = legacy/global; new schools create their own"
+    )
     name = models.CharField(max_length=50, help_text="e.g., Kenya CBC Grading")
     min_marks = models.FloatField()
     max_marks = models.FloatField()

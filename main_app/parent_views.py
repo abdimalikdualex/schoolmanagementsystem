@@ -23,11 +23,15 @@ def parent_home(request):
     total_children = children.count()
     active_term = AcademicTerm.get_active_term(school=getattr(request, 'school', None))
     
-    # Get announcements for parents
+    # Get announcements for parents (school-scoped)
+    school = getattr(request, 'school', None)
     announcements = Announcement.objects.filter(
         Q(target_audience='all') | Q(target_audience='parents'),
         is_active=True
-    ).order_by('-publish_date')[:5]
+    )
+    if school:
+        announcements = announcements.filter(created_by__school=school)
+    announcements = announcements.order_by('-publish_date')[:5]
     
     # Get unread messages count
     unread_messages = Message.objects.filter(recipient=request.user, is_read=False).count()
@@ -152,7 +156,9 @@ def parent_view_results(request):
 def parent_view_child_profile(request, student_id):
     """Child profile page with tabs: Overview, Attendance, Subjects, Results, Report Cards"""
     parent = get_object_or_404(Parent, admin=request.user)
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(student_qs, id=student_id)
     if student not in parent.children.all():
         messages.error(request, "You don't have access to this student")
         return redirect('parent_view_children')
@@ -166,7 +172,9 @@ def parent_view_child_profile(request, student_id):
 def parent_view_report_card(request, student_id):
     """View report card for a child - per term"""
     parent = get_object_or_404(Parent, admin=request.user)
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(student_qs, id=student_id)
     if student not in parent.children.all():
         messages.error(request, "You don't have access to this student")
         return redirect('parent_view_children')
@@ -248,7 +256,9 @@ def parent_download_report_card_pdf(request, student_id):
 
 def parent_view_child_attendance(request, student_id):
     parent = get_object_or_404(Parent, admin=request.user)
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(student_qs, id=student_id)
     
     if student not in parent.children.all():
         messages.error(request, "You don't have permission to view this student's attendance")
@@ -304,8 +314,9 @@ def parent_view_child_attendance(request, student_id):
         ]
         use_class_attendance = False
     
-    # Get terms for filter
-    terms = AcademicTerm.objects.all().order_by('-academic_year', 'term_name')[:10]
+    # Get terms for filter (school-scoped)
+    school = getattr(request, 'school', None)
+    terms = AcademicTerm.objects.filter(school=school).order_by('-academic_year', 'term_name')[:10] if school else AcademicTerm.objects.all().order_by('-academic_year', 'term_name')[:10]
     
     context = {
         'page_title': f"Attendance - {student.admin.first_name}",
@@ -324,7 +335,9 @@ def parent_view_child_attendance(request, student_id):
 
 def parent_view_child_results(request, student_id):
     parent = get_object_or_404(Parent, admin=request.user)
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(student_qs, id=student_id)
     
     # Verify this student belongs to this parent
     if student not in parent.children.all():
@@ -380,7 +393,9 @@ def parent_view_child_results(request, student_id):
 
 def parent_view_child_fees(request, student_id):
     parent = get_object_or_404(Parent, admin=request.user)
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(student_qs, id=student_id)
     
     # Verify this student belongs to this parent
     if student not in parent.children.all():
@@ -430,7 +445,9 @@ def parent_view_child_fees(request, student_id):
 
 def parent_view_child_timetable(request, student_id):
     parent = get_object_or_404(Parent, admin=request.user)
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(student_qs, id=student_id)
     
     # Verify this student belongs to this parent
     if student not in parent.children.all():
@@ -459,7 +476,9 @@ def parent_view_child_timetable(request, student_id):
 
 def parent_view_child_homework(request, student_id):
     parent = get_object_or_404(Parent, admin=request.user)
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(student_qs, id=student_id)
     
     # Verify this student belongs to this parent
     if student not in parent.children.all():
@@ -491,6 +510,7 @@ def parent_view_child_homework(request, student_id):
 def parent_view_announcements(request):
     parent = get_object_or_404(Parent, admin=request.user)
     children = parent.children.all()
+    school = getattr(request, 'school', None)
     
     # Get course IDs for children
     course_ids = [child.course_id for child in children if child.course]
@@ -500,7 +520,10 @@ def parent_view_announcements(request):
         Q(target_audience='parents') |
         Q(target_audience='class', target_course_id__in=course_ids),
         is_active=True
-    ).order_by('-publish_date')
+    )
+    if school:
+        announcements = announcements.filter(created_by__school=school)
+    announcements = announcements.order_by('-publish_date')
     
     context = {
         'page_title': 'Announcements',
@@ -510,8 +533,14 @@ def parent_view_announcements(request):
 
 
 def parent_view_messages(request):
-    messages_received = Message.objects.filter(recipient=request.user).order_by('-created_at')
-    messages_sent = Message.objects.filter(sender=request.user).order_by('-created_at')
+    school = getattr(request, 'school', None)
+    messages_received = Message.objects.filter(recipient=request.user)
+    messages_sent = Message.objects.filter(sender=request.user)
+    if school:
+        messages_received = messages_received.filter(sender__school=school)
+        messages_sent = messages_sent.filter(recipient__school=school)
+    messages_received = messages_received.order_by('-created_at')
+    messages_sent = messages_sent.order_by('-created_at')
     
     context = {
         'page_title': 'Messages',
@@ -649,9 +678,9 @@ def parent_view_child_class(request, student_id):
     from .models import StudentClassEnrollment
     
     parent = get_object_or_404(Parent, admin=request.user)
-    
-    # Verify this is parent's child
-    student = get_object_or_404(Student, id=student_id)
+    school = getattr(request, 'school', None)
+    student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(student_qs, id=student_id)
     if student not in parent.children.all():
         messages.error(request, "You don't have access to this student's information")
         return redirect(reverse('parent_view_children'))
