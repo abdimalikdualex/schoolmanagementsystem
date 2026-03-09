@@ -64,6 +64,7 @@
                                         <th>Opener</th>
                                         <th>Midterm</th>
                                         <th>Endterm</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -80,6 +81,16 @@
                                         </td>
                                         <td>
                                             <input type="number" name="endterm_{{ item.student.id }}" value="{% if item.result %}{{ item.result.endterm_marks|floatformat:0 }}{% endif %}" min="0" max="100" step="0.5" class="form-control form-control-sm" style="width: 70px;">
+                                        </td>
+                                        <td>
+                                            {% if item.result %}
+                                            <a href="{% url 'delete_knec_result' item.result.id %}?next=knec_enter_marks&course={{ selected_class.id }}&subject={{ selected_subject.id }}" class="btn btn-sm btn-danger" title="Delete"
+                                                onclick="return confirm('Are you sure you want to delete this record?');">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                            {% else %}
+                                            <span class="text-muted">-</span>
+                                            {% endif %}
                                         </td>
                                     </tr>
                                     {% endfor %}

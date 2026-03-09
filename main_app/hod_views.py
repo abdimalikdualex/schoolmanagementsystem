@@ -3561,6 +3561,19 @@ def edit_fee_type(request, fee_type_id):
     return render(request, 'hod_template/edit_fee_type.html', context)
 
 
+def delete_fee_type(request, fee_type_id):
+    """Delete fee type (school-scoped)."""
+    school = getattr(request, 'school', None)
+    qs = FeeType.objects.filter(school=school) if school else FeeType.objects.all()
+    fee_type = get_object_or_404(qs, id=fee_type_id)
+    try:
+        fee_type.delete()
+        messages.success(request, "Fee type deleted successfully.")
+    except Exception as e:
+        messages.error(request, f"Cannot delete: {str(e)}")
+    return redirect('manage_fee_types')
+
+
 def manage_fee_groups(request):
     """Manage fee groups (school-scoped - each school has its own)"""
     school = getattr(request, 'school', None)
@@ -3624,6 +3637,19 @@ def edit_fee_group(request, group_id):
         'page_title': 'Edit Fee Group'
     }
     return render(request, 'hod_template/edit_fee_group.html', context)
+
+
+def delete_fee_group(request, group_id):
+    """Delete fee group (school-scoped)."""
+    school = getattr(request, 'school', None)
+    qs = FeeGroup.objects.filter(school=school) if school else FeeGroup.objects.all()
+    fee_group = get_object_or_404(qs, id=group_id)
+    try:
+        fee_group.delete()
+        messages.success(request, "Fee group deleted successfully.")
+    except Exception as e:
+        messages.error(request, f"Cannot delete: {str(e)}")
+    return redirect('manage_fee_groups')
 
 
 def _check_finance_permission(request, require_manage=False):
@@ -3767,6 +3793,21 @@ def manage_fee_structures(request):
         'page_title': 'Manage Fee Structures'
     }
     return render(request, 'hod_template/manage_fee_structures.html', context)
+
+
+def delete_fee_structure(request, structure_id):
+    """Delete fee structure (school-scoped via session)."""
+    school = getattr(request, 'school', None)
+    qs = FeeStructure.objects.select_related('session')
+    if school:
+        qs = qs.filter(session__school=school)
+    structure = get_object_or_404(qs, id=structure_id)
+    try:
+        structure.delete()
+        messages.success(request, "Fee structure deleted successfully.")
+    except Exception as e:
+        messages.error(request, f"Cannot delete: {str(e)}")
+    return redirect('manage_fee_structures')
 
 
 def fee_collection(request):
@@ -4514,6 +4555,21 @@ def enter_exam_results(request):
     return render(request, 'hod_template/enter_exam_results.html', context)
 
 
+def delete_knec_result(request, result_id):
+    """Delete a KNEC report card result (school-scoped)."""
+    school = getattr(request, 'school', None)
+    qs = KNECReportCardResult.objects.filter(student__admin__school=school) if school else KNECReportCardResult.objects.all()
+    result = get_object_or_404(qs, id=result_id)
+    term_id = result.academic_term_id
+    class_id = request.GET.get('course') or request.GET.get('class')
+    subject_id = result.subject_id
+    result.delete()
+    messages.success(request, "Result deleted successfully.")
+    next_page = request.GET.get('next', 'enter_exam_results')
+    redirect_url = reverse(next_page) + f'?term={term_id}&course={class_id}&subject={subject_id}'
+    return redirect(redirect_url)
+
+
 def teacher_submit_results(request):
     """Teacher submits results - locks marks. Only teacher for that subject can submit."""
     school = getattr(request, 'school', None)
@@ -5115,6 +5171,17 @@ def view_class_attendance(request, class_id):
         'page_title': f'Attendance - {school_class}'
     }
     return render(request, 'hod_template/view_class_attendance.html', context)
+
+
+def delete_class_attendance(request, attendance_id):
+    """Delete a class attendance record (whole day's attendance)."""
+    school = getattr(request, 'school', None)
+    qs = ClassAttendance.objects.filter(school_class__school=school) if school else ClassAttendance.objects.all()
+    attendance = get_object_or_404(qs, id=attendance_id)
+    class_id = attendance.school_class_id
+    attendance.delete()
+    messages.success(request, "Attendance record deleted successfully.")
+    return redirect('view_class_attendance', class_id=class_id)
 
 
 def student_attendance_report(request, student_id):

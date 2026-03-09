@@ -10,16 +10,25 @@
     <link rel="stylesheet" href="{% static 'dist/css/adminlte.min.css' %}">
     <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700" rel="stylesheet">
     <style>
+        html, body {
+            overflow-x: hidden;
+            overflow-y: auto;
+            min-height: 100%;
+            -webkit-overflow-scrolling: touch;
+        }
         .register-page {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 25px 15px 30px;
+            padding: 20px 12px 40px;
             box-sizing: border-box;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
         .register-box {
             width: 100%;
             max-width: 580px;
             margin: 0 auto;
+            overflow: visible;
         }
         .register-logo {
             margin-bottom: 15px;
@@ -37,6 +46,7 @@
             border: none;
             border-radius: 12px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: visible;
         }
         .card-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -107,6 +117,21 @@
         @media (min-width: 480px) {
             .form-row-2 .form-group { flex: 1 1 calc(50% - 8px); }
         }
+        /* Mobile: ensure full visibility and scroll */
+        @media (max-width: 576px) {
+            .register-page { padding: 15px 10px 50px; }
+            .register-logo a { font-size: 18px; }
+            .card-body { padding: 15px 12px; }
+            .card-header { padding: 10px 12px; font-size: 0.95rem; }
+            .form-control { font-size: 16px; } /* Prevents zoom on iOS */
+        }
+        /* Tablet and up: slightly more room */
+        @media (min-width: 768px) {
+            .register-box { max-width: 620px; }
+            .register-page { padding: 30px 20px 50px; }
+        }
+        /* Prevent horizontal overflow */
+        input, textarea, select { max-width: 100%; box-sizing: border-box; }
     </style>
 </head>
 <body class="hold-transition register-page">
@@ -180,12 +205,12 @@
                         </div>
                     </div>
                     <div class="row btn-row">
-                        <div class="col-6">
+                        <div class="col-12 col-sm-6 mb-2 mb-sm-0">
                             <a href="{% url 'login_page' %}" class="btn btn-outline-secondary btn-block">
                                 <i class="fas fa-arrow-left"></i> Back to Login
                             </a>
                         </div>
-                        <div class="col-6">
+                        <div class="col-12 col-sm-6">
                             <button type="submit" class="btn btn-success btn-block">
                                 <i class="fas fa-check"></i> Register School
                             </button>

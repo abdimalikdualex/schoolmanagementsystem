@@ -116,7 +116,7 @@
                                 </button>
                                 <form method="post" action="{% url 'student_delete_result' student.id result.id %}" style="display: inline;">
                                     {% csrf_token %}
-                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this result?')">
+                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this record?');">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </form>

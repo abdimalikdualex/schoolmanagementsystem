@@ -7,6 +7,7 @@
     <title>{% block title %}Report Card{% endblock %} - School Management System</title>
     <link rel="stylesheet" href="{% static 'plugins/fontawesome-free/css/all.min.css' %}">
     <link rel="stylesheet" href="{% static 'dist/css/adminlte.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css/responsive.css' %}">
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; padding: 0; background: #fff; font-family: 'Times New Roman', serif; color: #000; }
@@ -15,6 +16,17 @@
         .report-card-container { color: #000; }
         .report-card-container table { border-collapse: collapse; }
         .report-card-container .marks-header { background: #2c3e50 !important; color: #fff !important; }
+        @media (max-width: 768px) {
+            .report-card-page { margin: 10px; padding: 10px; }
+            .no-print { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+            .no-print .btn { flex: 1 1 auto; min-width: 120px; }
+        }
+        @media (max-width: 480px) {
+            .report-card-page { margin: 5px; padding: 8px; }
+            .report-card-container { font-size: 10px; }
+            .report-card-marks-table { font-size: 9px !important; }
+            .no-print .btn { flex: 1 1 100%; }
+        }
         @media print {
             body { background: white !important; margin: 0 !important; padding: 0 !important; color: #000 !important; }
             .report-card-page { max-width: 100% !important; margin: 0 !important; padding: 15px !important; box-shadow: none !important; }

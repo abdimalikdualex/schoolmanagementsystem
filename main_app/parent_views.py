@@ -240,6 +240,7 @@ def parent_view_knec_report_card(request, student_id, term_id):
     from .report_card_views import _build_report_card_context
     context = _build_report_card_context(student, academic_term, school)
     context['page_title'] = f'Report Card - {student}'
+    context['is_parent_view'] = True
     return render(request, 'hod_template/report_card_template.html', context)
 
 

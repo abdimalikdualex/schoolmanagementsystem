@@ -63,7 +63,7 @@ class LoginCheckMiddleWare(MiddlewareMixin):
                 if modulename == 'main_app.hod_views':
                     STAFF_ALLOWED_HOD_URLS = {
                         'enter_cat_marks', 'enter_exam_results', 'teacher_submit_results',
-                        'view_exam_results',
+                        'view_exam_results', 'delete_knec_result',
                     }
                     url_name = request.resolver_match.url_name if request.resolver_match else None
                     if url_name not in STAFF_ALLOWED_HOD_URLS:

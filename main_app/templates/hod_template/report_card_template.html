@@ -31,6 +31,7 @@
     </div>
 
     <!-- Main Results Table: #, SUBJECT, OPENER (%, Grade), MID TERM (%, Grade), END TERM (%, Grade), AVERAGE (%, Grade), COMMENTS, TEACHER'S INITIALS -->
+    <div class="table-responsive report-card-table-wrapper">
     <table class="report-card-marks-table" style="width: 100%; font-size: 11px; border-collapse: collapse;">
         <thead class="marks-header" style="background: #333; color: white;">
             <tr>
@@ -111,6 +112,7 @@
             {% endif %}
         </tbody>
     </table>
+    </div>
 
     <!-- Class Position -->
     <p class="mb-2 mt-3" style="margin: 8px 0; font-size: 12px;"><strong>Class position:</strong> {{ position_in_class|default:"-" }} Out Of {{ total_in_class|default:"-" }}</p>
@@ -142,9 +144,14 @@
 {% endblock report_card_content %}
 
 {% block report_card_actions %}
-<div class="no-print">
+<div class="no-print report-card-actions">
     <button onclick="window.print()" class="btn btn-primary"><i class="fas fa-print"></i> Print</button>
+    {% if is_parent_view %}
+    <a href="{% url 'parent_download_knec_report_card_pdf' student.id academic_term.id %}" class="btn btn-danger" target="_blank"><i class="fas fa-file-pdf"></i> Download PDF</a>
+    <a href="{% url 'parent_view_report_card' student.id %}" class="btn btn-secondary">Back to Report Cards</a>
+    {% else %}
     <a href="{% url 'report_card_pdf' student.id academic_term.id %}" class="btn btn-danger"><i class="fas fa-file-pdf"></i> Download PDF</a>
     <a href="{% url 'report_card_list' %}" class="btn btn-secondary">Back to List</a>
+    {% endif %}
 </div>
 {% endblock report_card_actions %}
