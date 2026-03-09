@@ -1,23 +1,27 @@
 """
-Kenyan KNEC Grading System utilities.
-Used for report card grade calculation per KNEC standards.
+Kenyan KCSE Grading System utilities.
+Used for report card grade calculation per KCSE standards.
+Marks (%) -> Grade, Points, Comment (auto-generated)
 """
 
-# KNEC Grading Scale: (min_marks, max_marks) -> (grade, points, remarks)
-KNEC_GRADING = [
+# KCSE Grading Scale: (min_marks, max_marks) -> (grade, points, comment)
+# Comments: A/A-=Excellent, B+/B=Very Good, B-/C+=Good, C/C-=Fair, D+/D=Needs Improvement, D-/E=Fail
+KCSE_GRADING = [
     (80, 100, ('A', 12, 'Excellent')),
     (75, 79, ('A-', 11, 'Excellent')),
     (70, 74, ('B+', 10, 'Very Good')),
     (65, 69, ('B', 9, 'Very Good')),
     (60, 64, ('B-', 8, 'Good')),
     (55, 59, ('C+', 7, 'Good')),
-    (50, 54, ('C', 6, 'Average')),
-    (45, 49, ('C-', 5, 'Average')),
-    (40, 44, ('D+', 4, 'Below Average')),
-    (35, 39, ('D', 3, 'Below Average')),
-    (30, 34, ('D-', 2, 'Poor')),
+    (50, 54, ('C', 6, 'Fair')),
+    (45, 49, ('C-', 5, 'Fair')),
+    (40, 44, ('D+', 4, 'Needs Improvement')),
+    (35, 39, ('D', 3, 'Needs Improvement')),
+    (30, 34, ('D-', 2, 'Fail')),
     (0, 29, ('E', 1, 'Fail')),
 ]
+# Alias for backward compatibility
+KNEC_GRADING = KCSE_GRADING
 
 
 def get_knec_grade(marks):
@@ -31,7 +35,7 @@ def get_knec_grade(marks):
         m = float(marks)
     except (TypeError, ValueError):
         return (None, 0, '')
-    for min_m, max_m, (grade, points, remarks) in KNEC_GRADING:
+    for min_m, max_m, (grade, points, remarks) in KCSE_GRADING:
         if min_m <= m <= max_m:
             return (grade, points, remarks)
     return (None, 0, '')
@@ -46,7 +50,7 @@ def get_mean_grade_from_points(mean_points):
         return 'E'
     # Find grade whose points are closest to mean_points (round up for benefit)
     best_grade = 'E'
-    for min_m, max_m, (grade, points, _) in KNEC_GRADING:
+    for min_m, max_m, (grade, points, _) in KCSE_GRADING:
         if mean_points >= points - 0.5:
             best_grade = grade
     return best_grade

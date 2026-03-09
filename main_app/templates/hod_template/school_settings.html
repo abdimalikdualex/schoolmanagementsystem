@@ -64,14 +64,17 @@
                             </div>
 
                             <hr>
-                            <h5 class="text-primary">Images</h5>
+                            <h5 class="text-primary">Report Form Branding</h5>
+                            <p class="text-muted small">Configure your school logo, name, and motto. These appear on student assessment reports and other documents.</p>
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label>School Logo</label>
+                                        <label>School Logo <span class="badge badge-info">Appears on reports</span></label>
                                         {{ form.school_logo }}
                                         {% if settings.school_logo %}
-                                        <br><img src="{{ settings.school_logo.url }}" height="60" class="mt-2">
+                                        <br><img src="{{ settings.school_logo.url }}" height="80" class="mt-2 border rounded">
+                                        {% else %}
+                                        <small class="text-muted d-block mt-1">Upload a logo to display on report cards and assessment reports.</small>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -143,6 +146,10 @@
                         <h3 class="card-title">Quick Links</h3>
                     </div>
                     <div class="card-body">
+                        <a href="{% url 'report_card_list' %}" class="btn btn-outline-success btn-block mb-2">
+                            <i class="fas fa-file-alt"></i> Report Cards
+                        </a>
+                        <small class="text-muted d-block mb-2">Generate assessment reports with your school branding.</small>
                         <a href="{% url 'bulk_sms' %}" class="btn btn-outline-primary btn-block">
                             <i class="fas fa-sms"></i> Bulk SMS
                         </a>

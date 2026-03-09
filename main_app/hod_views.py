@@ -43,6 +43,7 @@ from .sms_service import (
     send_fee_reminder_sms, send_payment_receipt_sms, send_attendance_alert_sms,
     get_school_settings, render_sms_template
 )
+from .notifications import create_notification
 from django.db import transaction
 from django.db.models import Sum, Count, Avg
 from django.utils import timezone
@@ -369,6 +370,16 @@ def add_student(request):
                             term=active_term,
                             defaults={'enrollment': enrollment},
                         )
+
+                # Notify class teacher if assigned
+                if course.class_teacher_id and school:
+                    create_notification(
+                        course.class_teacher.admin,
+                        "New Student Registered",
+                        f"{first_name} {last_name} (Admission: {admission_number}) has been enrolled in {course.name}.",
+                        reverse('manage_student'),
+                        school=school,
+                    )
 
                 messages.success(request, f"Student {first_name} {last_name} added successfully. Admission No: {admission_number}")
                 return redirect(reverse('add_student'))
@@ -3810,6 +3821,16 @@ def fee_collection(request):
             # Send receipt SMS
             send_payment_receipt_sms(payment, created_by=request.user)
             
+            # Notify parent(s) of the student
+            for parent in Parent.objects.filter(children=student).select_related('admin'):
+                create_notification(
+                    parent.admin,
+                    "Fee Payment Received",
+                    f"Payment of KES {amount:,.2f} recorded for {student.admin.first_name} {student.admin.last_name}. Receipt: {receipt_number}",
+                    reverse('parent_view_child_fees', args=[student.id]),
+                    school=school,
+                )
+            
             messages.success(request, f"Payment recorded. Receipt: {receipt_number}")
             return redirect('fee_collection')
             
@@ -4334,57 +4355,365 @@ def manage_grading_scale(request):
 
 
 def enter_exam_results(request):
-    """Enter exam results. MVP: Blocked when term closed or result entry not open."""
+    """Enter exam results. Term + Class + Subject: CAT (Opener), Mid Term, End Term in one form."""
+    school = getattr(request, 'school', None)
+    if not school:
+        messages.warning(request, "School context required.")
+        return redirect('admin_home')
+
+    academic_terms = AcademicTerm.objects.filter(school=school).order_by('-academic_year', 'term_name')
+    courses = Course.objects.filter(school=school, is_active=True).order_by('name')
+    all_subjects_qs = Subject.objects.filter(course__school=school).select_related('course').order_by('course__name', 'name')
+    if request.user.user_type == '2' and hasattr(request.user, 'staff'):
+        all_subjects_qs = all_subjects_qs.filter(staff=request.user.staff)
+    all_subjects = all_subjects_qs
+
+    term_id = request.GET.get('term')
+    class_id = request.GET.get('course') or request.GET.get('class')
+    subject_id = request.GET.get('subject')
+
     if request.method == 'POST':
-        active_term = AcademicTerm.get_active_term(school=getattr(request, 'school', None))
+        active_term = AcademicTerm.get_active_term(school=school)
         if active_term and active_term.is_locked:
             messages.error(request, "Term is closed. Marks cannot be edited.")
             return redirect('enter_exam_results')
-        exam_schedule_id = request.POST.get('exam_schedule')
-        exam_schedule = get_object_or_404(ExamSchedule, id=exam_schedule_id)
-        # MVP: Staff can only enter when admin has opened result entry
-        if request.user.user_type == '2' and not exam_schedule.is_result_entry_allowed():
-            messages.error(request, "Result upload is closed for this exam. Please contact the administrator.")
-            return redirect('enter_exam_results')
+        term_id = request.POST.get('academic_term')
+        class_id = request.POST.get('school_class')
         subject_id = request.POST.get('subject')
-        
-        subject = Subject.objects.get(id=subject_id)
-        
-        # Get students in the subject's class
-        students = Student.objects.filter(course=subject.course)
-        
-        saved_count = 0
-        for student in students:
-            marks_key = f'marks_{student.id}'
-            comment_key = f'comment_{student.id}'
-            
-            if marks_key in request.POST and request.POST[marks_key]:
-                marks = float(request.POST[marks_key])
-                comment = request.POST.get(comment_key, '')
-                
-                result, created = ExamResult.objects.update_or_create(
-                    student=student,
-                    subject=subject,
-                    exam_schedule=exam_schedule,
-                    defaults={
-                        'marks': marks,
-                        'teacher_comment': comment,
-                        'entered_by': request.user
-                    }
+        academic_term = get_object_or_404(AcademicTerm, id=term_id, school=school)
+        school_class = get_object_or_404(Course, id=class_id, school=school)
+        subject = get_object_or_404(Subject, id=subject_id, course=school_class)
+
+        # Check if teacher has submitted (locked) - only admin can edit then
+        staff = getattr(request.user, 'staff', None)
+        if staff:
+            try:
+                sub = TeacherResultSubmission.objects.get(
+                    staff=staff, subject=subject, academic_term=academic_term, school_class=school_class
                 )
-                result.calculate_grade()
-                result.save()
-                saved_count += 1
-        
-        messages.success(request, f"Saved results for {saved_count} students")
-        return redirect('enter_exam_results')
-    
+                if sub.status == 'submitted':
+                    messages.error(request, "Results already submitted. Contact admin to unlock.")
+                    return redirect(reverse('enter_exam_results') + f'?term={term_id}&course={class_id}&subject={subject_id}')
+            except TeacherResultSubmission.DoesNotExist:
+                pass
+
+        for key, val in request.POST.items():
+            if key.startswith('opener_') or key.startswith('midterm_') or key.startswith('endterm_'):
+                parts = key.split('_')
+                if len(parts) >= 2:
+                    exam_type = parts[0]
+                    sid = parts[1]
+                    try:
+                        student = Student.objects.get(id=sid, admin__school=school)
+                    except (Student.DoesNotExist, ValueError):
+                        continue
+                    try:
+                        v = min(100, max(0, float(val) if val else 0))
+                    except ValueError:
+                        v = 0
+                    result, _ = KNECReportCardResult.objects.get_or_create(
+                        student=student, subject=subject, academic_term=academic_term,
+                        defaults={'opener_marks': 0, 'midterm_marks': 0, 'endterm_marks': 0}
+                    )
+                    if exam_type == 'opener':
+                        result.opener_marks = v
+                    elif exam_type == 'midterm':
+                        result.midterm_marks = v
+                    elif exam_type == 'endterm':
+                        result.endterm_marks = v
+                    result.save()
+            elif key.startswith('comment_'):
+                sid = key.replace('comment_', '')
+                try:
+                    student = Student.objects.get(id=sid, admin__school=school)
+                    result = KNECReportCardResult.objects.filter(
+                        student=student, subject=subject, academic_term=academic_term
+                    ).first()
+                    if result:
+                        result.teacher_comment_override = request.POST.get(key, '').strip() or None
+                        result.save()
+                except (Student.DoesNotExist, ValueError):
+                    pass
+
+        # Ensure TeacherResultSubmission exists with status='draft' when marks are saved
+        # Use subject's teacher (subject.staff) so submission status tracks the right person
+        if subject:
+            TeacherResultSubmission.objects.get_or_create(
+                staff=subject.staff,
+                subject=subject,
+                academic_term=academic_term,
+                school_class=school_class,
+                defaults={'status': 'draft'}
+            )
+
+        messages.success(request, "Marks saved successfully.")
+        return redirect(reverse('enter_exam_results') + f'?term={term_id}&course={class_id}&subject={subject_id}')
+
+    students = []
+    selected_term = None
+    selected_class = None
+    selected_subject = None
+    subjects = []
+
+    if term_id and class_id:
+        selected_term = get_object_or_404(AcademicTerm, id=term_id, school=school)
+        selected_class = get_object_or_404(Course, id=class_id, school=school)
+        subjects = Subject.objects.filter(course=selected_class).order_by('name')
+        if subject_id:
+            selected_subject = get_object_or_404(Subject, id=subject_id, course=selected_class)
+            is_submitted = TeacherResultSubmission.objects.filter(
+                staff=selected_subject.staff, subject=selected_subject,
+                academic_term=selected_term, school_class=selected_class,
+                status='submitted'
+            ).exists()
+            enrollments = StudentClassEnrollment.objects.filter(
+                school_class=selected_class, status='active',
+                student__admin__school=school
+            ).filter(
+                Q(term=selected_term) | Q(academic_year__academic_year=selected_term.academic_year)
+            ).select_related('student__admin')
+            for enr in enrollments:
+                res = KNECReportCardResult.objects.filter(
+                    student=enr.student, subject=selected_subject, academic_term=selected_term
+                ).first()
+                students.append({
+                    'student': enr.student,
+                    'result': res,
+                })
+
+    is_submitted = False
+    if selected_term and selected_class and selected_subject:
+        is_submitted = TeacherResultSubmission.objects.filter(
+            staff=selected_subject.staff, subject=selected_subject,
+            academic_term=selected_term, school_class=selected_class,
+            status='submitted'
+        ).exists()
+    can_edit = not is_submitted or str(request.user.user_type) == '1'
+
     context = {
-        'exam_schedules': ExamSchedule.objects.filter(is_active=True),
-        'subjects': Subject.objects.all(),
-        'page_title': 'Enter Exam Results'
+        'page_title': 'Enter Exam Results',
+        'academic_terms': academic_terms,
+        'courses': courses,
+        'subjects': subjects,
+        'all_subjects': all_subjects,
+        'students': students,
+        'selected_term': selected_term,
+        'selected_class': selected_class,
+        'selected_subject': selected_subject,
+        'term_id': term_id,
+        'class_id': class_id,
+        'subject_id': subject_id,
+        'is_submitted': is_submitted,
+        'can_edit': can_edit,
+        'is_admin': str(request.user.user_type) == '1',
     }
     return render(request, 'hod_template/enter_exam_results.html', context)
+
+
+def teacher_submit_results(request):
+    """Teacher submits results - locks marks. Only teacher for that subject can submit."""
+    school = getattr(request, 'school', None)
+    if not school:
+        messages.warning(request, "School context required.")
+        return redirect('admin_home')
+    if request.user.user_type != '2' or not hasattr(request.user, 'staff'):
+        messages.error(request, "Only teachers can submit results.")
+        return redirect('enter_exam_results')
+    staff = request.user.staff
+    term_id = request.POST.get('academic_term')
+    class_id = request.POST.get('school_class')
+    subject_id = request.POST.get('subject')
+    if not all([term_id, class_id, subject_id]):
+        messages.error(request, "Missing term, class, or subject.")
+        return redirect('enter_exam_results')
+    academic_term = get_object_or_404(AcademicTerm, id=term_id, school=school)
+    school_class = get_object_or_404(Course, id=class_id, school=school)
+    subject = get_object_or_404(Subject, id=subject_id, course=school_class)
+    if subject.staff_id != staff.id:
+        messages.error(request, "You can only submit results for your own subjects.")
+        return redirect('enter_exam_results')
+    sub, created = TeacherResultSubmission.objects.get_or_create(
+        staff=staff, subject=subject, academic_term=academic_term, school_class=school_class,
+        defaults={'status': 'draft'}
+    )
+    if sub.status == 'submitted':
+        messages.warning(request, "Results already submitted.")
+    else:
+        sub.status = 'submitted'
+        sub.submitted_at = timezone.now()
+        sub.save()
+        messages.success(request, f"Results for {subject.name} submitted successfully. Marks are now locked.")
+        # Notify school admins
+        admin_users = CustomUser.objects.filter(user_type='1', school=school).exclude(is_superuser=True)
+        results_link = reverse('result_submission_status') + f'?term={term_id}&course={class_id}'
+        teacher_name = f"{staff.admin.first_name} {staff.admin.last_name}"
+        for admin_user in admin_users:
+            create_notification(
+                admin_user,
+                "Results Submitted",
+                f"Teacher {teacher_name} submitted {subject.name} results for {school_class.name}.",
+                results_link,
+                school=school,
+            )
+    return redirect(reverse('enter_exam_results') + f'?term={term_id}&course={class_id}&subject={subject_id}')
+
+
+def result_submission_status(request):
+    """Admin only: View teacher submission status per term/class. Teachers enter marks and submit."""
+    school = getattr(request, 'school', None)
+    if not school:
+        messages.warning(request, "School context required.")
+        return redirect('admin_home')
+    if str(request.user.user_type) != '1':
+        messages.error(request, "Admin only.")
+        return redirect('staff_home')
+    academic_terms = AcademicTerm.objects.filter(school=school).order_by('-academic_year', 'term_name')
+    courses = Course.objects.filter(school=school, is_active=True).order_by('name')
+    term_id = request.GET.get('term')
+    class_id = request.GET.get('course') or request.GET.get('class')
+    status_rows = []
+    selected_term = selected_class = None
+    all_submitted = False
+    if term_id and class_id:
+        selected_term = get_object_or_404(AcademicTerm, id=term_id, school=school)
+        selected_class = get_object_or_404(Course, id=class_id, school=school)
+        subjects = Subject.objects.filter(course=selected_class).select_related('staff__admin')
+        for subj in subjects:
+            sub = TeacherResultSubmission.objects.filter(
+                subject=subj, academic_term=selected_term, school_class=selected_class
+            ).first()
+            status_rows.append({
+                'subject': subj,
+                'teacher': subj.staff,
+                'submission': sub,
+                'status': sub.status if sub else 'draft',
+                'submitted_at': sub.submitted_at if sub else None,
+            })
+        all_submitted = all(r['status'] == 'submitted' for r in status_rows) if status_rows else False
+    publish_status = None
+    if selected_term:
+        try:
+            publish_status = selected_term.result_publish_status
+        except Exception:
+            pass
+    is_admin = str(request.user.user_type) == '1'
+    context = {
+        'page_title': 'Result Submission Status',
+        'academic_terms': academic_terms,
+        'courses': courses,
+        'status_rows': status_rows,
+        'selected_term': selected_term,
+        'selected_class': selected_class,
+        'term_id': term_id,
+        'class_id': class_id,
+        'all_submitted': all_submitted,
+        'is_published': publish_status.is_published if publish_status else False,
+        'is_admin': is_admin,
+    }
+    return render(request, 'hod_template/result_submission_status.html', context)
+
+
+def publish_term_results(request):
+    """Admin only: Publish results for a term/class. Makes visible to parents/students."""
+    school = getattr(request, 'school', None)
+    if not school:
+        return redirect('admin_home')
+    if str(request.user.user_type) != '1':
+        messages.error(request, "Admin only.")
+        return redirect('admin_home')
+    term_id = request.POST.get('academic_term')
+    class_id = request.POST.get('school_class')
+    if not term_id or not class_id:
+        messages.error(request, "Missing term or class.")
+        return redirect('result_submission_status')
+    academic_term = get_object_or_404(AcademicTerm, id=term_id, school=school)
+    school_class = get_object_or_404(Course, id=class_id, school=school)
+    subjects = list(Subject.objects.filter(course=school_class))
+    if not subjects:
+        messages.error(request, "No subjects found for this class. Cannot publish.")
+        return redirect(reverse('result_submission_status') + f'?term={term_id}&course={class_id}')
+    all_submitted = all(
+        TeacherResultSubmission.objects.filter(
+            subject=s, academic_term=academic_term, school_class=school_class,
+            status='submitted'
+        ).exists()
+        for s in subjects
+    )
+    if not all_submitted:
+        draft_subjects = [
+            s.name for s in subjects
+            if not TeacherResultSubmission.objects.filter(
+                subject=s, academic_term=academic_term, school_class=school_class,
+                status='submitted'
+            ).exists()
+        ]
+        messages.error(
+            request,
+            f"Some teachers have not submitted results yet: {', '.join(draft_subjects)}. "
+            "All subjects must be submitted before publishing."
+        )
+        return redirect(reverse('result_submission_status') + f'?term={term_id}&course={class_id}')
+    pub, _ = TermResultPublish.objects.get_or_create(
+        academic_term=academic_term,
+        defaults={'school': school, 'is_published': False}
+    )
+    pub.is_published = True
+    pub.published_at = timezone.now()
+    pub.published_by = request.user
+    pub.school = school
+    pub.save()
+
+    # Notify parents of students in this class
+    students = Student.objects.filter(course=school_class).select_related('admin')
+    for student in students:
+        for parent in Parent.objects.filter(children=student).select_related('admin'):
+            create_notification(
+                parent.admin,
+                "Results Published",
+                f"Term results for {academic_term} are now available. View {student.admin.first_name}'s report card.",
+                reverse('parent_view_knec_report_card', args=[student.id, academic_term.id]),
+                school=school,
+            )
+
+    messages.success(request, f"Results for {academic_term} published. Parents and students can now view.")
+    return redirect(reverse('result_submission_status') + f'?term={term_id}&course={class_id}')
+
+
+def unpublish_term_results(request):
+    """Admin only: Unpublish results."""
+    school = getattr(request, 'school', None)
+    if not school or str(request.user.user_type) != '1':
+        messages.error(request, "Admin only.")
+        return redirect('admin_home')
+    term_id = request.POST.get('academic_term')
+    class_id = request.POST.get('school_class')
+    if term_id and class_id:
+        academic_term = get_object_or_404(AcademicTerm, id=term_id, school=school)
+        pub = getattr(academic_term, 'result_publish_status', None)
+        if pub:
+            pub.is_published = False
+            pub.save()
+            messages.success(request, "Results unpublished.")
+    return redirect(reverse('result_submission_status') + f'?term={term_id}&course={class_id}')
+
+
+def admin_unlock_teacher_submission(request):
+    """Admin: Unlock submitted results so teacher can edit again."""
+    school = getattr(request, 'school', None)
+    if not school or str(request.user.user_type) != '1':
+        messages.error(request, "Admin only.")
+        return redirect('admin_home')
+    submission_id = request.POST.get('submission_id')
+    if submission_id:
+        sub = TeacherResultSubmission.objects.filter(id=submission_id).first()
+        if sub and sub.school_class.school_id == school.id:
+            sub.status = 'draft'
+            sub.submitted_at = None
+            sub.save()
+            messages.success(request, f"Unlocked {sub.subject.name} - {sub.staff.admin.get_full_name()}")
+    term_id = request.POST.get('term_id')
+    class_id = request.POST.get('class_id')
+    return redirect(reverse('result_submission_status') + f'?term={term_id}&course={class_id}')
 
 
 def enter_cat_marks(request):
@@ -4939,6 +5268,17 @@ def student_add_fee_payment(request, student_id):
                 paid_by=paid_by,
                 description=description
             )
+            
+            # Notify parent(s) of the student
+            school = getattr(request, 'school', None)
+            for parent in Parent.objects.filter(children=student).select_related('admin'):
+                create_notification(
+                    parent.admin,
+                    "Fee Payment Received",
+                    f"Payment of KES {amount:,.2f} recorded for {student.admin.first_name} {student.admin.last_name}. Receipt: {receipt_number}",
+                    reverse('parent_view_child_fees', args=[student.id]),
+                    school=school,
+                )
             
             messages.success(request, f"Payment of KES {amount:,.2f} recorded successfully. Receipt: {receipt_number}")
             return redirect('student_detail_fees', student_id=student_id)

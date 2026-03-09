@@ -104,18 +104,49 @@ def report_card_list(request):
 
 
 def _build_report_card_context(student, academic_term, school):
-    """Build context for a single student's report card."""
+    """Build context for a single student's report card (Assessment Report format)."""
     settings_obj = get_school_settings(school)
     school_obj = school
 
-    results = KNECReportCardResult.objects.filter(
+    results_qs = KNECReportCardResult.objects.filter(
         student=student, academic_term=academic_term
     ).select_related('subject').order_by('subject__name')
 
-    total_points = sum(r.points for r in results)
-    total_subjects = results.count()
-    mean_score = (sum(r.average for r in results) / total_subjects) if total_subjects else 0
+    # Enrich results with per-exam grades (opener, midterm, endterm each have own grade)
+    results = []
+    total_opener = total_midterm = total_endterm = total_avg = 0
+    for r in results_qs:
+        og, _, _ = get_knec_grade(r.opener_marks or 0)
+        mg, _, _ = get_knec_grade(r.midterm_marks or 0)
+        eg, _, _ = get_knec_grade(r.endterm_marks or 0)
+        results.append({
+            'subject': r.subject,
+            'opener_marks': r.opener_marks or 0,
+            'midterm_marks': r.midterm_marks or 0,
+            'endterm_marks': r.endterm_marks or 0,
+            'average': r.average,
+            'opener_grade': og or '-',
+            'midterm_grade': mg or '-',
+            'endterm_grade': eg or '-',
+            'grade': r.grade or '-',
+            'remarks': r.get_display_comment(),
+            'teacher_initials': r.get_teacher_initials(),
+        })
+        total_opener += r.opener_marks or 0
+        total_midterm += r.midterm_marks or 0
+        total_endterm += r.endterm_marks or 0
+        total_avg += r.average or 0
+
+    total_subjects = len(results)
+    mean_score = round((sum(r['average'] for r in results) / total_subjects), 2) if total_subjects else 0
+    total_points = sum(get_knec_grade(r['average'])[1] for r in results) if results else 0
     mean_grade = get_mean_grade_from_points(total_points / total_subjects) if total_subjects else 'E'
+    avg_opener = round(total_opener / total_subjects, 2) if total_subjects else 0
+    avg_midterm = round(total_midterm / total_subjects, 2) if total_subjects else 0
+    avg_endterm = round(total_endterm / total_subjects, 2) if total_subjects else 0
+    avg_opener_grade = get_knec_grade(avg_opener)[0] or '-'
+    avg_midterm_grade = get_knec_grade(avg_midterm)[0] or '-'
+    avg_endterm_grade = get_knec_grade(avg_endterm)[0] or '-'
 
     # Position in class
     school_class = student.get_class_info() or student.current_class
@@ -135,6 +166,7 @@ def _build_report_card_context(student, academic_term, school):
             all_student_totals.append((enr.student.id, pts))
     all_student_totals.sort(key=lambda x: x[1], reverse=True)
     position = next((i + 1 for i, (sid, _) in enumerate(all_student_totals) if sid == student.id), None)
+    total_in_class = len(enrollments)
 
     # Attendance
     days_open = 0
@@ -160,7 +192,7 @@ def _build_report_card_context(student, academic_term, school):
                 elif rec.status == 'absent':
                     days_absent += 1
 
-    # Next term opening - try to get next term's start_date
+    # Next term opening
     next_terms = AcademicTerm.objects.filter(
         school=school,
         academic_year__gte=academic_term.academic_year
@@ -175,9 +207,20 @@ def _build_report_card_context(student, academic_term, school):
         'results': results,
         'total_points': total_points,
         'total_subjects': total_subjects,
-        'mean_score': round(mean_score, 2),
+        'mean_score': mean_score,
         'mean_grade': mean_grade,
         'position_in_class': position,
+        'total_in_class': total_in_class,
+        'total_opener': total_opener,
+        'total_midterm': total_midterm,
+        'total_endterm': total_endterm,
+        'total_average': total_avg,
+        'avg_opener': avg_opener,
+        'avg_midterm': avg_midterm,
+        'avg_endterm': avg_endterm,
+        'avg_opener_grade': avg_opener_grade,
+        'avg_midterm_grade': avg_midterm_grade,
+        'avg_endterm_grade': avg_endterm_grade,
         'days_open': days_open,
         'days_present': days_present,
         'days_absent': days_absent,
@@ -186,6 +229,7 @@ def _build_report_card_context(student, academic_term, school):
         'settings': settings_obj,
         'class_teacher_comment': '',
         'head_teacher_comment': '',
+        'parent_comment': '',
         'student_conduct': '',
     }
 
@@ -205,22 +249,17 @@ def report_card_view(request, student_id, term_id):
     return render(request, 'hod_template/report_card_template.html', context)
 
 
-def report_card_pdf(request, student_id, term_id):
-    """Export report card as PDF - matches display/print layout."""
+def _generate_report_card_pdf_response(student, academic_term, school):
+    """
+    Generate PDF HttpResponse for a report card.
+    Used by admin report_card_pdf and parent_download_knec_report_card_pdf.
+    """
     if not REPORTLAB_AVAILABLE:
-        messages.error(request, "PDF export requires reportlab. Install with: pip install reportlab")
-        return redirect('report_card_list')
-
-    school = _get_school_from_request(request)
-    if not school:
-        return HttpResponse("School context required.", status=403)
-
-    student = get_object_or_404(Student, id=student_id, admin__school=school)
-    academic_term = get_object_or_404(AcademicTerm, id=term_id, school=school)
-
+        return None
     context = _build_report_card_context(student, academic_term, school)
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="report_card_{student.admission_number}_{academic_term.academic_year}_{academic_term.term_name}.pdf"'
+    safe_name = f"{student.admin.first_name}_{student.admin.last_name}_{academic_term.academic_year}_{academic_term.term_name}_reportForm".replace(' ', '_')
+    response['Content-Disposition'] = f'attachment; filename="{safe_name}.pdf"'
 
     doc = SimpleDocTemplate(response, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
     styles = getSampleStyleSheet()
@@ -254,81 +293,115 @@ def report_card_pdf(request, student_id, term_id):
         story.append(Paragraph('[School Logo]', ParagraphStyle('LogoPlaceholder', parent=styles['Normal'], alignment=TA_CENTER, textColor=colors.grey)))
 
     school_name = (settings_obj.school_name if settings_obj else None) or (school_obj.name if school_obj else "School")
-    story.append(Paragraph(school_name, title_style))
-    story.append(Paragraph(settings_obj.school_address or school_obj.address or "", center_style))
-    story.append(Paragraph(f"Tel: {settings_obj.school_phone or school_obj.phone or ''}", center_style))
+    story.append(Paragraph(school_name.upper(), title_style))
+    if settings_obj.school_address or (school_obj and school_obj.address):
+        story.append(Paragraph(settings_obj.school_address or school_obj.address or "", center_style))
+    if settings_obj.school_motto:
+        story.append(Paragraph(f"Motto: {settings_obj.school_motto}", ParagraphStyle('Motto', parent=styles['Normal'], alignment=TA_CENTER, fontName='Helvetica-Oblique')))
+    story.append(Spacer(1, 0.15*inch))
+
+    # Assessment Report title
+    story.append(Paragraph("Assessment Report", ParagraphStyle('ReportTitle', parent=styles['Heading2'], alignment=TA_CENTER, fontSize=14)))
+    story.append(Spacer(1, 0.15*inch))
+
+    # Student info: NAME, Adm No, TERM, YEAR
+    student_name = f"{student.admin.first_name} {student.admin.last_name}"
+    story.append(Paragraph(f"<b>NAME:</b> {student_name}  <b>Adm No</b> {student.admission_number or '-'}", styles['Normal']))
+    story.append(Paragraph(f"<b>TERM:</b> {academic_term.academic_year} {academic_term.term_name}  <b>YEAR:</b> {academic_term.academic_year}  <b>House</b>", styles['Normal']))
     story.append(Spacer(1, 0.2*inch))
 
-    # ACADEMIC REPORT CARD title
-    story.append(Paragraph("ACADEMIC REPORT CARD", ParagraphStyle('ReportTitle', parent=styles['Heading2'], alignment=TA_CENTER, fontSize=14)))
-    story.append(Paragraph(f"Academic Year: {academic_term.academic_year} | Term: {academic_term.term_name}", center_style))
-    story.append(Spacer(1, 0.2*inch))
-
-    # Student info - two columns: Left (Name, Class, Gender) | Right (Admission No, Stream, Term)
-    student_name = f"{student.admin.last_name}, {student.admin.first_name}"
-    stream_name = school_class.stream.name if school_class and school_class.stream else "-"
-    class_name = school_class.name if school_class else "-"
-    left_col = f"<b>Student Name:</b> {student_name}<br/><b>Class:</b> {class_name}<br/><b>Gender:</b> {student.admin.gender or '-'}"
-    right_col = f"<b>Admission No:</b> {student.admission_number or '-'}<br/><b>Stream:</b> {stream_name}<br/><b>Term:</b> {academic_term.term_name}"
-    student_data = [[Paragraph(left_col, styles['Normal']), Paragraph(right_col, styles['Normal'])]]
-    student_table = Table(student_data, colWidths=[200, 200])
-    student_table.setStyle(TableStyle([
-        ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
-        ('TOPPADDING', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-        ('LEFTPADDING', (0, 0), (-1, -1), 10),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-    ]))
-    story.append(student_table)
-    story.append(Spacer(1, 0.2*inch))
-
-    # Results table
-    data = [['Subject', 'Opener', 'Midterm', 'Endterm', 'Average', 'Grade', 'Points', 'Remarks']]
-    for r in context['results']:
+    # Results table: #, SUBJECT, OPENER (%, Grade), MID TERM (%, Grade), END TERM (%, Grade), AVERAGE (%, Grade), COMMENTS, TEACHER'S INITIALS
+    data = [
+        ['#', 'SUBJECT', 'OPENER %', 'Grade', 'MID %', 'Grade', 'END %', 'Grade', 'AVG %', 'Grade', 'COMMENTS', "TEACHER"]
+    ]
+    for i, r in enumerate(context['results'], 1):
         data.append([
-            r.subject.name,
-            str(int(r.opener_marks)) if r.opener_marks else '0',
-            str(int(r.midterm_marks)) if r.midterm_marks else '0',
-            str(int(r.endterm_marks)) if r.endterm_marks else '0',
-            str(round(r.average, 1)),
-            r.grade or '-',
-            str(int(r.points)) if r.points else '-',
-            r.remarks or '-',
+            str(i), r['subject'].name,
+            str(int(r['opener_marks'])), str(r['opener_grade']),
+            str(int(r['midterm_marks'])), str(r['midterm_grade']),
+            str(int(r['endterm_marks'])), str(r['endterm_grade']),
+            str(int(r['average'])), str(r['grade']),
+            r['remarks'], r.get('teacher_initials', '')
         ])
-    if data:
-        t = Table(data, colWidths=[80, 45, 45, 45, 45, 35, 35, 70])
+    if not context['results']:
+        data.append(['', 'No results entered. Please enter marks first.', '', '', '', '', '', '', '', '', '', ''])
+    else:
+        # TOTAL MARKS row
+        data.append([
+            '', 'TOTAL MARKS',
+            str(int(context['total_opener'])), '',
+            str(int(context['total_midterm'])), '',
+            str(int(context['total_endterm'])), '',
+            str(int(context['total_average'])), '',
+            '', ''
+        ])
+        # AVERAGE row
+        data.append([
+            '', 'AVERAGE',
+            str(int(context['avg_opener'])), str(context['avg_opener_grade']),
+            str(int(context['avg_midterm'])), str(context['avg_midterm_grade']),
+            str(int(context['avg_endterm'])), str(context['avg_endterm_grade']),
+            str(int(context['mean_score'])), str(context['mean_grade']),
+            '', ''
+        ])
+        col_widths = [18, 70, 28, 22, 32, 22, 32, 22, 32, 22, 45, 35]
+        t = Table(data, colWidths=col_widths)
         t.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#333333')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+            ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+            ('ALIGN', (2, 0), (-1, -1), 'CENTER'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-            ('TOPPADDING', (0, 0), (-1, 0), 8),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-            ('TOPPADDING', (0, 1), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ]))
         story.append(t)
         story.append(Spacer(1, 0.2*inch))
 
-    # Summary section
-    summary_text = f"<b>Summary:</b> Total Points: {context['total_points']:.1f} | Total Subjects: {context['total_subjects']} | Mean Score: {context['mean_score']} | Mean Grade: {context['mean_grade']} | Position in Class: {context['position_in_class'] or '-'}"
-    story.append(Paragraph(summary_text, styles['Normal']))
+    # Class position
+    story.append(Paragraph(f"<b>Class position:</b> {context['position_in_class'] or '-'} Out Of {context['total_in_class'] or '-'}", styles['Normal']))
     story.append(Spacer(1, 0.15*inch))
 
     # Comments section
-    story.append(Paragraph("<b>Class Teacher Comment:</b> _________________________", styles['Normal']))
-    story.append(Paragraph("<b>Head Teacher Comment:</b> _________________________", styles['Normal']))
-    story.append(Paragraph("<b>Student Conduct:</b> _________________________", styles['Normal']))
+    story.append(Paragraph("<b>CLASS TEACHER'S COMMENT:</b> _________________________", styles['Normal']))
+    story.append(Paragraph("SIGNATURE: .................. DATE: ....................", ParagraphStyle('Small', parent=styles['Normal'], fontSize=9)))
+    story.append(Paragraph("<b>PRINCIPAL'S COMMENT:</b> _________________________", styles['Normal']))
+    story.append(Paragraph("SIGNATURE: .................. DATE: ....................", ParagraphStyle('Small', parent=styles['Normal'], fontSize=9)))
+    story.append(Paragraph("<b>PARENT'S COMMENT:</b> _________________________", styles['Normal']))
+    story.append(Paragraph("SIGNATURE: .................. DATE: ....................", ParagraphStyle('Small', parent=styles['Normal'], fontSize=9)))
     story.append(Spacer(1, 0.15*inch))
 
-    # Attendance section
-    story.append(Paragraph(f"<b>Attendance:</b> Days Open: {context['days_open']} | Days Present: {context['days_present']} | Days Absent: {context['days_absent']}", styles['Normal']))
+    # Opening and Closing dates
+    if academic_term.start_date and academic_term.end_date:
+        story.append(Paragraph(f"<b>OPENING DATE:</b> {academic_term.start_date.strftime('%d-%m-%Y')}    <b>CLOSING DATE:</b> {academic_term.end_date.strftime('%d-%m-%Y')}", styles['Normal']))
+        story.append(Spacer(1, 0.15*inch))
+
+    # Grading Key
+    story.append(Paragraph("<b>KEY</b>  A - Very Good   B - Good   C - Fair   D - Weak   E - Poor", ParagraphStyle('Key', parent=styles['Normal'], fontSize=9)))
 
     doc.build(story)
     return response
+
+
+def report_card_pdf(request, student_id, term_id):
+    """Export report card as PDF - matches display/print layout."""
+    if not REPORTLAB_AVAILABLE:
+        messages.error(request, "PDF export requires reportlab. Install with: pip install reportlab")
+        return redirect('report_card_list')
+
+    school = _get_school_from_request(request)
+    if not school:
+        return HttpResponse("School context required.", status=403)
+
+    student = get_object_or_404(Student, id=student_id, admin__school=school)
+    academic_term = get_object_or_404(AcademicTerm, id=term_id, school=school)
+
+    response = _generate_report_card_pdf_response(student, academic_term, school)
+    return response if response else redirect('report_card_list')
 
 
 def knec_enter_marks(request):

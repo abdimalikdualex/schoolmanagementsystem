@@ -8,122 +8,157 @@
         <div class="card card-primary">
             <div class="card-header">
                 <h3 class="card-title">Enter Exam Results</h3>
-            </div>
-            <form method="POST" id="results_form">
-                {% csrf_token %}
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label>Exam Schedule</label>
-                                <select name="exam_schedule" id="exam_schedule" class="form-control" required>
-                                    <option value="">-- Select Exam --</option>
-                                    {% for schedule in exam_schedules %}
-                                    <option value="{{ schedule.id }}">{{ schedule.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label>Subject</label>
-                                <select name="subject" id="subject" class="form-control" required>
-                                    <option value="">-- Select Subject --</option>
-                                    {% for subject in subjects %}
-                                    <option value="{{ subject.id }}">{{ subject.name }} ({{ subject.course }})</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label>&nbsp;</label>
-                                <button type="button" id="load_students" class="btn btn-info btn-block">
-                                    <i class="fas fa-search"></i> Load Students
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="students_container" style="display:none;">
-                        <hr>
-                        <div class="table-responsive">
-                            <table class="table table-bordered" id="results_table">
-                                <thead class="thead-dark">
-                                    <tr>
-                                        <th>Adm No</th>
-                                        <th>Student Name</th>
-                                        <th width="150">Marks</th>
-                                        <th>Comment</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="students_list">
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer" id="submit_section" style="display:none;">
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-save"></i> Save Results
-                    </button>
-                    <a href="{% url 'view_exam_results' %}" class="btn btn-info">
-                        <i class="fas fa-eye"></i> View Results
+                <div class="card-tools">
+                    <a href="{% url 'report_card_list' %}" class="btn btn-info btn-sm">
+                        <i class="fas fa-file-alt"></i> Report Cards
                     </a>
                 </div>
-            </form>
+            </div>
+            <div class="card-body">
+                <form method="get" class="form-inline mb-4">
+                    <div class="form-group mr-2">
+                        <label class="mr-1">Term</label>
+                        <select name="term" id="term_select" class="form-control form-control-sm">
+                            <option value="">-- Select Term --</option>
+                            {% for t in academic_terms %}
+                            <option value="{{ t.id }}" {% if term_id == t.id|stringformat:"s" %}selected{% endif %}>{{ t }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group mr-2">
+                        <label class="mr-1">Class</label>
+                        <select name="course" id="class_select" class="form-control form-control-sm">
+                            <option value="">-- Select Class --</option>
+                            {% for c in courses %}
+                            <option value="{{ c.id }}" {% if class_id == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group mr-2">
+                        <label class="mr-1">Subject</label>
+                        <select name="subject" id="subject_select" class="form-control form-control-sm" data-selected="{{ subject_id|default:'' }}">
+                            <option value="">-- Select Subject --</option>
+                            {% for s in subjects %}
+                            <option value="{{ s.id }}" {% if subject_id == s.id|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-info btn-sm">
+                        <i class="fas fa-search"></i> Load Students
+                    </button>
+                </form>
+
+                {% if students %}
+                <p class="text-muted mb-2">Enter <strong>CAT (Opener)</strong>, <strong>Mid Term</strong>, and <strong>End Term</strong> marks (out of 100) for <strong>{{ selected_subject.name }}</strong> - {{ selected_term }}</p>
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="academic_term" value="{{ selected_term.id }}">
+                    <input type="hidden" name="school_class" value="{{ selected_class.id }}">
+                    <input type="hidden" name="subject" value="{{ selected_subject.id }}">
+                    <table class="table table-bordered table-hover">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th>#</th>
+                                <th>Student Name</th>
+                                <th>Admission No</th>
+                                <th>CAT (Opener)</th>
+                                <th>Mid Term</th>
+                                <th>End Term</th>
+                                <th>Comment</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in students %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>{{ item.student.admin.last_name }}, {{ item.student.admin.first_name }}</td>
+                                <td>{{ item.student.admission_number|default:"-" }}</td>
+                                <td>
+                                    <input type="number" name="opener_{{ item.student.id }}" value="{% if item.result %}{{ item.result.opener_marks|floatformat:0 }}{% endif %}" min="0" max="100" step="0.5" class="form-control form-control-sm" style="width: 80px;" {% if not can_edit %}readonly{% endif %}>
+                                </td>
+                                <td>
+                                    <input type="number" name="midterm_{{ item.student.id }}" value="{% if item.result %}{{ item.result.midterm_marks|floatformat:0 }}{% endif %}" min="0" max="100" step="0.5" class="form-control form-control-sm" style="width: 80px;" {% if not can_edit %}readonly{% endif %}>
+                                </td>
+                                <td>
+                                    <input type="number" name="endterm_{{ item.student.id }}" value="{% if item.result %}{{ item.result.endterm_marks|floatformat:0 }}{% endif %}" min="0" max="100" step="0.5" class="form-control form-control-sm" style="width: 80px;" {% if not can_edit %}readonly{% endif %}>
+                                </td>
+                                <td>
+                                    <input type="text" name="comment_{{ item.student.id }}" value="{% if item.result %}{{ item.result.teacher_comment_override|default:item.result.remarks }}{% endif %}" class="form-control form-control-sm" placeholder="Auto or edit" {% if not can_edit %}readonly{% endif %}>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <button type="submit" class="btn btn-success" {% if not can_edit %}disabled{% endif %}>
+                        <i class="fas fa-save"></i> Save Results
+                    </button>
+                </form>
+                    {% if not is_admin and can_edit and not is_submitted %}
+                    <form method="post" action="{% url 'teacher_submit_results' %}" class="d-inline ml-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="academic_term" value="{{ selected_term.id }}">
+                        <input type="hidden" name="school_class" value="{{ selected_class.id }}">
+                        <input type="hidden" name="subject" value="{{ selected_subject.id }}">
+                        <button type="submit" class="btn btn-primary" onclick="return confirm('Submit results? Marks will be locked.');">
+                            <i class="fas fa-paper-plane"></i> Submit Results
+                        </button>
+                    </form>
+                    {% elif is_submitted %}
+                    <span class="badge badge-secondary ml-2">Submitted - Contact admin to unlock</span>
+                    {% endif %}
+                    {% if is_admin %}
+                    <a href="{% url 'result_submission_status' %}?term={{ selected_term.id }}&course={{ selected_class.id }}" class="btn btn-outline-info ml-2">
+                        <i class="fas fa-clipboard-list"></i> Submission Status
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'report_card_list' %}" class="btn btn-info ml-2">
+                        <i class="fas fa-file-alt"></i> View Report Cards
+                    </a>
+                {% elif selected_term and selected_class and not selected_subject %}
+                <p class="text-muted">Select a subject to enter marks.</p>
+                {% elif selected_term and selected_class %}
+                <p class="text-muted">No subjects found for this class.</p>
+                {% else %}
+                <p class="text-muted">Select term, class, and subject, then click <strong>Load Students</strong> to enter CAT, Mid Term, and End Term marks.</p>
+                {% endif %}
+            </div>
         </div>
     </div>
 </section>
 
 <script>
-document.getElementById('load_students').addEventListener('click', function() {
-    var subjectId = document.getElementById('subject').value;
-    var examScheduleId = document.getElementById('exam_schedule').value;
-    
-    if (!subjectId || !examScheduleId) {
-        alert('Please select both exam schedule and subject');
-        return;
+(function() {
+    var subjects_by_course = {};
+    {% for s in all_subjects %}
+    if (!subjects_by_course[{{ s.course.id }}]) {
+        subjects_by_course[{{ s.course.id }}] = [];
     }
-    
-    fetch("{% url 'get_students_for_results' %}?subject_id=" + subjectId + "&exam_schedule_id=" + examScheduleId)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                var tbody = document.getElementById('students_list');
-                tbody.innerHTML = '';
-                
-                data.students.forEach(function(student) {
-                    var row = `
-                        <tr>
-                            <td>${student.admission_number || 'N/A'}</td>
-                            <td>${student.name}</td>
-                            <td>
-                                <input type="number" name="marks_${student.id}" 
-                                    class="form-control" min="0" max="100" step="0.5"
-                                    value="${student.marks}" placeholder="0">
-                            </td>
-                            <td>
-                                <input type="text" name="comment_${student.id}" 
-                                    class="form-control" value="${student.comment || ''}" 
-                                    placeholder="Teacher's comment">
-                            </td>
-                        </tr>
-                    `;
-                    tbody.innerHTML += row;
-                });
-                
-                document.getElementById('students_container').style.display = 'block';
-                document.getElementById('submit_section').style.display = 'block';
-            } else {
-                alert('Error: ' + data.error);
-            }
-        })
-        .catch(error => {
-            alert('Error loading students');
-            console.error(error);
-        });
-});
-</script>
+    subjects_by_course[{{ s.course.id }}].push({ id: {{ s.id }}, name: "{{ s.name|escapejs }}" });
+    {% endfor %}
 
+    var classSelect = document.getElementById('class_select');
+    var subjectSelect = document.getElementById('subject_select');
+    if (classSelect && subjectSelect) {
+        classSelect.addEventListener('change', function() {
+            var courseId = this.value;
+            subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
+            if (courseId && subjects_by_course[courseId]) {
+                subjects_by_course[courseId].forEach(function(s) {
+                    var opt = document.createElement('option');
+                    opt.value = s.id;
+                    opt.textContent = s.name;
+                    subjectSelect.appendChild(opt);
+                });
+            }
+        });
+        if (classSelect.value) {
+            classSelect.dispatchEvent(new Event('change'));
+            var selectedId = subjectSelect.getAttribute('data-selected');
+            if (selectedId && subjectSelect.querySelector('option[value="' + selectedId + '"]')) {
+                subjectSelect.value = selectedId;
+            }
+        }
+    }
+})();
+</script>
 {% endblock content %}

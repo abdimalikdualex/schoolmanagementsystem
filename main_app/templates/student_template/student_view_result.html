@@ -5,7 +5,64 @@
 {% block content %}
     <section class="content">
         <div class="container-fluid">
-            {% if results %}
+            {% if results_not_published %}
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        <h4 class="alert-heading"><i class="fas fa-clock mr-2"></i> Results Not Yet Published</h4>
+                        <p>Your exam results have been recorded but are not yet published. Please check back later once the school admin has released the results.</p>
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% elif use_knec and knec_results %}
+            <div class="row justify-content-center">
+                <div class="col-lg-11">
+                    <div class="card card-success shadow">
+                        <div class="card-header bg-gradient-success">
+                            <h3 class="card-title">
+                                <i class="fas fa-chart-bar mr-2"></i> Your Academic Results
+                                {% if selected_term %}<small class="ml-2">({{ selected_term }})</small>{% endif %}
+                            </h3>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover table-bordered mb-0" id="results_table">
+                                    <thead class="bg-light">
+                                        <tr>
+                                            <th style="width: 5%;" class="text-center">#</th>
+                                            <th style="width: 30%;">Subject</th>
+                                            <th style="width: 12%;" class="text-center">Opener</th>
+                                            <th style="width: 12%;" class="text-center">Mid Term</th>
+                                            <th style="width: 12%;" class="text-center">End Term</th>
+                                            <th style="width: 12%;" class="text-center">Average</th>
+                                            <th style="width: 10%;" class="text-center">Grade</th>
+                                            <th style="width: 17%;">Comment</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for r in knec_results %}
+                                        <tr>
+                                            <td class="text-center">{{ forloop.counter }}</td>
+                                            <td><strong>{{ r.subject.name }}</strong></td>
+                                            <td class="text-center">{{ r.opener_marks|floatformat:0 }}/100</td>
+                                            <td class="text-center">{{ r.midterm_marks|floatformat:0 }}/100</td>
+                                            <td class="text-center">{{ r.endterm_marks|floatformat:0 }}/100</td>
+                                            <td class="text-center">{{ r.average|floatformat:1 }}</td>
+                                            <td class="text-center"><span class="badge badge-primary">{{ r.grade|default:"-" }}</span></td>
+                                            <td>{{ r.get_display_comment }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% elif results %}
             <div class="row justify-content-center">
                 <div class="col-lg-11">
                     <div class="card card-success shadow">

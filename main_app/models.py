@@ -1146,6 +1146,33 @@ class NotificationParent(models.Model):
         return f"Notification for {self.parent}"
 
 
+class Notification(models.Model):
+    """
+    MVP notification system - in-app notifications for all user types.
+    Shown in navbar bell icon. No real-time/websockets.
+    """
+    recipient = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="notifications"
+    )
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    link = models.CharField(max_length=500, blank=True, null=True)
+    is_read = models.BooleanField(default=False)
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, null=True, blank=True,
+        related_name="notifications", help_text="School context for multi-tenant"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Notification"
+        verbose_name_plural = "Notifications"
+
+    def __str__(self):
+        return f"{self.recipient} - {self.title}"
+
+
 @receiver(post_save, sender=Student)
 def assign_admission_number(sender, instance, created, **kwargs):
     """Assign an admission number to a new student using AdmissionSetting (school-scoped)."""
@@ -1700,7 +1727,11 @@ class KNECReportCardResult(models.Model):
     average = models.FloatField(default=0, help_text="(Opener + Midterm + Endterm) / 3")
     grade = models.CharField(max_length=5, blank=True, null=True)
     points = models.FloatField(default=0)
-    remarks = models.CharField(max_length=50, blank=True, null=True)
+    remarks = models.CharField(max_length=50, blank=True, null=True, help_text="Auto-generated from grade")
+    teacher_comment_override = models.CharField(
+        max_length=100, blank=True, null=True,
+        help_text="Manual comment from teacher; if set, overrides auto remarks"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1710,13 +1741,30 @@ class KNECReportCardResult(models.Model):
     def get_term_display(self):
         return str(self.academic_term) if self.academic_term else "N/A"
 
+    def get_display_comment(self):
+        """Return teacher override if set, else auto remarks."""
+        return self.teacher_comment_override or self.remarks or '-'
+
+    def get_teacher_initials(self):
+        """Get teacher initials from subject's staff (e.g. John Mwangi -> JM)."""
+        if self.subject and self.subject.staff and self.subject.staff.admin:
+            fn = (self.subject.staff.admin.first_name or '').strip()
+            ln = (self.subject.staff.admin.last_name or '').strip()
+            if fn and ln:
+                return (fn[0] + ln[0]).upper()
+            if ln:
+                return ln[:2].upper()
+            if fn:
+                return fn[:2].upper()
+        return '-'
+
     def calculate_average_and_grade(self):
         """Calculate average and KNEC grade from opener, midterm, endterm."""
         from .knec_utils import get_knec_grade
         o = self.opener_marks or 0
         m = self.midterm_marks or 0
         e = self.endterm_marks or 0
-        self.average = round((o + m + e) / 3, 2)  # KNEC: (Opener + Midterm + Endterm) / 3
+        self.average = round((o + m + e) / 3, 1)  # KCSE: (Opener + Midterm + Endterm) / 3, 1 decimal
         self.grade, self.points, self.remarks = get_knec_grade(self.average)
 
     def save(self, *args, **kwargs):
@@ -1728,6 +1776,67 @@ class KNECReportCardResult(models.Model):
         ordering = ['student', 'subject']
         verbose_name = "KNEC Report Card Result"
         verbose_name_plural = "KNEC Report Card Results"
+
+
+class TeacherResultSubmission(models.Model):
+    """
+    Tracks teacher submission status per subject/class/term.
+    Draft = teacher can edit. Submitted = locked until admin unlocks.
+    """
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('submitted', 'Submitted'),
+    ]
+    staff = models.ForeignKey(Staff, on_delete=models.CASCADE, related_name='result_submissions')
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='result_submissions')
+    academic_term = models.ForeignKey(
+        AcademicTerm, on_delete=models.CASCADE, related_name='teacher_submissions'
+    )
+    school_class = models.ForeignKey(
+        Course, on_delete=models.CASCADE, related_name='teacher_submissions',
+        verbose_name="Class"
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['staff', 'subject', 'academic_term', 'school_class']
+        verbose_name = "Teacher Result Submission"
+        verbose_name_plural = "Teacher Result Submissions"
+
+    def __str__(self):
+        return f"{self.staff} - {self.subject} - {self.academic_term} ({self.status})"
+
+
+class TermResultPublish(models.Model):
+    """
+    Tracks whether term results are published (visible to parents/students).
+    Only School Admin can publish. When published, results visible in parent/student portals.
+    """
+    academic_term = models.OneToOneField(
+        AcademicTerm, on_delete=models.CASCADE, related_name='result_publish_status'
+    )
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name='term_result_publishes',
+        null=True, blank=True
+    )
+    is_published = models.BooleanField(default=False)
+    published_at = models.DateTimeField(null=True, blank=True)
+    published_by = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='published_terms'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Term Result Publish"
+        verbose_name_plural = "Term Result Publishes"
+
+    def __str__(self):
+        return f"{self.academic_term} - {'Published' if self.is_published else 'Not Published'}"
 
 
 # ============================================

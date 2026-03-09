@@ -3,13 +3,18 @@ import re
 import requests
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
 from django.db import transaction
+from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render, reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from .models import Attendance, CustomUser, School, SchoolSettings, Session, Subject
+from .models import (
+    Attendance, CustomUser, EmailVerification, Notification,
+    School, SchoolSettings, Session, Subject,
+)
 
 # Create your views here.
 
@@ -282,3 +287,30 @@ messaging.setBackgroundMessageHandler(function (payload) {
 });
     """
     return HttpResponse(data, content_type='application/javascript')
+
+
+@login_required
+def mark_notification_read(request, notification_id):
+    """Mark a notification as read and redirect to its link."""
+    notification = get_object_or_404(
+        Notification, id=notification_id, recipient=request.user
+    )
+    notification.is_read = True
+    notification.save()
+    return redirect(notification.link or request.META.get('HTTP_REFERER', '/'))
+
+
+@login_required
+def notification_list(request):
+    """View all notifications for the current user."""
+    school = getattr(request, 'school', None)
+    qs = Notification.objects.filter(recipient=request.user)
+    if school:
+        qs = qs.filter(Q(school=school) | Q(school__isnull=True))
+    else:
+        qs = qs.filter(school__isnull=True)
+    notifications = qs.order_by('-created_at')[:50]
+    return render(request, 'main_app/notification_list.html', {
+        'page_title': 'Notifications',
+        'notifications': notifications,
+    })

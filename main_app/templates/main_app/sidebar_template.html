@@ -197,9 +197,8 @@
                         </li>
                         <li class="nav-item">
                             {% url 'manage_subject' as manage_subject %}
-                            {% url 'edit_subject' subject_id as edit_subject %}
                             <a href="{{manage_subject}}"
-                                class="nav-link  {% if edit_subject == request.path or manage_subject == request.path %} active {% endif %}">
+                                class="nav-link  {% if manage_subject == request.path or '/subject/edit/' in request.path %} active {% endif %}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>
                                     Manage Subject
@@ -295,10 +294,8 @@
                 </li>
                 <li class="nav-item">
                     {% url 'manage_student' as manage_student %}
-                    {% url 'edit_student' student_id as edit_student %}
-
                     <a href="{{manage_student}}"
-                        class="nav-link  {% if edit_student == request.path or manage_student == request.path %} active {% endif %}">
+                        class="nav-link  {% if manage_student == request.path or '/student/edit/' in request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-th"></i>
                         <p>
                             Manage Student
@@ -323,9 +320,8 @@
                 </li>
                 <li class="nav-item">
                     {% url 'manage_parent' as manage_parent %}
-                    {% url 'edit_parent' parent_id as edit_parent %}
                     <a href="{{manage_parent}}"
-                        class="nav-link {% if manage_parent == request.path or edit_parent == request.path %} active {% endif %}">
+                        class="nav-link {% if manage_parent == request.path or '/parent/edit/' in request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-users"></i>
                         <p>Manage Parents</p>
                     </a>
@@ -356,8 +352,6 @@
 
                 <li class="nav-item">
                     {% url 'admin_view_attendance' as admin_view_attendance %}
-
-                <li class="nav-item">
                     <a href="{{admin_view_attendance}}"
                         class="nav-link  {% if admin_view_attendance == request.path %} active {% endif %}">
                         <i class="nav-icon fas fa-calendar-alt"></i>
@@ -365,70 +359,6 @@
                             View Attendance
                         </p>
                     </a>
-                </li>
-
-                <li class="nav-item has-treeview">
-                    <a href="#" class="nav-link">
-                        <i class="nav-icon fas fa-chart-line"></i>
-                        <p>
-                            Results
-                            <i class="fas fa-angle-left right"></i>
-                        </p>
-                    </a>
-                    <ul class="nav nav-treeview">
-                        <li class="nav-item">
-                            {% url 'admin_view_result' as admin_view_result %}
-                            <a href="{{admin_view_result}}"
-                                class="nav-link  {% if admin_view_result == request.path %} active {% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>
-                                    View Results
-                                </p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            {% url 'admin_edit_result' as admin_edit_result %}
-                            <a href="{{admin_edit_result}}"
-                                class="nav-link  {% if admin_edit_result == request.path %} active {% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>
-                                    Edit Results
-                                </p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            {% url 'admin_view_transcript' as admin_view_transcript %}
-                            <a href="{{admin_view_transcript}}"
-                                class="nav-link  {% if admin_view_transcript == request.path %} active {% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>
-                                    Student Report Cards
-                                </p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            {% url 'report_card_list' as report_card_list %}
-                            <a href="{{report_card_list}}"
-                                class="nav-link  {% if report_card_list == request.path %} active {% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>
-                                    Report Cards
-                                </p>
-                            </a>
-                        </li>
-                        {% if request.user.is_superuser %}
-                        <li class="nav-item">
-                            {% url 'superadmin_search_results' as superadmin_search_results %}
-                            <a href="{{superadmin_search_results}}"
-                                class="nav-link  {% if superadmin_search_results == request.path %} active {% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>
-                                    Search & Edit Results
-                                </p>
-                            </a>
-                        </li>
-                        {% endif %}
-                    </ul>
                 </li>
 
                 <!-- Finance Panel -->
@@ -524,12 +454,12 @@
                     </ul>
                 </li>
 
-                <!-- Exams Management -->
+                <!-- Examinations (Exam setup → Mark entry → Grading → Report cards → Publishing) -->
                 <li class="nav-item has-treeview">
                     <a href="#" class="nav-link">
-                        <i class="nav-icon fas fa-graduation-cap"></i>
+                        <i class="nav-icon fas fa-file-alt"></i>
                         <p>
-                            Exams
+                            Examinations
                             <i class="fas fa-angle-left right"></i>
                         </p>
                     </a>
@@ -551,14 +481,6 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            {% url 'manage_result_entry' as manage_result_entry %}
-                            <a href="{{manage_result_entry}}"
-                                class="nav-link  {% if manage_result_entry == request.path %} active {% endif %}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Manage Result Entry</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
                             {% url 'manage_grading_scale' as manage_grading_scale %}
                             <a href="{{manage_grading_scale}}"
                                 class="nav-link  {% if manage_grading_scale == request.path %} active {% endif %}">
@@ -567,11 +489,11 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            {% url 'enter_exam_results' as enter_exam_results %}
-                            <a href="{{enter_exam_results}}"
-                                class="nav-link  {% if enter_exam_results == request.path %} active {% endif %}">
+                            {% url 'manage_result_entry' as manage_result_entry %}
+                            <a href="{{manage_result_entry}}"
+                                class="nav-link  {% if manage_result_entry == request.path %} active {% endif %}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Enter Results</p>
+                                <p>Manage Result Entry</p>
                             </a>
                         </li>
                         <li class="nav-item">
@@ -583,6 +505,46 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            {% url 'enter_exam_results' as enter_exam_results %}
+                            <a href="{{enter_exam_results}}"
+                                class="nav-link  {% if enter_exam_results == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Enter Exam Results</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'result_submission_status' as result_submission_status %}
+                            <a href="{{result_submission_status}}"
+                                class="nav-link  {% if result_submission_status == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Result Submission Status</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'admin_view_result' as admin_view_result %}
+                            <a href="{{admin_view_result}}"
+                                class="nav-link  {% if admin_view_result == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>View Results</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'admin_edit_result' as admin_edit_result %}
+                            <a href="{{admin_edit_result}}"
+                                class="nav-link  {% if admin_edit_result == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Edit Results</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            {% url 'report_card_list' as report_card_list %}
+                            <a href="{{report_card_list}}"
+                                class="nav-link  {% if report_card_list == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Student Report Cards</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             {% url 'view_exam_results' as view_exam_results %}
                             <a href="{{view_exam_results}}"
                                 class="nav-link  {% if view_exam_results == request.path %} active {% endif %}">
@@ -590,6 +552,16 @@
                                 <p>View & Print Results</p>
                             </a>
                         </li>
+                        {% if request.user.is_superuser %}
+                        <li class="nav-item">
+                            {% url 'superadmin_search_results' as superadmin_search_results %}
+                            <a href="{{superadmin_search_results}}"
+                                class="nav-link  {% if superadmin_search_results == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Search & Edit Results</p>
+                            </a>
+                        </li>
+                        {% endif %}
                     </ul>
                 </li>
 
@@ -794,37 +766,46 @@
                                     <p>My Classes</p>
                                 </a>
                             </li>
-                            <li class="nav-item">
-                                {% url 'staff_add_result' as staff_add_result %}
-                                <a href="{{staff_add_result}}"
-                                    class="nav-link {% if staff_add_result == request.path %} active {% endif %}">
-                                    <i class="nav-icon fas fa-poll"></i>
-                                    <p>Add Result</p>
+                            <li class="nav-item has-treeview menu-open">
+                                <a href="#" class="nav-link">
+                                    <i class="nav-icon fas fa-file-alt"></i>
+                                    <p>
+                                        Examinations
+                                        <i class="fas fa-angle-left right"></i>
+                                    </p>
                                 </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ staff_add_result }}"
-                                    class="nav-link {% if staff_add_result == request.path %} active {% endif %}">
-                                    <i class="nav-icon fas fa-pen-fancy"></i>
-                                    <p>Post Marks</p>
-                                </a>
+                                <ul class="nav nav-treeview">
+                                    <li class="nav-item">
+                                        {% url 'enter_cat_marks' as enter_cat_marks %}
+                                        <a href="{{enter_cat_marks}}"
+                                            class="nav-link {% if enter_cat_marks == request.path %} active {% endif %}">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Enter CAT Marks</p>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        {% url 'enter_exam_results' as enter_exam_results %}
+                                        <a href="{{enter_exam_results}}"
+                                            class="nav-link {% if enter_exam_results == request.path %} active {% endif %}">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>Enter Exam Results</p>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        {% url 'view_exam_results' as view_exam_results %}
+                                        <a href="{{view_exam_results}}"
+                                            class="nav-link {% if view_exam_results == request.path %} active {% endif %}">
+                                            <i class="far fa-circle nav-icon"></i>
+                                            <p>View Results</p>
+                                        </a>
+                                    </li>
+                                </ul>
                             </li>
                             <li class="nav-item">
                                 {% url 'student_search' as student_search %}
                                 <a href="{{ student_search }}" class="nav-link {% if student_search == request.path %} active {% endif %}">
                                     <i class="nav-icon fas fa-search"></i>
                                     <p>Search Students</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                {% url 'edit_student_result' as edit_student_result %}
-                                <a href="{{edit_student_result}}"
-                                    class="nav-link {% if edit_student_result == request.path %} active {% endif %}">
-                                    <i class="nav-icon fas fa-th"></i>
-                                    <p>
-                                        Edit Result
-
-                                    </p>
                                 </a>
                             </li>
                             <li class="nav-item">
@@ -1042,7 +1023,7 @@
                                             {% url 'student_view_result' as student_view_result %}
                                             <a href="{{student_view_result}}"
                                                 class="nav-link {% if student_view_result == request.path %} active {% endif %}">
-                                                <i class="nav-icon fas fa-chart-bar"></i>
+                                                <i class="nav-icon fas fa-file-alt"></i>
                                                 <p>View Results</p>
                                             </a>
                                         </li>
@@ -1160,8 +1141,8 @@
             <li class="nav-item">
                 {% url 'parent_view_results' as parent_view_results %}
                 <a href="{{ parent_view_results }}" class="nav-link {% if 'results' in request.path %}active{% endif %}">
-                    <i class="nav-icon fas fa-chart-line"></i>
-                    <p>Results</p>
+                    <i class="nav-icon fas fa-file-alt"></i>
+                    <p>View Results</p>
                 </a>
             </li>
 

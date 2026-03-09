@@ -37,4 +37,7 @@ FINANCE_OFFICER_ALLOWED_URL_NAMES = frozenset([
     'student_print_fee_statement_detail',
     # Student detail (to reach fees tab - read-only)
     'student_detail',
+    # Notifications (navbar bell)
+    'notification_list',
+    'mark_notification_read',
 ])

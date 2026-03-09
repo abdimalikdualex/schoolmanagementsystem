@@ -37,12 +37,21 @@
                                 <tbody>
                                     {% for item in terms_data %}
                                     <tr>
-                                        <td>{{ item.academic_year }}</td>
-                                        <td>{{ item.term|upper }}</td>
+                                        <td>{% if item.type == 'knec' %}{{ item.academic_year }}{% else %}{{ item.academic_year }}{% endif %}</td>
+                                        <td>{% if item.type == 'knec' %}{{ item.term_name|upper }}{% else %}{{ item.term|upper }}{% endif %}</td>
                                         <td>
+                                            {% if item.type == 'knec' %}
+                                            <a href="{% url 'parent_view_knec_report_card' student.id item.academic_term.id %}" class="btn btn-primary btn-sm mr-1">
+                                                <i class="fas fa-eye mr-1"></i> View
+                                            </a>
+                                            <a href="{% url 'parent_download_knec_report_card_pdf' student.id item.academic_term.id %}" class="btn btn-danger btn-sm" target="_blank">
+                                                <i class="fas fa-download mr-1"></i> Download PDF
+                                            </a>
+                                            {% else %}
                                             <a href="{% url 'parent_download_report_card_pdf' student.id %}?year={{ item.academic_year.id }}&term={{ item.term }}" class="btn btn-danger btn-sm" target="_blank">
                                                 <i class="fas fa-download mr-1"></i> Download PDF
                                             </a>
+                                            {% endif %}
                                         </td>
                                     </tr>
                                     {% endfor %}

@@ -1,94 +1,143 @@
 {% extends 'hod_template/report_card_base.html' %}
 {% load static %}
-{% block title %}Report Card - {{ student.admin.last_name }}, {{ student.admin.first_name }}{% endblock %}
+{% block title %}Assessment Report - {{ student.admin.last_name }}, {{ student.admin.first_name }}{% endblock %}
 
 {% block report_card_content %}
 <div class="report-card-container" style="font-family: 'Times New Roman', serif;">
-    <!-- School Header -->
+    <!-- School Header - Logo centered, name, address, motto -->
     <div class="text-center mb-4" style="border-bottom: 2px solid #1a1a1a; padding-bottom: 15px;">
         {% if school.logo %}
-        <img src="{{ school.logo.url }}" alt="School Logo" style="max-height: 80px; margin-bottom: 10px;">
+        <img src="{{ school.logo.url }}" alt="School Logo" style="max-height: 100px; margin-bottom: 10px;">
         {% elif settings.school_logo %}
-        <img src="{{ settings.school_logo.url }}" alt="School Logo" style="max-height: 80px; margin-bottom: 10px;">
+        <img src="{{ settings.school_logo.url }}" alt="School Logo" style="max-height: 100px; margin-bottom: 10px;">
         {% else %}
-        <div style="height: 60px; line-height: 60px; color: #999; font-size: 12px;">[School Logo]</div>
+        <div style="height: 80px; line-height: 80px; color: #999; font-size: 12px;">[School Logo - Configure in Settings]</div>
         {% endif %}
-        <h2 style="margin: 5px 0; font-size: 22px; font-weight: bold;">{{ settings.school_name|default:school.name }}</h2>
+        <h2 style="margin: 5px 0; font-size: 20px; font-weight: bold; text-transform: uppercase;">{{ settings.school_name|default:school.name }}</h2>
+        {% if settings.school_address or school.address %}
         <p style="margin: 3px 0; font-size: 12px;">{{ settings.school_address|default:school.address|default:"" }}</p>
-        <p style="margin: 3px 0; font-size: 12px;">Tel: {{ settings.school_phone|default:school.phone|default:"" }}</p>
+        {% endif %}
+        {% if settings.school_motto %}
+        <p style="margin: 3px 0; font-size: 12px; font-style: italic;">Motto: {{ settings.school_motto }}</p>
+        {% endif %}
         <hr style="border: none; border-top: 1px solid #ccc; margin: 10px 0;">
-        <h3 style="margin-top: 15px; font-size: 16px;">ACADEMIC REPORT CARD</h3>
-        <p style="font-size: 13px;">Academic Year: {{ academic_term.academic_year }} | Term: {{ academic_term.term_name }}</p>
+        <h3 style="margin-top: 15px; font-size: 16px;">Assessment Report</h3>
     </div>
 
-    <!-- Student Information (two-column: Left = Name, Class, Gender | Right = Admission No, Stream, Term) -->
-    <div class="mb-4" style="border: 1px solid #333; padding: 12px;">
-        <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
-            <tr>
-                <td style="width: 50%; vertical-align: top; padding-right: 20px;">
-                    <p style="margin: 4px 0;"><strong>Student Name:</strong> {{ student.admin.last_name }}, {{ student.admin.first_name }}</p>
-                    <p style="margin: 4px 0;"><strong>Class:</strong> {{ school_class.name|default:"-" }}</p>
-                    <p style="margin: 4px 0;"><strong>Gender:</strong> {{ student.admin.gender|default:"-" }}</p>
-                </td>
-                <td style="width: 50%; vertical-align: top;">
-                    <p style="margin: 4px 0;"><strong>Admission No:</strong> {{ student.admission_number|default:"-" }}</p>
-                    <p style="margin: 4px 0;"><strong>Stream:</strong> {% if school_class.stream %}{{ school_class.stream.name }}{% else %}-{% endif %}</p>
-                    <p style="margin: 4px 0;"><strong>Term:</strong> {{ academic_term.term_name }}</p>
-                </td>
-            </tr>
-        </table>
+    <!-- Student and Term Information -->
+    <div class="mb-3" style="font-size: 12px;">
+        <p style="margin: 4px 0;"><strong>NAME:</strong> {{ student.admin.first_name }} {{ student.admin.last_name }} &nbsp;&nbsp; <strong>Adm No</strong> {{ student.admission_number|default:"-" }}</p>
+        <p style="margin: 4px 0;"><strong>TERM:</strong> {{ academic_term.academic_year }} {{ academic_term.term_name }} &nbsp;&nbsp; <strong>YEAR:</strong> {{ academic_term.academic_year }} &nbsp;&nbsp; <strong>House</strong></p>
     </div>
 
-    <!-- Marks Table -->
+    <!-- Main Results Table: #, SUBJECT, OPENER (%, Grade), MID TERM (%, Grade), END TERM (%, Grade), AVERAGE (%, Grade), COMMENTS, TEACHER'S INITIALS -->
     <table class="report-card-marks-table" style="width: 100%; font-size: 11px; border-collapse: collapse;">
-        <thead class="marks-header" style="background: #2c3e50; color: white;">
+        <thead class="marks-header" style="background: #333; color: white;">
             <tr>
-                <th style="padding: 8px; text-align: left; border: 1px solid #333;">Subject</th>
-                <th style="padding: 8px; text-align: center; border: 1px solid #333;">Opener</th>
-                <th style="padding: 8px; text-align: center; border: 1px solid #333;">Midterm</th>
-                <th style="padding: 8px; text-align: center; border: 1px solid #333;">Endterm</th>
-                <th style="padding: 8px; text-align: center; border: 1px solid #333;">Average</th>
-                <th style="padding: 8px; text-align: center; border: 1px solid #333;">Grade</th>
-                <th style="padding: 8px; text-align: center; border: 1px solid #333;">Points</th>
-                <th style="padding: 8px; text-align: left; border: 1px solid #333;">Remarks</th>
+                <th style="padding: 6px; text-align: center; border: 1px solid #333;">#</th>
+                <th style="padding: 6px; text-align: left; border: 1px solid #333;">SUBJECT</th>
+                <th colspan="2" style="padding: 6px; text-align: center; border: 1px solid #333;">OPENER</th>
+                <th colspan="2" style="padding: 6px; text-align: center; border: 1px solid #333;">MID TERM</th>
+                <th colspan="2" style="padding: 6px; text-align: center; border: 1px solid #333;">END TERM</th>
+                <th colspan="2" style="padding: 6px; text-align: center; border: 1px solid #333;">AVERAGE</th>
+                <th style="padding: 6px; text-align: left; border: 1px solid #333;">COMMENTS</th>
+                <th style="padding: 6px; text-align: center; border: 1px solid #333;">TEACHER'S INITIALS</th>
+            </tr>
+            <tr style="background: #444; color: white;">
+                <th style="padding: 4px; border: 1px solid #333;"></th>
+                <th style="padding: 4px; border: 1px solid #333;"></th>
+                <th style="padding: 4px; text-align: center; border: 1px solid #333;">%</th>
+                <th style="padding: 4px; text-align: center; border: 1px solid #333;">Grade</th>
+                <th style="padding: 4px; text-align: center; border: 1px solid #333;">%</th>
+                <th style="padding: 4px; text-align: center; border: 1px solid #333;">Grade</th>
+                <th style="padding: 4px; text-align: center; border: 1px solid #333;">%</th>
+                <th style="padding: 4px; text-align: center; border: 1px solid #333;">Grade</th>
+                <th style="padding: 4px; text-align: center; border: 1px solid #333;">%</th>
+                <th style="padding: 4px; text-align: center; border: 1px solid #333;">Grade</th>
+                <th style="padding: 4px; border: 1px solid #333;"></th>
+                <th style="padding: 4px; border: 1px solid #333;"></th>
             </tr>
         </thead>
         <tbody>
             {% for r in results %}
             <tr>
-                <td style="padding: 6px; border: 1px solid #333;">{{ r.subject.name }}</td>
-                <td style="padding: 6px; text-align: center; border: 1px solid #333;">{{ r.opener_marks|floatformat:0 }}</td>
-                <td style="padding: 6px; text-align: center; border: 1px solid #333;">{{ r.midterm_marks|floatformat:0 }}</td>
-                <td style="padding: 6px; text-align: center; border: 1px solid #333;">{{ r.endterm_marks|floatformat:0 }}</td>
-                <td style="padding: 6px; text-align: center; border: 1px solid #333; font-weight: bold;">{{ r.average|floatformat:1 }}</td>
-                <td style="padding: 6px; text-align: center; border: 1px solid #333; font-weight: bold;">{{ r.grade|default:"-" }}</td>
-                <td style="padding: 6px; text-align: center; border: 1px solid #333;">{{ r.points|floatformat:0 }}</td>
-                <td style="padding: 6px; border: 1px solid #333;">{{ r.remarks|default:"-" }}</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ forloop.counter }}</td>
+                <td style="padding: 5px; border: 1px solid #333;">{{ r.subject.name }}</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ r.opener_marks|floatformat:0 }}</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ r.opener_grade }}</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ r.midterm_marks|floatformat:0 }}</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ r.midterm_grade }}</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ r.endterm_marks|floatformat:0 }}</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ r.endterm_grade }}</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ r.average|floatformat:0 }}</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ r.grade }}</td>
+                <td style="padding: 5px; border: 1px solid #333;">{{ r.remarks }}</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ r.teacher_initials }}</td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="8" class="text-center" style="padding: 20px; color: #999;">No results entered. Please enter marks first.</td>
+                <td colspan="12" class="text-center" style="padding: 20px; color: #999;">No results entered. Please enter marks first.</td>
             </tr>
             {% endfor %}
+            {% if results %}
+            <!-- TOTAL MARKS row -->
+            <tr style="font-weight: bold;">
+                <td colspan="2" style="padding: 5px; border: 1px solid #333;">TOTAL MARKS</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ total_opener|floatformat:0 }}</td>
+                <td style="padding: 5px; border: 1px solid #333;"></td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ total_midterm|floatformat:0 }}</td>
+                <td style="padding: 5px; border: 1px solid #333;"></td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ total_endterm|floatformat:0 }}</td>
+                <td style="padding: 5px; border: 1px solid #333;"></td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ total_average|floatformat:0 }}</td>
+                <td style="padding: 5px; border: 1px solid #333;"></td>
+                <td style="padding: 5px; border: 1px solid #333;"></td>
+                <td style="padding: 5px; border: 1px solid #333;"></td>
+            </tr>
+            <!-- AVERAGE row -->
+            <tr style="font-weight: bold;">
+                <td colspan="2" style="padding: 5px; border: 1px solid #333;">AVERAGE</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ avg_opener|floatformat:0 }}</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ avg_opener_grade }}</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ avg_midterm|floatformat:0 }}</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ avg_midterm_grade }}</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ avg_endterm|floatformat:0 }}</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ avg_endterm_grade }}</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ mean_score }}</td>
+                <td style="padding: 5px; text-align: center; border: 1px solid #333;">{{ mean_grade }}</td>
+                <td style="padding: 5px; border: 1px solid #333;"></td>
+                <td style="padding: 5px; border: 1px solid #333;"></td>
+            </tr>
+            {% endif %}
         </tbody>
     </table>
 
-    <!-- Summary Section -->
-    <p class="mb-3" style="margin: 12px 0; font-size: 12px; border-bottom: 1px solid #ccc; padding-bottom: 8px;">
-        <strong>Summary:</strong> Total Points: {{ total_points|floatformat:1 }} | Total Subjects: {{ total_subjects }} | Mean Score: {{ mean_score }} | Mean Grade: {{ mean_grade }} | Position in Class: {{ position_in_class|default:"-" }}
-    </p>
+    <!-- Class Position -->
+    <p class="mb-2 mt-3" style="margin: 8px 0; font-size: 12px;"><strong>Class position:</strong> {{ position_in_class|default:"-" }} Out Of {{ total_in_class|default:"-" }}</p>
 
-    <!-- Comments Section (with underline for signature when empty) -->
-    <div class="mb-3" style="margin: 12px 0;">
-        <p style="margin: 8px 0; font-size: 12px;"><strong>Class Teacher Comment:</strong> {{ class_teacher_comment|default:"_________________________" }}</p>
-        <p style="margin: 8px 0; font-size: 12px;"><strong>Head Teacher Comment:</strong> {{ head_teacher_comment|default:"_________________________" }}</p>
-        <p style="margin: 8px 0; font-size: 12px;"><strong>Student Conduct:</strong> {{ student_conduct|default:"_________________________" }}</p>
+    <!-- Comments Section -->
+    <div class="mb-3 mt-3" style="margin: 12px 0; font-size: 12px;">
+        <p style="margin: 8px 0;"><strong>CLASS TEACHER'S COMMENT:</strong> {{ class_teacher_comment|default:"_________________________" }}</p>
+        <p style="margin: 8px 0; font-size: 11px;">SIGNATURE: .................. DATE: ....................</p>
+        <p style="margin: 12px 0 8px 0;"><strong>PRINCIPAL'S COMMENT:</strong> {{ head_teacher_comment|default:"_________________________" }}</p>
+        <p style="margin: 8px 0; font-size: 11px;">SIGNATURE: .................. DATE: ....................</p>
+        <p style="margin: 12px 0 8px 0;"><strong>PARENT'S COMMENT:</strong> {{ parent_comment|default:"_________________________" }}</p>
+        <p style="margin: 8px 0; font-size: 11px;">SIGNATURE: .................. DATE: ....................</p>
     </div>
 
-    <!-- Attendance Section -->
+    <!-- Opening and Closing Dates -->
+    {% if academic_term.start_date and academic_term.end_date %}
     <p style="margin: 12px 0; font-size: 12px;">
-        <strong>Attendance:</strong> Days Open: {{ days_open }} | Days Present: {{ days_present }} | Days Absent: {{ days_absent }}
+        <strong>OPENING DATE:</strong> {{ academic_term.start_date|date:"d-m-Y" }} &nbsp;&nbsp;&nbsp;
+        <strong>CLOSING DATE:</strong> {{ academic_term.end_date|date:"d-m-Y" }}
     </p>
+    {% endif %}
+
+    <!-- Grading Key -->
+    <div style="display: inline-block; border: 1px solid #333; padding: 10px 15px; margin-top: 15px; font-size: 11px;">
+        <strong>KEY</strong><br>
+        A - Very Good &nbsp;&nbsp; B - Good &nbsp;&nbsp; C - Fair &nbsp;&nbsp; D - Weak &nbsp;&nbsp; E - Poor
+    </div>
 </div>
 {% endblock report_card_content %}
 

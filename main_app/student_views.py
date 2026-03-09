@@ -60,7 +60,7 @@ def student_home(request):
     return render(request, 'student_template/home_content.html', context)
 
 
-@ csrf_exempt
+@csrf_exempt
 def student_view_attendance(request):
     student = get_object_or_404(Student, admin=request.user)
     if request.method != 'POST':
@@ -207,9 +207,50 @@ def student_view_notification(request):
 
 def student_view_result(request):
     student = get_object_or_404(Student, admin=request.user)
-    results = StudentResult.objects.filter(student=student)
+    school = getattr(request, 'school', None) or getattr(student.admin, 'school', None)
+
+    # KNEC results: only show when term is published
+    knec_term_ids = KNECReportCardResult.objects.filter(student=student).values_list(
+        'academic_term_id', flat=True
+    ).distinct()
+    published_terms = list(
+        TermResultPublish.objects.filter(
+            academic_term_id__in=knec_term_ids,
+            is_published=True
+        ).select_related('academic_term').order_by('-academic_term__academic_year', 'academic_term__term_name')
+    )
+    unpublished_terms_with_results = list(
+        AcademicTerm.objects.filter(id__in=knec_term_ids).exclude(
+            id__in=[p.academic_term_id for p in published_terms]
+        ).order_by('-academic_year', 'term_name')
+    ) if knec_term_ids else []
+
+    use_knec = False
+    knec_results = []
+    selected_term = None
+    results_not_published = False
+
+    if published_terms:
+        selected_term = published_terms[0].academic_term
+        knec_results = list(
+            KNECReportCardResult.objects.filter(
+                student=student, academic_term=selected_term
+            ).select_related('subject').order_by('subject__name')
+        )
+        use_knec = True
+    elif unpublished_terms_with_results:
+        results_not_published = True
+
+    # Legacy StudentResult fallback
+    legacy_results = StudentResult.objects.filter(student=student).select_related('subject')
+
     context = {
-        'results': results,
+        'results': legacy_results if not use_knec else None,
+        'knec_results': knec_results if use_knec else [],
+        'use_knec': use_knec,
+        'selected_term': selected_term,
+        'results_not_published': results_not_published,
+        'published_terms': published_terms,
         'page_title': "View Results"
     }
     return render(request, "student_template/student_view_result.html", context)

@@ -63,14 +63,31 @@
             <!-- Right navbar links - User & Logout -->
             <ul class="navbar-nav ml-auto">
                 {% if user.is_authenticated %}
-                {% if user.user_type == '4' %}
-                <li class="nav-item">
-                    <a href="{% url 'parent_view_notifications' %}" class="nav-link" title="Notifications">
+                <li class="nav-item dropdown">
+                    <a class="nav-link" data-toggle="dropdown" href="#" title="Notifications">
                         <i class="fas fa-bell"></i>
+                        {% if unread_notifications_count|default:0 %}
+                        <span class="badge badge-danger navbar-badge">{{ unread_notifications_count }}</span>
+                        {% endif %}
                         <span class="d-none d-md-inline ml-1">Notifications</span>
                     </a>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+                        <span class="dropdown-item dropdown-header">{{ unread_notifications_count|default:0 }} Unread</span>
+                        <div class="dropdown-divider"></div>
+                        {% for notification in notifications %}
+                        <a href="{% url 'mark_notification_read' notification.id %}" class="dropdown-item {% if not notification.is_read %}font-weight-bold{% endif %}">
+                            <strong>{{ notification.title }}</strong><br>
+                            <small class="text-muted">{{ notification.message|truncatewords:15 }}</small>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        {% empty %}
+                        <span class="dropdown-item text-muted">No notifications</span>
+                        {% endfor %}
+                        {% if notifications %}
+                        <a href="{% url 'notification_list' %}" class="dropdown-item dropdown-footer">View all notifications</a>
+                        {% endif %}
+                    </div>
                 </li>
-                {% endif %}
                 <li class="nav-item">
                     <span class="nav-link text-muted d-none d-sm-inline">
                         <i class="fas fa-user"></i> {{ user.first_name }} {{ user.last_name }}
@@ -136,7 +153,7 @@
                                 {% else %}
                                     <li class="breadcrumb-item"><a href="{% url 'login_page' %}">Home</a></li>
                                 {% endif %}
-                                <li class="breadcrumb-item active">{{ page_title }}</li>
+                                <li class="breadcrumb-item active">{{ page_title|default:"Page" }}</li>
                             </ol>
                         </div><!-- /.col -->
                     </div><!-- /.row -->

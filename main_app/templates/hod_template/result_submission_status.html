@@ -1,0 +1,120 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Result Submission Status</h3>
+                <div class="card-tools">
+                    <a href="{% url 'enter_exam_results' %}" class="btn btn-info btn-sm">
+                        <i class="fas fa-edit"></i> Enter Results
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <form method="get" class="form-inline mb-4">
+                    <div class="form-group mr-2">
+                        <label class="mr-1">Term</label>
+                        <select name="term" class="form-control form-control-sm">
+                            <option value="">-- Select Term --</option>
+                            {% for t in academic_terms %}
+                            <option value="{{ t.id }}" {% if term_id == t.id|stringformat:"s" %}selected{% endif %}>{{ t }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group mr-2">
+                        <label class="mr-1">Class</label>
+                        <select name="course" class="form-control form-control-sm">
+                            <option value="">-- Select Class --</option>
+                            {% for c in courses %}
+                            <option value="{{ c.id }}" {% if class_id == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-info btn-sm"><i class="fas fa-search"></i> Load</button>
+                </form>
+
+                {% if status_rows %}
+                <table class="table table-bordered table-hover">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th>Subject</th>
+                            <th>Teacher</th>
+                            <th>Status</th>
+                            <th>Submitted At</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in status_rows %}
+                        <tr>
+                            <td>{{ row.subject.name }}</td>
+                            <td>{{ row.teacher.admin.get_full_name }}</td>
+                            <td>
+                                {% if row.status == 'submitted' %}
+                                <span class="badge badge-success">Submitted</span>
+                                {% else %}
+                                <span class="badge badge-warning">Draft</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ row.submitted_at|date:"d M Y H:i"|default:"-" }}</td>
+                            <td>
+                                {% if row.status == 'submitted' and row.submission and is_admin %}
+                                <form method="post" action="{% url 'admin_unlock_teacher_submission' %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="submission_id" value="{{ row.submission.id }}">
+                                    <input type="hidden" name="term_id" value="{{ term_id }}">
+                                    <input type="hidden" name="class_id" value="{{ class_id }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-warning" onclick="return confirm('Unlock so teacher can edit again?');">Unlock</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <div class="mt-3">
+                    {% if is_published %}
+                    <span class="badge badge-success badge-lg p-2">Published - Results visible to parents/students</span>
+                    {% if is_admin %}
+                    <form method="post" action="{% url 'unpublish_term_results' %}" class="d-inline ml-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="academic_term" value="{{ term_id }}">
+                        <input type="hidden" name="school_class" value="{{ class_id }}">
+                        <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Unpublish results?');">Unpublish</button>
+                    </form>
+                    {% endif %}
+                    {% else %}
+                    {% if all_submitted and is_admin %}
+                    <form method="post" action="{% url 'publish_term_results' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="academic_term" value="{{ term_id }}">
+                        <input type="hidden" name="school_class" value="{{ class_id }}">
+                        <button type="submit" class="btn btn-success" onclick="return confirm('Publish results? Parents and students will be able to view.');">
+                            <i class="fas fa-broadcast-tower"></i> Publish Results
+                        </button>
+                    </form>
+                    {% elif not all_submitted %}
+                    <div class="alert alert-warning mb-0">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                        <strong>Some teachers have not submitted results yet.</strong>
+                        All subjects must be submitted before publishing.
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                </div>
+                {% elif selected_term and selected_class %}
+                <p class="text-muted">No subjects found for this class.</p>
+                {% else %}
+                <p class="text-muted">Select term and class to view submission status.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock content %}

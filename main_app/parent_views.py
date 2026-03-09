@@ -12,7 +12,7 @@ from .models import (
     StudentResult, StudentFees, Homework, HomeworkSubmission,
     Announcement, Message, NotificationParent, Timetable, Session,
     FeePayment, StudentExamResult, ClassAttendanceRecord, Guardian,
-    AcademicTerm,
+    AcademicTerm, KNECReportCardResult, TermResultPublish,
 )
 
 
@@ -36,8 +36,8 @@ def parent_home(request):
     # Get unread messages count
     unread_messages = Message.objects.filter(recipient=request.user, is_read=False).count()
     
-    # Get notifications
-    notifications = NotificationParent.objects.filter(parent=parent, is_read=False).count()
+    # Get parent-specific notification count (legacy NotificationParent model)
+    parent_notification_count = NotificationParent.objects.filter(parent=parent, is_read=False).count()
     
     # Children summary data with attendance, latest grade
     children_data = []
@@ -117,7 +117,7 @@ def parent_home(request):
         'latest_grade': latest_grade or 'N/A',
         'announcements': announcements,
         'unread_messages': unread_messages,
-        'notifications': notifications,
+        'parent_notification_count': parent_notification_count,
     }
     return render(request, 'parent_template/home_content.html', context)
 
@@ -170,7 +170,7 @@ def parent_view_child_profile(request, student_id):
 
 
 def parent_view_report_card(request, student_id):
-    """View report card for a child - per term"""
+    """View report card for a child - per term. Shows KNEC report cards when published, else legacy."""
     parent = get_object_or_404(Parent, admin=request.user)
     school = getattr(request, 'school', None)
     student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
@@ -178,21 +178,95 @@ def parent_view_report_card(request, student_id):
     if student not in parent.children.all():
         messages.error(request, "You don't have access to this student")
         return redirect('parent_view_children')
-    # Get available terms with results
+
+    terms_data = []
+
+    # KNEC report cards: only show terms that are published
+    knec_term_ids = KNECReportCardResult.objects.filter(student=student).values_list(
+        'academic_term_id', flat=True
+    ).distinct()
+    published_terms = TermResultPublish.objects.filter(
+        academic_term_id__in=knec_term_ids,
+        is_published=True
+    ).select_related('academic_term').order_by('-academic_term__academic_year', 'academic_term__term_name')
+    for pub in published_terms:
+        terms_data.append({
+            'type': 'knec',
+            'academic_term': pub.academic_term,
+            'academic_year': pub.academic_term.academic_year,
+            'term_name': pub.academic_term.term_name,
+        })
+
+    # Legacy report cards (StudentExamResult) - only if no KNEC for same term
+    knec_term_ids_set = {t['academic_term'].id for t in terms_data}
     exam_results = StudentExamResult.objects.filter(student=student).values_list(
         'academic_year_id', 'term'
     ).distinct().order_by('-academic_year_id', 'term')
-    terms_data = []
     for ay_id, term in exam_results:
         ay = Session.objects.filter(id=ay_id).first()
         if ay:
-            terms_data.append({'academic_year': ay, 'term': term})
+            terms_data.append({
+                'type': 'legacy',
+                'academic_year': ay,
+                'term': term,
+            })
+
     context = {
         'page_title': f"Report Card - {student.admin.first_name}",
         'student': student,
         'terms_data': terms_data,
     }
     return render(request, 'parent_template/view_report_card.html', context)
+
+
+def parent_view_knec_report_card(request, student_id, term_id):
+    """View KNEC report card (HTML) - only when term results are published."""
+    parent = get_object_or_404(Parent, admin=request.user)
+    school = getattr(request, 'school', None)
+    student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(student_qs, id=student_id)
+    if student not in parent.children.all():
+        messages.error(request, "You don't have access to this student")
+        return redirect('parent_view_children')
+
+    academic_term = get_object_or_404(AcademicTerm, id=term_id, school=school)
+    publish = TermResultPublish.objects.filter(
+        academic_term=academic_term, is_published=True
+    ).first()
+    if not publish:
+        messages.warning(request, "Report card is not yet published for this term.")
+        return redirect('parent_view_report_card', student_id=student_id)
+
+    from .report_card_views import _build_report_card_context
+    context = _build_report_card_context(student, academic_term, school)
+    context['page_title'] = f'Report Card - {student}'
+    return render(request, 'hod_template/report_card_template.html', context)
+
+
+def parent_download_knec_report_card_pdf(request, student_id, term_id):
+    """Download KNEC report card PDF - only when term results are published."""
+    parent = get_object_or_404(Parent, admin=request.user)
+    school = getattr(request, 'school', None)
+    student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    student = get_object_or_404(student_qs, id=student_id)
+    if student not in parent.children.all():
+        messages.error(request, "You don't have access to this student")
+        return redirect('parent_view_children')
+
+    academic_term = get_object_or_404(AcademicTerm, id=term_id, school=school)
+    publish = TermResultPublish.objects.filter(
+        academic_term=academic_term, is_published=True
+    ).first()
+    if not publish:
+        messages.warning(request, "Report card is not yet published for this term.")
+        return redirect('parent_view_report_card', student_id=student_id)
+
+    from .report_card_views import _generate_report_card_pdf_response
+    response = _generate_report_card_pdf_response(student, academic_term, school)
+    if response:
+        return response
+    messages.error(request, "PDF generation is not available.")
+    return redirect('parent_view_report_card', student_id=student_id)
 
 
 def parent_download_report_card_pdf(request, student_id):
@@ -343,7 +417,21 @@ def parent_view_child_results(request, student_id):
     if student not in parent.children.all():
         messages.error(request, "You don't have permission to view this student's results")
         return redirect('parent_home')
-    
+
+    # Published KNEC report cards (visible to parents)
+    knec_term_ids = list(
+        KNECReportCardResult.objects.filter(student=student).values_list(
+            'academic_term_id', flat=True
+        ).distinct()
+    )
+    published_knec_terms = list(
+        TermResultPublish.objects.filter(
+            academic_term_id__in=knec_term_ids,
+            is_published=True
+        ).select_related('academic_term').order_by('-academic_term__academic_year', 'academic_term__term_name')
+    )
+    results_not_published = bool(knec_term_ids) and not published_knec_terms
+
     # Try new StudentExamResult first
     new_results = StudentExamResult.objects.filter(student=student).select_related(
         'subject', 'exam_type', 'academic_year'
@@ -365,6 +453,7 @@ def parent_view_child_results(request, student_id):
             'total_possible': total_possible,
             'average': average,
             'use_new_system': True,
+            'published_knec_terms': published_knec_terms,
         }
     else:
         # Fallback to legacy StudentResult
@@ -386,6 +475,7 @@ def parent_view_child_results(request, student_id):
             'total_marks': total_marks,
             'average': average,
             'use_new_system': False,
+            'published_knec_terms': published_knec_terms,
         }
     
     return render(request, 'parent_template/view_results.html', context)
@@ -645,15 +735,16 @@ def parent_view_profile(request):
 
 
 def parent_view_notifications(request):
+    """Legacy NotificationParent page - does not override context processor's notifications."""
     parent = get_object_or_404(Parent, admin=request.user)
-    notifications = NotificationParent.objects.filter(parent=parent).order_by('-created_at')
+    parent_notifications_list = NotificationParent.objects.filter(parent=parent).order_by('-created_at')
     
     # Mark all as read
-    notifications.update(is_read=True)
+    parent_notifications_list.update(is_read=True)
     
     context = {
         'page_title': 'Notifications',
-        'notifications': notifications,
+        'parent_notifications_list': parent_notifications_list,
     }
     return render(request, 'parent_template/view_notifications.html', context)
 

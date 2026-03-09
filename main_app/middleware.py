@@ -55,9 +55,19 @@ class LoginCheckMiddleWare(MiddlewareMixin):
             if user.user_type == '1': # Is it the HOD/Admin
                 if modulename == 'main_app.student_views' or modulename == 'main_app.parent_views':
                     return redirect(reverse('admin_home'))
-            elif user.user_type == '2': #  Staff :-/ ?
-                if modulename == 'main_app.student_views' or modulename == 'main_app.hod_views' or modulename == 'main_app.parent_views':
+            elif user.user_type == '2': # Staff (teachers)
+                if modulename == 'main_app.student_views' or modulename == 'main_app.parent_views':
                     return redirect(reverse('staff_home'))
+                # Allow staff to access specific hod_views for Examinations (enter marks, submit, view)
+                # Result Submission Status is admin-only - teachers just enter marks and submit
+                if modulename == 'main_app.hod_views':
+                    STAFF_ALLOWED_HOD_URLS = {
+                        'enter_cat_marks', 'enter_exam_results', 'teacher_submit_results',
+                        'view_exam_results',
+                    }
+                    url_name = request.resolver_match.url_name if request.resolver_match else None
+                    if url_name not in STAFF_ALLOWED_HOD_URLS:
+                        return redirect(reverse('staff_home'))
             elif user.user_type == '3': # ... or Student ?
                 if modulename == 'main_app.hod_views' or modulename == 'main_app.staff_views' or modulename == 'main_app.parent_views':
                     return redirect(reverse('student_home'))
