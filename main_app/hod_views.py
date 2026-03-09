@@ -462,9 +462,7 @@ def manage_staff(request):
 
 def manage_student(request):
     school = getattr(request, 'school', None)
-    qs = CustomUser.objects.filter(user_type=3, student__isnull=False)
-    if school:
-        qs = qs.filter(school=school)
+    qs = CustomUser.objects.filter(user_type=3, student__isnull=False, school=school) if school else CustomUser.objects.filter(user_type=3, student__isnull=False)
     students = qs.select_related('student', 'student__course')
     context = {
         'students': students,

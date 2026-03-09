@@ -86,6 +86,14 @@ This creates a timestamped backup in `backups/` (SQLite) or outputs a dump file 
 - **SQLite:** `backups/db_backup_YYYYMMDD_HHMMSS.sqlite3`
 - **PostgreSQL:** `backups/db_backup_YYYYMMDD_HHMMSS.sql` (requires `pg_dump` in PATH)
 
+### Alternative: JSON Dump (Django)
+
+```bash
+python manage.py dumpdata --natural-foreign --natural-primary -e contenttypes -e auth.Permission > backup_$(date +%Y%m%d).json
+```
+
+Use for smaller datasets or when `backup_db` is not available.
+
 ### Restore from Backup (SQLite)
 
 ```bash

@@ -131,6 +131,11 @@ class School(models.Model):
             return True  # Unlimited
         return self.get_teacher_count() < limit
 
+    @property
+    def is_approved(self):
+        """MVP SaaS: True when school is approved and can access the system."""
+        return self.status == 'approved'
+
 
 class SchoolSubscription(models.Model):
     """Track school subscription with start/end dates and payment status."""
