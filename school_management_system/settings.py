@@ -163,11 +163,9 @@ DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default=EMAIL_HOST_USER or "no
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = "Lax"
 
-# Ensure Render domain is trusted for CSRF
-CSRF_TRUSTED_ORIGINS = config(
-    "CSRF_TRUSTED_ORIGINS",
-    default="https://schoolmanagementsystem-rr6g.onrender.com"
-).split(",")
+# Ensure Render domain and localhost are trusted for CSRF
+_default_origins = "https://schoolmanagementsystem-rr6g.onrender.com,http://127.0.0.1:8000,http://localhost:8000"
+CSRF_TRUSTED_ORIGINS = [x.strip() for x in config("CSRF_TRUSTED_ORIGINS", default=_default_origins).split(",") if x.strip()]
 
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_EXPIRE_AT_BROWSER_CLOSE = not DEBUG

@@ -5,6 +5,7 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>School Management System</title>
     <!-- Tell the browser to be responsive to screen width -->
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -215,7 +216,8 @@
             }
             return cookieValue;
         }
-        const csrftoken = getCookie('csrftoken');
+        // Prefer meta tag (from current page) over cookie to avoid stale token after login
+        const csrftoken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || getCookie('csrftoken');
         $.ajaxSetup({
             beforeSend: function(xhr, settings) {
                 if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {

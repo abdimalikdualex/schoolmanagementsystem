@@ -8,7 +8,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render, reverse
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 
 from .models import (
@@ -133,6 +133,7 @@ def verify_email(request, token):
     return redirect(reverse("login_page"))
 
 
+@ensure_csrf_cookie
 def login_page(request):
     if request.user.is_authenticated:
         user_type = str(request.user.user_type) if request.user.user_type is not None else '3'
