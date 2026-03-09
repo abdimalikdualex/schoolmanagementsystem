@@ -4399,6 +4399,40 @@ def manage_grading_scale(request):
     return render(request, 'hod_template/manage_grading_scale.html', context)
 
 
+def edit_grading_scale(request, scale_id):
+    """Edit grading scale entry (school-scoped)."""
+    school = getattr(request, 'school', None)
+    qs = GradingScale.objects.filter(school=school) if school else GradingScale.objects.all()
+    scale = get_object_or_404(qs, id=scale_id)
+    if request.method == 'POST':
+        form = GradingScaleForm(request.POST, instance=scale)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Grading scale entry updated.")
+            return redirect('manage_grading_scale')
+    else:
+        form = GradingScaleForm(instance=scale)
+    context = {
+        'form': form,
+        'scale': scale,
+        'page_title': 'Edit Grading Scale'
+    }
+    return render(request, 'hod_template/edit_grading_scale.html', context)
+
+
+def delete_grading_scale(request, scale_id):
+    """Delete grading scale entry (school-scoped)."""
+    school = getattr(request, 'school', None)
+    qs = GradingScale.objects.filter(school=school) if school else GradingScale.objects.all()
+    scale = get_object_or_404(qs, id=scale_id)
+    try:
+        scale.delete()
+        messages.success(request, "Grading scale entry deleted successfully.")
+    except Exception as e:
+        messages.error(request, f"Cannot delete: {str(e)}")
+    return redirect('manage_grading_scale')
+
+
 def enter_exam_results(request):
     """Enter exam results. Term + Class + Subject: CAT (Opener), Mid Term, End Term in one form."""
     school = getattr(request, 'school', None)

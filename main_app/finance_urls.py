@@ -17,9 +17,12 @@ FINANCE_OFFICER_ALLOWED_URL_NAMES = frozenset([
     # Fee Structure
     'manage_fee_types',
     'edit_fee_type',
+    'delete_fee_type',
     'manage_fee_groups',
     'edit_fee_group',
+    'delete_fee_group',
     'manage_fee_structures',
+    'delete_fee_structure',
     'finance_generate_invoices',
     # Reports
     'finance_term_report',
