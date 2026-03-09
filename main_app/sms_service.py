@@ -458,10 +458,10 @@ def send_bulk_sms_to_class(course, message, include_parents=False, template=None
         return send_bulk_sms_to_students(students, message, template, created_by)
 
 
-def process_sms_queue(batch_size=50, max_retries=3):
+def process_sms_queue(batch_size=50, max_retries=3, school=None):
     """
-    Process pending SMS in the queue
-    Called by management command or scheduled task
+    Process pending SMS in the queue. School-scoped for multi-tenant isolation.
+    When school is provided, only processes that school's queue. Otherwise processes all (cron/legacy).
     """
     from .models import SMSQueue, SMSLog
     
@@ -473,7 +473,10 @@ def process_sms_queue(batch_size=50, max_retries=3):
         retry_count__lt=max_retries
     ).filter(
         models.Q(scheduled_at__isnull=True) | models.Q(scheduled_at__lte=now)
-    ).order_by('created_at')[:batch_size]
+    )
+    if school:
+        pending_sms = pending_sms.filter(created_by__school=school)
+    pending_sms = pending_sms.order_by('created_at')[:batch_size]
     
     processed = 0
     success = 0
@@ -540,14 +543,16 @@ def process_sms_queue(batch_size=50, max_retries=3):
     }
 
 
-def get_sms_queue_stats(batch_id=None):
+def get_sms_queue_stats(batch_id=None, school=None):
     """
-    Get statistics for SMS queue
+    Get statistics for SMS queue. School-scoped for multi-tenant isolation.
     """
     from .models import SMSQueue
     from django.db.models import Count
     
     queryset = SMSQueue.objects.all()
+    if school:
+        queryset = queryset.filter(created_by__school=school)
     if batch_id:
         queryset = queryset.filter(batch_id=batch_id)
     

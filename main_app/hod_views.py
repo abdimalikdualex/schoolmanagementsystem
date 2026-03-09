@@ -3485,10 +3485,15 @@ def delete_sms_template(request, template_id):
 
 
 def sms_reports(request):
-    """View SMS delivery reports"""
-    queue_stats = get_sms_queue_stats()
-    recent_logs = SMSLog.objects.all()[:100]
-    pending_sms = SMSQueue.objects.filter(status='pending').count()
+    """View SMS delivery reports - school-scoped so each school only sees its own SMS data"""
+    school = getattr(request, 'school', None)
+    queue_stats = get_sms_queue_stats(school=school)
+    # Filter logs by school: via queue_item->created_by->school (excludes legacy logs with null queue_item)
+    recent_logs = SMSLog.objects.filter(queue_item__created_by__school=school)[:100] if school else SMSLog.objects.all()[:100]
+    pending_sms = SMSQueue.objects.filter(status='pending')
+    if school:
+        pending_sms = pending_sms.filter(created_by__school=school)
+    pending_sms = pending_sms.count()
     
     context = {
         'queue_stats': queue_stats,
@@ -3500,8 +3505,9 @@ def sms_reports(request):
 
 
 def process_sms_queue_view(request):
-    """Manually trigger SMS queue processing"""
-    result = process_sms_queue(batch_size=50)
+    """Manually trigger SMS queue processing - processes only current school's queue"""
+    school = getattr(request, 'school', None)
+    result = process_sms_queue(batch_size=50, school=school)
     messages.success(request, f"Processed {result['processed']} SMS: {result['success']} sent, {result['failed']} failed")
     return redirect('sms_reports')
 

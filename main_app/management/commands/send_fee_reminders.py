@@ -82,10 +82,12 @@ class Command(BaseCommand):
                     f"Balance KES {balance.balance:,.2f}"
                 )
             else:
+                # Pass student.admin as created_by so SMS is associated with the school
                 send_fee_reminder_sms(
                     balance.student,
                     balance.balance,
-                    due_date
+                    due_date,
+                    created_by=balance.student.admin
                 )
             
             reminder_count += 1

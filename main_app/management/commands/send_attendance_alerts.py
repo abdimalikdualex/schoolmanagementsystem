@@ -70,7 +70,8 @@ class Command(BaseCommand):
             else:
                 results = send_attendance_alert_sms(
                     record.student,
-                    check_date
+                    check_date,
+                    created_by=record.student.admin
                 )
                 
                 if results:
