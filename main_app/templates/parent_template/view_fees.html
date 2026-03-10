@@ -72,13 +72,53 @@
 
             <!-- Fee Records -->
             <div class="col-md-8">
+                {% if fee_balances %}
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-file-invoice-dollar mr-2"></i>Fee Breakdown by Term</h3>
+                    </div>
+                    <div class="card-body table-responsive p-0">
+                        <table class="table table-bordered table-striped mb-0">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Session</th>
+                                    <th class="text-right">Total Fees</th>
+                                    <th class="text-right">Paid</th>
+                                    <th class="text-right">Balance</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fb in fee_balances %}
+                                <tr>
+                                    <td>{{ fb.session }}</td>
+                                    <td class="text-right">KES {{ fb.total_fees|floatformat:0 }}</td>
+                                    <td class="text-right text-success">KES {{ fb.total_paid|floatformat:0 }}</td>
+                                    <td class="text-right {% if fb.balance > 0 %}text-danger font-weight-bold{% else %}text-success{% endif %}">
+                                        {% if fb.balance > 0 %}KES {{ fb.balance|floatformat:0 }}{% else %}PAID{% endif %}
+                                    </td>
+                                    <td>
+                                        {% if fb.balance <= 0 %}
+                                        <span class="badge badge-success">Paid</span>
+                                        {% elif fb.total_paid > 0 %}
+                                        <span class="badge badge-warning">Partial</span>
+                                        {% else %}
+                                        <span class="badge badge-danger">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
                 <div class="card">
                     <div class="card-header">
-                        <h3 class="card-title"><i class="fas fa-dollar-sign mr-2"></i>Fee Payment History</h3>
+                        <h3 class="card-title"><i class="fas fa-dollar-sign mr-2"></i>Payment History</h3>
                     </div>
                     <div class="card-body table-responsive">
                         {% if use_new_system %}
-                        <!-- New Payment System -->
                         <table class="table table-bordered table-striped">
                             <thead class="thead-dark">
                                 <tr>
@@ -108,56 +148,15 @@
                                 <tr>
                                     <td colspan="6" class="text-center text-muted py-4">
                                         <i class="fas fa-receipt fa-2x mb-2"></i>
-                                        <p>No payment records found</p>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                        {% else %}
-                        <!-- Legacy Fee System -->
-                        <table class="table table-bordered table-striped">
-                            <thead class="thead-dark">
-                                <tr>
-                                    <th>#</th>
-                                    <th>Session</th>
-                                    <th>Description</th>
-                                    <th class="text-right">Amount Due</th>
-                                    <th class="text-right">Amount Paid</th>
-                                    <th>Status</th>
-                                    <th>Date</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for fee in fees %}
-                                <tr>
-                                    <td>{{ forloop.counter }}</td>
-                                    <td>{{ fee.session|default:"-" }}</td>
-                                    <td>{{ fee.description|default:"School Fee" }}</td>
-                                    <td class="text-right">KES {{ fee.amount_due|floatformat:2 }}</td>
-                                    <td class="text-right">KES {{ fee.amount_paid|floatformat:2 }}</td>
-                                    <td>
-                                        {% if fee.status == 'Paid' %}
-                                        <span class="badge badge-success">Paid</span>
-                                        {% elif fee.status == 'Partial' %}
-                                        <span class="badge badge-warning">Partial</span>
-                                        {% else %}
-                                        <span class="badge badge-danger">Unpaid</span>
+                                        <p>No payment records yet</p>
+                                        {% if not fee_balances %}
+                                        <small>Fees will appear once the school generates invoices for your child.</small>
                                         {% endif %}
                                     </td>
-                                    <td>{{ fee.created_at|date:"M d, Y" }}</td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="7" class="text-center text-muted py-4">
-                                        <i class="fas fa-receipt fa-2x mb-2"></i>
-                                        <p>No fee records found</p>
-                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
-                        {% endif %}
                     </div>
                 </div>
 

@@ -257,11 +257,37 @@ def student_view_result(request):
 
 
 def student_view_fees(request):
-    """Student view their fees outstanding"""
+    """Student view their fees outstanding - uses FeeBalance (synced with finance panel)"""
     student = get_object_or_404(Student, admin=request.user)
-    fees = StudentFees.objects.filter(student=student).order_by('-session__id')
+    # Use FeeBalance (source of truth for finance) - shows all sessions with billing
+    fee_balances = FeeBalance.objects.filter(student=student).select_related(
+        'session', 'fee_structure'
+    ).order_by('-session__start_year')
+    # Adapt for template: map FeeBalance to StudentFees-like structure
+    fees = []
+    total_outstanding = 0
+    paid_count = 0
+    pending_count = 0
+    for fb in fee_balances:
+        status = 'paid' if fb.balance <= 0 else ('partial' if fb.total_paid > 0 else 'pending')
+        total_outstanding += fb.balance
+        if status == 'paid':
+            paid_count += 1
+        else:
+            pending_count += 1
+        fees.append({
+            'session': fb.session,
+            'amount_due': fb.total_fees,
+            'amount_paid': fb.total_paid,
+            'amount_outstanding': fb.balance,
+            'status': status,
+            'due_date': fb.due_date or '-',
+        })
     context = {
         'fees': fees,
+        'total_outstanding': total_outstanding,
+        'paid_count': paid_count,
+        'pending_count': pending_count,
         'page_title': "My Fees"
     }
     return render(request, "student_template/student_view_fees.html", context)

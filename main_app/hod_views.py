@@ -33,7 +33,7 @@ from .models import (
     Stream, Parent, Timetable, Announcement, Message, GradeLevel, 
     StudentClassEnrollment, PromotionRecord, Guardian, StudentSMS, 
     StudentExamResult, FeePayment, ExamType, ContinuousAssessment,
-    SubjectAttendance
+    SubjectAttendance, Expense
 )
 from django.core.paginator import Paginator
 from .sms_service import (
@@ -46,6 +46,7 @@ from .sms_service import (
 from .notifications import create_notification
 from django.db import transaction
 from django.db.models import Sum, Count, Avg
+from django.db.models.functions import TruncMonth
 from django.utils import timezone
 import uuid
 
@@ -370,6 +371,11 @@ def add_student(request):
                             term=active_term,
                             defaults={'enrollment': enrollment},
                         )
+
+                    # Auto-bill: create FeeBalance immediately so student sees fees in portal
+                    _create_fee_balance_for_enrollment(
+                        student, course, session, active_term
+                    )
 
                 # Notify class teacher if assigned
                 if course.class_teacher_id and school:
@@ -3092,7 +3098,15 @@ def transfer_student(request, enrollment_id):
                 enrollment.student.course = new_class
                 enrollment.student.save()
                 
-                messages.success(request, f"Student transferred to {new_class}. Subjects updated.")
+                # Auto-bill: update FeeBalance with new class fee structure
+                _create_fee_balance_for_enrollment(
+                    enrollment.student,
+                    new_class,
+                    enrollment.academic_year,
+                    active_term or enrollment.term
+                )
+                
+                messages.success(request, f"Student transferred to {new_class}. Subjects updated. Fee invoice updated.")
                 return redirect(reverse('manage_enrollments'))
         except Exception as e:
             messages.error(request, f"Transfer failed: {str(e)}")
@@ -3206,6 +3220,9 @@ def bulk_promote(request):
                     student.course = to_class
                     student.session = to_year
                     student.save()
+                    
+                    # Auto-bill: create FeeBalance for new session/class
+                    _create_fee_balance_for_enrollment(student, to_class, to_year, None)
                     
                     promoted_count += 1
                 except Exception as e:
@@ -3628,12 +3645,12 @@ def edit_fee_group(request, group_id):
     
     fee_types = FeeType.objects.filter(school=school, is_active=True) if school else FeeType.objects.filter(is_active=True)
     existing_items = {item.fee_type_id: item.amount for item in fee_group.fee_items.all()}
+    fee_type_amounts = [(ft, existing_items.get(ft.id, '')) for ft in fee_types]
     
     context = {
         'form': form,
         'fee_group': fee_group,
-        'fee_types': fee_types,
-        'existing_items': existing_items,
+        'fee_type_amounts': fee_type_amounts,
         'page_title': 'Edit Fee Group'
     }
     return render(request, 'hod_template/edit_fee_group.html', context)
@@ -3697,6 +3714,8 @@ def finance_dashboard(request):
 
     # If no session in DB, use empty aggregates
     if not session:
+        student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.none()
+        expense_qs = Expense.objects.filter(school=school) if school else Expense.objects.none()
         context = {
             'session': None,
             'sessions': sessions,
@@ -3704,9 +3723,16 @@ def finance_dashboard(request):
             'total_collected': 0,
             'total_outstanding': 0,
             'students_with_arrears': 0,
+            'total_students': student_qs.count(),
+            'today_collection': Decimal('0'),
+            'total_expenses': expense_qs.aggregate(t=Sum('amount'))['t'] or Decimal('0'),
+            'net_balance': Decimal('0'),
             'revenue_by_class': [],
             'defaulters': [],
             'recent_transactions': [],
+            'monthly_revenue_labels': json.dumps([]),
+            'monthly_revenue_data': json.dumps([]),
+            'income_vs_expenses': json.dumps({'income': 0, 'expenses': 0, 'profit': 0}),
             'page_title': 'Finance Dashboard',
         }
         return render(request, 'hod_template/finance_dashboard.html', context)
@@ -3749,6 +3775,43 @@ def finance_dashboard(request):
         recent_transactions = recent_transactions.filter(student__admin__school=school)
     recent_transactions = recent_transactions.order_by('-payment_date')[:20]
 
+    # Additional stats: total students, today's collection, expenses, net balance
+    student_qs = Student.objects.filter(admin__school=school) if school else Student.objects.all()
+    total_students = student_qs.count()
+    today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_payments = FeePayment.objects.filter(
+        session=session, is_reversed=False, payment_date__gte=today_start
+    )
+    if school:
+        today_payments = today_payments.filter(student__admin__school=school)
+    today_collection = today_payments.aggregate(t=Sum('amount'))['t'] or Decimal('0')
+    expense_qs = Expense.objects.filter(school=school) if school else Expense.objects.filter(school__isnull=True)
+    total_expenses = expense_qs.aggregate(t=Sum('amount'))['t'] or Decimal('0')
+    net_balance = total_collected - total_expenses
+
+    # Monthly revenue (last 6 months) for chart
+    six_months_ago = timezone.now() - timedelta(days=180)
+    monthly_payments = FeePayment.objects.filter(
+        session=session, is_reversed=False, payment_date__gte=six_months_ago
+    )
+    if school:
+        monthly_payments = monthly_payments.filter(student__admin__school=school)
+    monthly_agg = monthly_payments.annotate(
+        month=TruncMonth('payment_date')
+    ).values('month').annotate(total=Sum('amount')).order_by('month')
+    monthly_revenue_labels = []
+    monthly_revenue_data = []
+    for row in monthly_agg:
+        monthly_revenue_labels.append(row['month'].strftime('%b %Y'))
+        monthly_revenue_data.append(float(row['total'] or 0))
+
+    # Income vs Expenses for chart
+    income_vs_expenses = {
+        'income': float(total_collected),
+        'expenses': float(total_expenses),
+        'profit': float(net_balance),
+    }
+
     context = {
         'session': session,
         'sessions': sessions,
@@ -3756,9 +3819,16 @@ def finance_dashboard(request):
         'total_collected': total_collected,
         'total_outstanding': total_outstanding,
         'students_with_arrears': students_with_arrears,
+        'total_students': total_students,
+        'today_collection': today_collection,
+        'total_expenses': total_expenses,
+        'net_balance': net_balance,
         'revenue_by_class': revenue_by_class,
         'defaulters': defaulters,
         'recent_transactions': recent_transactions,
+        'monthly_revenue_labels': json.dumps(monthly_revenue_labels),
+        'monthly_revenue_data': json.dumps(monthly_revenue_data),
+        'income_vs_expenses': json.dumps(income_vs_expenses),
         'page_title': 'Finance Dashboard',
     }
     return render(request, 'hod_template/finance_dashboard.html', context)
@@ -3775,9 +3845,14 @@ def manage_fee_structures(request):
     if request.method == 'POST':
         form = FeeStructureForm(request.POST, school=school)
         if form.is_valid():
-            form.save()
-            messages.success(request, "Fee structure created")
-            return redirect('manage_fee_structures')
+            try:
+                form.save()
+                messages.success(request, "Fee structure created successfully.")
+                return redirect('manage_fee_structures')
+            except Exception as e:
+                messages.error(request, f"Could not save: {str(e)}")
+        else:
+            messages.error(request, "Please correct the errors below.")
     else:
         form = FeeStructureForm(school=school)
 
@@ -3808,6 +3883,84 @@ def delete_fee_structure(request, structure_id):
     except Exception as e:
         messages.error(request, f"Cannot delete: {str(e)}")
     return redirect('manage_fee_structures')
+
+
+def manage_expenses(request):
+    """Manage school expenses - school-scoped."""
+    allowed, resp = _check_finance_permission(request, require_manage=True)
+    if not allowed:
+        messages.error(request, "You don't have permission to manage expenses")
+        return resp
+
+    school = getattr(request, 'school', None)
+    expenses = Expense.objects.filter(school=school).select_related('recorded_by').order_by('-expense_date', '-created_at')
+    total_expenses = expenses.aggregate(t=Sum('amount'))['t'] or Decimal('0')
+    context = {
+        'expenses': expenses,
+        'total_expenses': total_expenses,
+        'page_title': 'Manage Expenses',
+    }
+    return render(request, 'hod_template/manage_expenses.html', context)
+
+
+def add_expense(request):
+    """Add new expense - school-scoped."""
+    allowed, resp = _check_finance_permission(request, require_manage=True)
+    if not allowed:
+        messages.error(request, "You don't have permission to add expenses")
+        return resp
+
+    school = getattr(request, 'school', None)
+    if request.method == 'POST':
+        form = ExpenseForm(request.POST)
+        if form.is_valid():
+            obj = form.save(commit=False)
+            obj.school = school
+            obj.recorded_by = request.user
+            obj.save()
+            messages.success(request, "Expense recorded successfully.")
+            return redirect('manage_expenses')
+    else:
+        form = ExpenseForm()
+    context = {'form': form, 'page_title': 'Add Expense'}
+    return render(request, 'hod_template/add_expense.html', context)
+
+
+def edit_expense(request, expense_id):
+    """Edit expense - school-scoped."""
+    allowed, resp = _check_finance_permission(request, require_manage=True)
+    if not allowed:
+        messages.error(request, "You don't have permission to edit expenses")
+        return resp
+
+    school = getattr(request, 'school', None)
+    qs = Expense.objects.filter(school=school)
+    expense = get_object_or_404(qs, id=expense_id)
+    if request.method == 'POST':
+        form = ExpenseForm(request.POST, instance=expense)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Expense updated successfully.")
+            return redirect('manage_expenses')
+    else:
+        form = ExpenseForm(instance=expense)
+    context = {'form': form, 'expense': expense, 'page_title': 'Edit Expense'}
+    return render(request, 'hod_template/edit_expense.html', context)
+
+
+def delete_expense(request, expense_id):
+    """Delete expense - school-scoped."""
+    allowed, resp = _check_finance_permission(request, require_manage=True)
+    if not allowed:
+        messages.error(request, "You don't have permission to delete expenses")
+        return resp
+
+    school = getattr(request, 'school', None)
+    qs = Expense.objects.filter(school=school)
+    expense = get_object_or_404(qs, id=expense_id)
+    expense.delete()
+    messages.success(request, "Expense deleted successfully.")
+    return redirect('manage_expenses')
 
 
 def fee_collection(request):
@@ -3923,7 +4076,7 @@ def student_fee_statement(request, student_id):
 
 
 def print_fee_receipt(request, payment_id):
-    """Generate and print fee receipt PDF"""
+    """Generate and print fee receipt PDF - includes school logo, balance, finance officer"""
     school = getattr(request, 'school', None)
     payment_qs = FeePayment.objects.filter(student__admin__school=school) if school else FeePayment.objects.all()
     payment = get_object_or_404(payment_qs, id=payment_id)
@@ -3940,24 +4093,46 @@ def print_fee_receipt(request, payment_id):
     elements = []
     styles = getSampleStyleSheet()
     
+    # School settings (use student's school for multi-tenant)
+    student_school = getattr(payment.student.admin, 'school', None)
+    settings_obj = get_school_settings(school=student_school or school)
+    
+    # School Logo (if available)
+    if settings_obj.school_logo:
+        try:
+            logo_path = settings_obj.school_logo.path
+            if os.path.exists(logo_path):
+                img = Image(logo_path, width=1.2*inch, height=1.2*inch)
+                elements.append(img)
+                elements.append(Spacer(1, 10))
+        except Exception:
+            pass
+    
     # School Header
-    school = get_school_settings(school=getattr(request, 'school', None))
     title_style = ParagraphStyle('title', parent=styles['Heading1'], alignment=TA_CENTER)
-    elements.append(Paragraph(school.school_name, title_style))
+    elements.append(Paragraph(settings_obj.school_name, title_style))
     elements.append(Paragraph("FEE PAYMENT RECEIPT", styles['Heading2']))
     elements.append(Spacer(1, 20))
+    
+    # Get fee balance for receipt
+    fee_balance = FeeBalance.objects.filter(
+        student=payment.student,
+        session=payment.session
+    ).first()
+    balance_after = fee_balance.balance if fee_balance else Decimal('0')
     
     # Receipt Details
     data = [
         ['Receipt Number:', payment.receipt_number],
-        ['Date:', payment.payment_date.strftime('%d/%m/%Y')],
+        ['Date:', payment.payment_date.strftime('%d/%m/%Y %H:%M')],
         ['Student Name:', f"{payment.student.admin.first_name} {payment.student.admin.last_name}"],
         ['Admission Number:', payment.student.admission_number or 'N/A'],
         ['Class:', str(payment.student.course) if payment.student.course else 'N/A'],
         ['Amount Paid:', f"KES {payment.amount:,.2f}"],
-        ['Payment Mode:', payment.get_payment_mode_display()],
+        ['Balance:', f"KES {balance_after:,.2f}"],
+        ['Payment Method:', payment.get_payment_mode_display()],
         ['Transaction Ref:', payment.transaction_ref or 'N/A'],
-        ['Received By:', str(payment.received_by)],
+        ['Received By:', payment.received_by.get_full_name() if payment.received_by else 'N/A'],
     ]
     
     table = Table(data, colWidths=[2*inch, 4*inch])
@@ -4110,11 +4285,14 @@ def _create_fee_balance_for_enrollment(student, school_class, session, active_te
             'due_date': due_date,
         }
     )
-    if not created and total_fees > 0 and fb.total_fees == 0:
-        fb.total_fees = total_fees
-        fb.fee_structure = fee_structure
-        fb.due_date = due_date
-        fb.update_balance()
+    # Update when: new structure has fees and (old was zero OR class/structure changed e.g. transfer)
+    if not created and total_fees > 0:
+        new_struct_id = fee_structure.id if fee_structure else None
+        if fb.total_fees == 0 or (new_struct_id and fb.fee_structure_id != new_struct_id):
+            fb.total_fees = total_fees
+            fb.fee_structure = fee_structure
+            fb.due_date = due_date
+            fb.update_balance()
     return fb
 
 
@@ -4167,7 +4345,10 @@ def finance_generate_invoices(request):
             updated += 1
 
     messages.success(request, f"Invoices generated: {created} created, {updated} updated")
-    return redirect('finance_dashboard' + (f'?session_id={session.id}' if session else ''))
+    url = reverse('finance_dashboard')
+    if session:
+        url += f'?session_id={session.id}'
+    return redirect(url)
 
 
 def finance_class_report(request):
@@ -4204,6 +4385,95 @@ def finance_class_report(request):
     return render(request, 'hod_template/finance_class_report.html', context)
 
 
+def finance_daily_report(request):
+    """Daily Collection Report - payments by date (school-scoped)"""
+    allowed, resp = _check_finance_permission(request)
+    if not allowed:
+        return resp
+
+    school = getattr(request, 'school', None)
+    session_qs = Session.objects.filter(school=school) if school else Session.objects.all()
+    session_id = request.GET.get('session_id')
+    session = session_qs.filter(id=session_id).first() if session_id else session_qs.order_by('-start_year').first()
+    date_str = request.GET.get('date')
+    if date_str:
+        try:
+            from datetime import datetime
+            report_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            report_date = timezone.now().date()
+    else:
+        report_date = timezone.now().date()
+
+    if session:
+        payments = FeePayment.objects.filter(
+            session=session, is_reversed=False
+        ).filter(
+            payment_date__date=report_date
+        ).select_related('student__admin')
+        if school:
+            payments = payments.filter(student__admin__school=school)
+        payments = payments.order_by('-payment_date')
+    else:
+        payments = FeePayment.objects.none()
+    total_today = payments.aggregate(t=Sum('amount'))['t'] or Decimal('0')
+
+    context = {
+        'session': session,
+        'sessions': session_qs.order_by('-start_year'),
+        'report_date': report_date,
+        'payments': payments,
+        'total_today': total_today,
+        'page_title': f'Daily Collection Report - {report_date}',
+    }
+    return render(request, 'hod_template/finance_daily_report.html', context)
+
+
+def finance_expense_report(request):
+    """Expense Report - all expenses (school-scoped)"""
+    allowed, resp = _check_finance_permission(request)
+    if not allowed:
+        return resp
+
+    school = getattr(request, 'school', None)
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    expenses = Expense.objects.filter(school=school).select_related('recorded_by').order_by('-expense_date')
+    if date_from:
+        try:
+            from datetime import datetime
+            df = datetime.strptime(date_from, '%Y-%m-%d').date()
+            expenses = expenses.filter(expense_date__gte=df)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            from datetime import datetime
+            dt = datetime.strptime(date_to, '%Y-%m-%d').date()
+            expenses = expenses.filter(expense_date__lte=dt)
+        except ValueError:
+            pass
+    total_expenses = expenses.aggregate(t=Sum('amount'))['t'] or Decimal('0')
+
+    # By category with display names
+    from django.db.models import Count
+    cat_choices = dict(Expense.CATEGORY_CHOICES)
+    by_category = []
+    for row in expenses.values('category').annotate(
+        total=Sum('amount'), count=Count('id')
+    ).order_by('-total'):
+        row['category_display'] = cat_choices.get(row['category'], row['category'])
+        by_category.append(row)
+
+    context = {
+        'expenses': expenses,
+        'total_expenses': total_expenses,
+        'by_category': by_category,
+        'page_title': 'Expense Report',
+    }
+    return render(request, 'hod_template/finance_expense_report.html', context)
+
+
 def send_fee_reminders(request):
     """Send fee reminders to students with outstanding balances (school-scoped)"""
     allowed, resp = _check_finance_permission(request, require_manage=True)
@@ -4212,7 +4482,8 @@ def send_fee_reminders(request):
 
     school = getattr(request, 'school', None)
     session_qs = Session.objects.filter(school=school) if school else Session.objects.all()
-    session = session_qs.order_by('-start_year').first()
+    session_id = request.GET.get('session_id')
+    session = session_qs.filter(id=session_id).first() if session_id else session_qs.order_by('-start_year').first()
     if not session:
         messages.info(request, "No session found. Create a session first.")
         return redirect('finance_dashboard')
@@ -4234,7 +4505,10 @@ def send_fee_reminders(request):
     process_sms_queue()
     
     messages.success(request, f"Fee reminders sent to {sent_count} students/parents")
-    return redirect('finance_dashboard')
+    url = reverse('finance_dashboard')
+    if session:
+        url += f'?session_id={session.id}'
+    return redirect(url)
 
 
 # ============================================
@@ -4243,6 +4517,7 @@ def send_fee_reminders(request):
 
 def manage_exam_types(request):
     """Manage exam types (school-scoped)"""
+    from django.db import IntegrityError
     school = getattr(request, 'school', None)
     if request.method == 'POST':
         form = ExamTypeForm(request.POST)
@@ -4250,9 +4525,12 @@ def manage_exam_types(request):
             obj = form.save(commit=False)
             if school:
                 obj.school = school
-            obj.save()
-            messages.success(request, "Exam type created")
-            return redirect('manage_exam_types')
+            try:
+                obj.save()
+                messages.success(request, "Exam type created")
+                return redirect('manage_exam_types')
+            except IntegrityError:
+                messages.error(request, "An exam type with this code already exists for your school. Please use a different code.")
     else:
         form = ExamTypeForm()
     
@@ -4263,6 +4541,45 @@ def manage_exam_types(request):
         'page_title': 'Manage Exam Types'
     }
     return render(request, 'hod_template/manage_exam_types.html', context)
+
+
+def edit_exam_type(request, exam_type_id):
+    """Edit exam type (school-scoped)."""
+    from django.db import IntegrityError
+    school = getattr(request, 'school', None)
+    qs = ExamType.objects.filter(school=school) if school else ExamType.objects.all()
+    exam_type = get_object_or_404(qs, id=exam_type_id)
+    if request.method == 'POST':
+        form = ExamTypeForm(request.POST, instance=exam_type)
+        if form.is_valid():
+            try:
+                form.save()
+                messages.success(request, "Exam type updated.")
+                return redirect('manage_exam_types')
+            except IntegrityError:
+                messages.error(request, "An exam type with this code already exists. Please use a different code.")
+    else:
+        form = ExamTypeForm(instance=exam_type)
+    context = {
+        'form': form,
+        'exam_type': exam_type,
+        'page_title': 'Edit Exam Type'
+    }
+    return render(request, 'hod_template/edit_exam_type.html', context)
+
+
+def delete_exam_type(request, exam_type_id):
+    """Delete exam type (school-scoped)."""
+    from django.db import IntegrityError
+    school = getattr(request, 'school', None)
+    qs = ExamType.objects.filter(school=school) if school else ExamType.objects.all()
+    exam_type = get_object_or_404(qs, id=exam_type_id)
+    try:
+        exam_type.delete()
+        messages.success(request, "Exam type deleted successfully.")
+    except Exception as e:
+        messages.error(request, f"Cannot delete: {str(e)}")
+    return redirect('manage_exam_types')
 
 
 def manage_exam_schedules(request):

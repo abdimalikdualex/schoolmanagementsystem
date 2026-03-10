@@ -86,16 +86,7 @@
                                 <span class="info-box-icon bg-warning"><i class="fas fa-exclamation-circle"></i></span>
                                 <div class="info-box-content">
                                     <span class="info-box-text">Total Outstanding</span>
-                                    <span class="info-box-number">
-                                        KSH 
-                                        {% for fee in fees %}
-                                            {% if forloop.first %}
-                                                {{ fee.amount_outstanding }}
-                                            {% else %}
-                                                + {{ fee.amount_outstanding }}
-                                            {% endif %}
-                                        {% endfor %}
-                                    </span>
+                                    <span class="info-box-number">KES {{ total_outstanding|floatformat:0 }}</span>
                                 </div>
                             </div>
                         </div>
@@ -105,15 +96,7 @@
                                 <span class="info-box-icon bg-success"><i class="fas fa-check-circle"></i></span>
                                 <div class="info-box-content">
                                     <span class="info-box-text">Paid Fees</span>
-                                    <span class="info-box-number">
-                                        {% with paid_count=fees|length %}
-                                            {% for fee in fees %}
-                                                {% if fee.status == 'paid' %}
-                                                    {{ forloop.counter }}
-                                                {% endif %}
-                                            {% endfor %}
-                                        {% endwith %}
-                                    </span>
+                                    <span class="info-box-number">{{ paid_count }}</span>
                                 </div>
                             </div>
                         </div>
@@ -123,15 +106,7 @@
                                 <span class="info-box-icon bg-danger"><i class="fas fa-times-circle"></i></span>
                                 <div class="info-box-content">
                                     <span class="info-box-text">Pending Fees</span>
-                                    <span class="info-box-number">
-                                        {% with pending_count=0 %}
-                                            {% for fee in fees %}
-                                                {% if fee.status != 'paid' %}
-                                                    {{ forloop.counter }}
-                                                {% endif %}
-                                            {% endfor %}
-                                        {% endwith %}
-                                    </span>
+                                    <span class="info-box-number">{{ pending_count }}</span>
                                 </div>
                             </div>
                         </div>

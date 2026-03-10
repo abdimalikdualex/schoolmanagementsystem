@@ -14,7 +14,9 @@
                         <option value="{{ s.id }}" {% if session and session.id == s.id %}selected{% endif %}>{{ s }}</option>
                         {% endfor %}
                     </select>
-                    <a href="{% url 'send_fee_reminders' %}" class="btn btn-warning btn-sm mr-2"><i class="fas fa-bell"></i> Send Reminders</a>
+                    {% if session %}
+                    <a href="{% url 'send_fee_reminders' %}?session_id={{ session.id }}" class="btn btn-warning btn-sm mr-2" onclick="return confirm('Send SMS reminders to all defaulters?');"><i class="fas fa-bell"></i> Send Reminders</a>
+                    {% endif %}
                     <a href="{% url 'fee_collection' %}" class="btn btn-success btn-sm">Record Payment</a>
                 </form>
             </div>

@@ -35,13 +35,23 @@
         </div>
         {% else %}
 
-        <!-- Summary Cards -->
+        <!-- Summary Cards Row 1 -->
         <div class="row">
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-secondary">
+                    <div class="inner">
+                        <h3>{{ total_students|default:0 }}</h3>
+                        <p>Total Students</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-user-graduate"></i></div>
+                    <a href="{% url 'finance_student_billing' %}" class="small-box-footer">Student Billing <i class="fas fa-arrow-circle-right"></i></a>
+                </div>
+            </div>
             <div class="col-lg-3 col-6">
                 <div class="small-box bg-info">
                     <div class="inner">
                         <h3>KES {{ total_expected|floatformat:0 }}</h3>
-                        <p>Total Expected Revenue</p>
+                        <p>Total Fees Expected</p>
                     </div>
                     <div class="icon"><i class="fas fa-chart-line"></i></div>
                     <a href="{% url 'manage_fee_structures' %}" class="small-box-footer">Fee Structures <i class="fas fa-arrow-circle-right"></i></a>
@@ -51,7 +61,7 @@
                 <div class="small-box bg-success">
                     <div class="inner">
                         <h3>KES {{ total_collected|floatformat:0 }}</h3>
-                        <p>Total Collected</p>
+                        <p>Total Fees Collected</p>
                     </div>
                     <div class="icon"><i class="fas fa-coins"></i></div>
                     <a href="{% url 'fee_collection' %}" class="small-box-footer">Record Payment <i class="fas fa-arrow-circle-right"></i></a>
@@ -61,20 +71,83 @@
                 <div class="small-box bg-warning">
                     <div class="inner">
                         <h3>KES {{ total_outstanding|floatformat:0 }}</h3>
-                        <p>Total Outstanding</p>
+                        <p>Outstanding Fees</p>
                     </div>
                     <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
                     <a href="#defaulters" class="small-box-footer">View Defaulters <i class="fas fa-arrow-circle-right"></i></a>
                 </div>
             </div>
+        </div>
+        <!-- Summary Cards Row 2 -->
+        <div class="row">
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-primary">
+                    <div class="inner">
+                        <h3>KES {{ today_collection|floatformat:0 }}</h3>
+                        <p>Today's Collection</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-money-bill-wave"></i></div>
+                    <a href="{% url 'fee_collection' %}" class="small-box-footer">Record Payment <i class="fas fa-arrow-circle-right"></i></a>
+                </div>
+            </div>
             <div class="col-lg-3 col-6">
                 <div class="small-box bg-danger">
+                    <div class="inner">
+                        <h3>KES {{ total_expenses|floatformat:0 }}</h3>
+                        <p>Total Expenses</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-receipt"></i></div>
+                    <a href="{% url 'manage_expenses' %}" class="small-box-footer">Manage Expenses <i class="fas fa-arrow-circle-right"></i></a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box {% if net_balance >= 0 %}bg-success{% else %}bg-danger{% endif %}">
+                    <div class="inner">
+                        <h3>KES {{ net_balance|floatformat:0 }}</h3>
+                        <p>Net Balance</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-balance-scale"></i></div>
+                    <a href="#charts" class="small-box-footer">View Charts <i class="fas fa-arrow-circle-right"></i></a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-dark">
                     <div class="inner">
                         <h3>{{ students_with_arrears }}</h3>
                         <p>Students with Arrears</p>
                     </div>
                     <div class="icon"><i class="fas fa-user-times"></i></div>
                     <a href="#defaulters" class="small-box-footer">View List <i class="fas fa-arrow-circle-right"></i></a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Financial Charts -->
+        <div class="row" id="charts">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Monthly Revenue</h3>
+                        <div class="card-tools">
+                            <button type="button" class="btn btn-tool" data-card-widget="collapse"><i class="fas fa-minus"></i></button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="monthlyRevenueChart" style="min-height: 250px; height: 250px;"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Income vs Expenses</h3>
+                        <div class="card-tools">
+                            <button type="button" class="btn btn-tool" data-card-widget="collapse"><i class="fas fa-minus"></i></button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="incomeVsExpensesChart" style="min-height: 250px; height: 250px;"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -227,14 +300,23 @@
                         <a href="{% url 'finance_class_report' %}?session_id={{ session.id }}" class="btn btn-outline-primary mr-2">
                             <i class="fas fa-table"></i> Class Collection Report
                         </a>
-                        <a href="{% url 'manage_student' %}" class="btn btn-outline-secondary mr-2" title="Select student to view statement">
-                            <i class="fas fa-file-alt"></i> Student Statement
+                        <a href="{% url 'finance_daily_report' %}?session_id={{ session.id }}" class="btn btn-outline-primary mr-2">
+                            <i class="fas fa-calendar-day"></i> Daily Collection Report
+                        </a>
+                        <a href="{% url 'finance_expense_report' %}" class="btn btn-outline-danger mr-2">
+                            <i class="fas fa-receipt"></i> Expense Report
+                        </a>
+                        <a href="{% url 'finance_student_billing' %}{% if session %}?session_id={{ session.id }}{% endif %}" class="btn btn-outline-secondary mr-2" title="View student billing and statements">
+                            <i class="fas fa-file-alt"></i> Student Billing & Statements
                         </a>
                         <a href="{% url 'fee_collection' %}" class="btn btn-outline-success mr-2">
                             <i class="fas fa-money-bill"></i> Fee Collection
                         </a>
-                        <a href="{% url 'manage_fee_structures' %}" class="btn btn-outline-secondary">
+                        <a href="{% url 'manage_fee_structures' %}" class="btn btn-outline-secondary mr-2">
                             <i class="fas fa-sitemap"></i> Fee Structures
+                        </a>
+                        <a href="{% url 'manage_expenses' %}" class="btn btn-outline-danger">
+                            <i class="fas fa-receipt"></i> Manage Expenses
                         </a>
                     </div>
                 </div>
@@ -245,4 +327,59 @@
     </div>
 </section>
 
+{% block custom_js %}
+{% if session %}
+<script>
+(function() {
+    var monthlyLabels = {{ monthly_revenue_labels|default:"[]" }};
+    var monthlyData = {{ monthly_revenue_data|default:"[]" }};
+    if (monthlyLabels.length && document.getElementById('monthlyRevenueChart')) {
+        var ctx = document.getElementById('monthlyRevenueChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: monthlyLabels,
+                datasets: [{
+                    label: 'Revenue (KES)',
+                    data: monthlyData,
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    yAxes: [{
+                        ticks: { beginAtZero: true }
+                    }]
+                }
+            }
+        });
+    }
+    var incomeVs = {{ income_vs_expenses|default:"{}" }};
+    if (Object.keys(incomeVs).length && document.getElementById('incomeVsExpensesChart')) {
+        var ctx2 = document.getElementById('incomeVsExpensesChart').getContext('2d');
+        new Chart(ctx2, {
+            type: 'doughnut',
+            data: {
+                labels: ['Income', 'Expenses', 'Net Balance'],
+                datasets: [{
+                    data: [incomeVs.income || 0, incomeVs.expenses || 0, Math.max(0, incomeVs.profit || 0)],
+                    backgroundColor: ['#28a745', '#dc3545', '#17a2b8'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                legend: { position: 'bottom' }
+            }
+        });
+    }
+})();
+</script>
+{% endif %}
+{% endblock custom_js %}
 {% endblock content %}

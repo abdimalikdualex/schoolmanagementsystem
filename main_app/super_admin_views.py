@@ -12,7 +12,10 @@ from django.utils import timezone
 
 from django.db import connection, transaction
 
-from .models import School, Student, Staff, SubscriptionPlan, CustomUser, SchoolSettings, SchoolSubscription
+from django.db.models import Sum
+from decimal import Decimal
+
+from .models import School, Student, Staff, SubscriptionPlan, CustomUser, SchoolSettings, SchoolSubscription, FeePayment
 from .email_service import send_school_approval_email
 
 
@@ -47,6 +50,17 @@ def super_admin_dashboard(request):
     total_students = Student.objects.filter(admin__school__isnull=False).count()
     total_teachers = Staff.objects.filter(admin__school__isnull=False).count()
 
+    # Platform finance overview (all schools)
+    total_fees_collected = FeePayment.objects.filter(is_reversed=False).aggregate(
+        t=Sum('amount')
+    )['t'] or Decimal('0')
+    # Subscription revenue: sum of monthly_price from active subscriptions (simplified)
+    subscription_revenue = SchoolSubscription.objects.filter(
+        active=True, payment_status='paid'
+    ).aggregate(
+        t=Sum('plan__monthly_price')
+    )['t'] or Decimal('0')
+
     context = {
         'page_title': 'Platform Owner Dashboard',
         'school_list': school_list,
@@ -56,6 +70,8 @@ def super_admin_dashboard(request):
         'pending_approvals': pending_approvals,
         'total_students': total_students,
         'total_teachers': total_teachers,
+        'total_fees_collected': total_fees_collected,
+        'subscription_revenue': subscription_revenue,
     }
     return render(request, 'super_admin_template/super_admin_dashboard.html', context)
 

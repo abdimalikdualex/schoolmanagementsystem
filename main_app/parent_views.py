@@ -11,7 +11,7 @@ from .models import (
     Parent, Student, CustomUser, Attendance, AttendanceReport,
     StudentResult, StudentFees, Homework, HomeworkSubmission,
     Announcement, Message, NotificationParent, Timetable, Session,
-    FeePayment, StudentExamResult, ClassAttendanceRecord, Guardian,
+    FeePayment, FeeBalance, StudentExamResult, ClassAttendanceRecord, Guardian,
     AcademicTerm, KNECReportCardResult, TermResultPublish,
 )
 
@@ -493,43 +493,25 @@ def parent_view_child_fees(request, student_id):
         messages.error(request, "You don't have permission to view this student's fees")
         return redirect('parent_home')
     
-    # Try new FeePayment model first
+    # Use FeeBalance (synced with finance panel) for totals and billing
+    fee_balances = FeeBalance.objects.filter(student=student).select_related('session').order_by('-session__start_year')
+    total_due = sum(fb.total_fees for fb in fee_balances)
+    total_paid = sum(fb.total_paid for fb in fee_balances)
+    total_outstanding = total_due - total_paid
+    
+    # Payment history from FeePayment
     payments = FeePayment.objects.filter(student=student, is_reversed=False).order_by('-payment_date')
     
-    if payments.exists():
-        # Use new fee system
-        total_paid = payments.aggregate(total=Sum('amount'))['total'] or 0
-        total_due = student.total_fee_billed or 0
-        total_outstanding = total_due - total_paid
-        
-        context = {
-            'page_title': f"Fees - {student.admin.first_name}",
-            'student': student,
-            'payments': payments,
-            'fees': None,  # No legacy fees
-            'total_due': total_due,
-            'total_paid': total_paid,
-            'total_outstanding': total_outstanding,
-            'use_new_system': True,
-        }
-    else:
-        # Fallback to legacy StudentFees
-        fees = StudentFees.objects.filter(student=student).select_related('session').order_by('-created_at')
-        
-        total_due = sum(f.amount_due for f in fees)
-        total_paid = sum(f.amount_paid for f in fees)
-        total_outstanding = total_due - total_paid
-        
-        context = {
-            'page_title': f"Fees - {student.admin.first_name}",
-            'student': student,
-            'fees': fees,
-            'payments': None,
-            'total_due': total_due,
-            'total_paid': total_paid,
-            'total_outstanding': total_outstanding,
-            'use_new_system': False,
-        }
+    context = {
+        'page_title': f"Fees - {student.admin.first_name}",
+        'student': student,
+        'payments': payments,
+        'fee_balances': fee_balances,
+        'total_due': total_due,
+        'total_paid': total_paid,
+        'total_outstanding': total_outstanding,
+        'use_new_system': True,
+    }
     
     return render(request, 'parent_template/view_fees.html', context)
 

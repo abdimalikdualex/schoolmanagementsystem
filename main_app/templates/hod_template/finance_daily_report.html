@@ -1,0 +1,90 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row mb-3">
+            <div class="col-12">
+                <form method="get" class="form-inline flex-wrap">
+                    <label class="mr-2">Session:</label>
+                    <select name="session_id" class="form-control form-control-sm mr-2" onchange="this.form.submit()">
+                        {% for s in sessions %}
+                        <option value="{{ s.id }}" {% if session and session.id == s.id %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                    <label class="mr-2 ml-2">Date:</label>
+                    <input type="date" name="date" class="form-control form-control-sm mr-2" value="{{ report_date|date:'Y-m-d' }}" onchange="this.form.submit()">
+                    <button type="submit" class="btn btn-sm btn-primary mr-2">Apply</button>
+                    <a href="{% url 'finance_dashboard' %}{% if session %}?session_id={{ session.id }}{% endif %}" class="btn btn-sm btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                    <button onclick="window.print()" class="btn btn-sm btn-info ml-2">
+                        <i class="fas fa-print"></i> Print
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% if not session %}
+        <div class="alert alert-info">Select a session to view daily collection.</div>
+        {% else %}
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Daily Collection Report</h3>
+                <p class="mb-0">{{ report_date|date:"d F Y" }} | Session: {{ session }}</p>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="info-box bg-success">
+                            <span class="info-box-icon"><i class="fas fa-coins"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Total Collected Today</span>
+                                <span class="info-box-number">KES {{ total_today|floatformat:0 }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="info-box bg-info">
+                            <span class="info-box-icon"><i class="fas fa-receipt"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Number of Transactions</span>
+                                <span class="info-box-number">{{ payments|length }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <table class="table table-bordered table-striped">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Receipt No</th>
+                            <th>Student</th>
+                            <th class="text-right">Amount</th>
+                            <th>Method</th>
+                            <th>Paid By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in payments %}
+                        <tr>
+                            <td>{{ p.payment_date|date:"H:i" }}</td>
+                            <td><strong>{{ p.receipt_number }}</strong></td>
+                            <td>{{ p.student.admin.last_name }}, {{ p.student.admin.first_name }}</td>
+                            <td class="text-right">KES {{ p.amount|floatformat:2 }}</td>
+                            <td>{{ p.get_payment_mode_display }}</td>
+                            <td>{{ p.paid_by|default:"-" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" class="text-center">No payments recorded on this date.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+{% endblock content %}

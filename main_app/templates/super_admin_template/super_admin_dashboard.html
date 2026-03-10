@@ -66,6 +66,26 @@
             <a href="{% url 'super_admin_user_monitoring' %}?type=2" class="small-box-footer">View <i class="fas fa-arrow-circle-right"></i></a>
         </div>
     </div>
+    <div class="col-lg-2 col-4">
+        <div class="small-box bg-success">
+            <div class="inner">
+                <h3>KES {{ total_fees_collected|floatformat:0 }}</h3>
+                <p>Total Fees Collected</p>
+            </div>
+            <div class="icon"><i class="fas fa-coins"></i></div>
+            <a href="#" class="small-box-footer">All Schools <i class="fas fa-arrow-circle-right"></i></a>
+        </div>
+    </div>
+    <div class="col-lg-2 col-4">
+        <div class="small-box bg-info">
+            <div class="inner">
+                <h3>KES {{ subscription_revenue|floatformat:0 }}</h3>
+                <p>Subscription Revenue</p>
+            </div>
+            <div class="icon"><i class="fas fa-credit-card"></i></div>
+            <a href="{% url 'super_admin_manage_plans' %}" class="small-box-footer">Plans <i class="fas fa-arrow-circle-right"></i></a>
+        </div>
+    </div>
 </div>
 
 <!-- School Management -->

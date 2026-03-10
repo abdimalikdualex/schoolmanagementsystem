@@ -420,6 +420,14 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            {% url 'manage_expenses' as manage_expenses %}
+                            <a href="{{manage_expenses}}"
+                                class="nav-link  {% if manage_expenses == request.path %} active {% endif %}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Manage Expenses</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             {% url 'finance_term_report' as finance_term_report %}
                             <a href="{{finance_term_report}}"
                                 class="nav-link  {% if finance_term_report == request.path %} active {% endif %}">
@@ -876,7 +884,7 @@
                             </li>
 
                             {% elif request.user.user_type == '5' %}
-                            <!-- Finance Officer Panel -->
+                            <!-- Finance Officer Panel - Full control of all finance activities -->
                             <a href="{% url 'finance_dashboard' %}" class="brand-link">
                                 <img src="{% static 'dist/img/cmsl.png' %}" alt="Logo" class="brand-image img-circle elevation-3">
                                 <span class="brand-text font-weight-light">Finance Panel</span>
@@ -893,50 +901,101 @@
                                 <nav class="mt-2">
                                     <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
                                         <li class="nav-item">
-                                            {% url 'finance_dashboard' as finance_dashboard %}
-                                            <a href="{{ finance_dashboard }}" class="nav-link {% if finance_dashboard == request.path %} active {% endif %}">
+                                            <a href="{% url 'finance_dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'finance_dashboard' %}active{% endif %}">
                                                 <i class="nav-icon fas fa-chart-line"></i>
                                                 <p>Dashboard</p>
                                             </a>
                                         </li>
-                                        <li class="nav-item">
-                                            {% url 'manage_fee_structures' as manage_fee_structures %}
-                                            <a href="{{ manage_fee_structures }}" class="nav-link {% if manage_fee_structures == request.path %} active {% endif %}">
-                                                <i class="nav-icon fas fa-sitemap"></i>
-                                                <p>Fee Structure</p>
+                                        <li class="nav-item has-treeview">
+                                            <a href="#" class="nav-link">
+                                                <i class="nav-icon fas fa-wallet"></i>
+                                                <p>Fee Management <i class="fas fa-angle-left right"></i></p>
                                             </a>
+                                            <ul class="nav nav-treeview">
+                                                <li class="nav-item">
+                                                    <a href="{% url 'manage_fee_types' %}" class="nav-link {% if request.resolver_match.url_name == 'manage_fee_types' or request.resolver_match.url_name == 'edit_fee_type' %}active{% endif %}">
+                                                        <i class="far fa-circle nav-icon"></i>
+                                                        <p>Fee Types</p>
+                                                    </a>
+                                                </li>
+                                                <li class="nav-item">
+                                                    <a href="{% url 'manage_fee_groups' %}" class="nav-link {% if request.resolver_match.url_name == 'manage_fee_groups' or request.resolver_match.url_name == 'edit_fee_group' %}active{% endif %}">
+                                                        <i class="far fa-circle nav-icon"></i>
+                                                        <p>Fee Groups</p>
+                                                    </a>
+                                                </li>
+                                                <li class="nav-item">
+                                                    <a href="{% url 'manage_fee_structures' %}" class="nav-link {% if request.resolver_match.url_name == 'manage_fee_structures' %}active{% endif %}">
+                                                        <i class="far fa-circle nav-icon"></i>
+                                                        <p>Fee Structures</p>
+                                                    </a>
+                                                </li>
+                                                <li class="nav-item">
+                                                    <a href="{% url 'finance_student_billing' %}" class="nav-link {% if request.resolver_match.url_name == 'finance_student_billing' %}active{% endif %}">
+                                                        <i class="far fa-circle nav-icon"></i>
+                                                        <p>Student Billing</p>
+                                                    </a>
+                                                </li>
+                                                <li class="nav-item">
+                                                    <a href="{% url 'fee_collection' %}" class="nav-link {% if request.resolver_match.url_name == 'fee_collection' %}active{% endif %}">
+                                                        <i class="far fa-circle nav-icon"></i>
+                                                        <p>Record Payment</p>
+                                                    </a>
+                                                </li>
+                                            </ul>
                                         </li>
                                         <li class="nav-item">
-                                            {% url 'finance_student_billing' as finance_student_billing %}
-                                            <a href="{{ finance_student_billing }}" class="nav-link {% if finance_student_billing == request.path %} active {% endif %}">
-                                                <i class="nav-icon fas fa-file-invoice-dollar"></i>
-                                                <p>Student Billing</p>
+                                            <a href="{% url 'manage_expenses' %}" class="nav-link {% if 'expense' in request.resolver_match.url_name %}active{% endif %}">
+                                                <i class="nav-icon fas fa-receipt"></i>
+                                                <p>Manage Expenses</p>
                                             </a>
                                         </li>
-                                        <li class="nav-item">
-                                            {% url 'fee_collection' as fee_collection %}
-                                            <a href="{{ fee_collection }}" class="nav-link {% if fee_collection == request.path %} active {% endif %}">
-                                                <i class="nav-icon fas fa-money-bill"></i>
-                                                <p>Record Payment</p>
-                                            </a>
-                                        </li>
-                                        <li class="nav-item">
-                                            {% url 'finance_term_report' as finance_term_report %}
-                                            <a href="{{ finance_term_report }}" class="nav-link {% if finance_term_report == request.path %} active {% endif %}">
+                                        <li class="nav-item has-treeview">
+                                            <a href="#" class="nav-link">
                                                 <i class="nav-icon fas fa-chart-bar"></i>
-                                                <p>Reports</p>
+                                                <p>Reports <i class="fas fa-angle-left right"></i></p>
                                             </a>
+                                            <ul class="nav nav-treeview">
+                                                <li class="nav-item">
+                                                    <a href="{% url 'finance_term_report' %}" class="nav-link {% if request.resolver_match.url_name == 'finance_term_report' %}active{% endif %}">
+                                                        <i class="far fa-circle nav-icon"></i>
+                                                        <p>Term Revenue Report</p>
+                                                    </a>
+                                                </li>
+                                                <li class="nav-item">
+                                                    <a href="{% url 'finance_class_report' %}" class="nav-link {% if request.resolver_match.url_name == 'finance_class_report' %}active{% endif %}">
+                                                        <i class="far fa-circle nav-icon"></i>
+                                                        <p>Class Collection Report</p>
+                                                    </a>
+                                                </li>
+                                                <li class="nav-item">
+                                                    <a href="{% url 'finance_daily_report' %}" class="nav-link {% if request.resolver_match.url_name == 'finance_daily_report' %}active{% endif %}">
+                                                        <i class="far fa-circle nav-icon"></i>
+                                                        <p>Daily Collection Report</p>
+                                                    </a>
+                                                </li>
+                                                <li class="nav-item">
+                                                    <a href="{% url 'finance_expense_report' %}" class="nav-link {% if request.resolver_match.url_name == 'finance_expense_report' %}active{% endif %}">
+                                                        <i class="far fa-circle nav-icon"></i>
+                                                        <p>Expense Report</p>
+                                                    </a>
+                                                </li>
+                                            </ul>
                                         </li>
                                         <li class="nav-item">
-                                            {% url 'finance_defaulters' as finance_defaulters %}
-                                            <a href="{{ finance_defaulters }}" class="nav-link {% if finance_defaulters == request.path %} active {% endif %}">
+                                            <a href="{% url 'finance_defaulters' %}" class="nav-link {% if request.resolver_match.url_name == 'finance_defaulters' %}active{% endif %}">
                                                 <i class="nav-icon fas fa-user-times"></i>
-                                                <p>Defaulters</p>
+                                                <p>Fee Defaulters</p>
                                             </a>
                                         </li>
                                         <li class="nav-item">
-                                            {% url 'finance_profile' as finance_profile %}
-                                            <a href="{{ finance_profile }}" class="nav-link {% if finance_profile == request.path %} active {% endif %}">
+                                            <a href="{% url 'send_fee_reminders' %}" class="nav-link {% if request.resolver_match.url_name == 'send_fee_reminders' %}active{% endif %}">
+                                                <i class="nav-icon fas fa-bell"></i>
+                                                <p>Send SMS Reminders</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a href="{% url 'finance_profile' %}" class="nav-link {% if request.resolver_match.url_name == 'finance_profile' %}active{% endif %}">
                                                 <i class="nav-icon fas fa-address-card"></i>
                                                 <p>Profile</p>
                                             </a>

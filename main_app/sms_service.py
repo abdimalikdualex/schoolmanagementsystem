@@ -704,7 +704,7 @@ def send_payment_receipt_sms(payment, created_by=None):
             sent_phones.add(phone)
 
     # Send to parents
-    from .models import Parent
+    from .models import Parent, Guardian
     parents = Parent.objects.filter(children=student)
     parent_sent = False
     for parent in parents:

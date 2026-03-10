@@ -808,3 +808,17 @@ class SchoolSettingsForm(FormSettings):
         widgets = {
             'school_address': forms.Textarea(attrs={'rows': 3}),
         }
+
+
+# ============================================
+# EXPENSE FORM
+# ============================================
+
+class ExpenseForm(FormSettings):
+    class Meta:
+        model = Expense
+        fields = ['category', 'description', 'amount', 'expense_date', 'receipt_ref', 'notes']
+        widgets = {
+            'expense_date': DateInput(attrs={'type': 'date'}),
+            'notes': forms.Textarea(attrs={'rows': 2}),
+        }

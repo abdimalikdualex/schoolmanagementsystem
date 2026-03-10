@@ -1473,6 +1473,42 @@ class FeeBalance(models.Model):
         ordering = ['-session__start_year', 'student__admin__last_name']
 
 
+class Expense(models.Model):
+    """School expenses - per school for financial tracking."""
+    CATEGORY_CHOICES = [
+        ('salaries', 'Staff Salaries'),
+        ('supplies', 'School Supplies'),
+        ('maintenance', 'Maintenance'),
+        ('transport', 'Transport'),
+        ('utilities', 'Utilities'),
+        ('other', 'Other'),
+    ]
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, null=True, blank=True,
+        related_name='expenses', help_text="Null = legacy; required for multi-tenant"
+    )
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='other')
+    description = models.CharField(max_length=200)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    expense_date = models.DateField()
+    recorded_by = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='recorded_expenses'
+    )
+    receipt_ref = models.CharField(max_length=100, blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.description} - KES {self.amount} ({self.expense_date})"
+
+    class Meta:
+        ordering = ['-expense_date', '-created_at']
+        verbose_name = "Expense"
+        verbose_name_plural = "Expenses"
+
+
 # ============================================
 # EXAM & RESULT MODELS
 # ============================================

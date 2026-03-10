@@ -1,0 +1,94 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row mb-3">
+            <div class="col-12">
+                <form method="get" class="form-inline flex-wrap">
+                    <label class="mr-2">From:</label>
+                    <input type="date" name="date_from" class="form-control form-control-sm mr-2" value="{{ request.GET.date_from }}">
+                    <label class="mr-2">To:</label>
+                    <input type="date" name="date_to" class="form-control form-control-sm mr-2" value="{{ request.GET.date_to }}">
+                    <button type="submit" class="btn btn-sm btn-primary mr-2">Filter</button>
+                    <a href="{% url 'finance_dashboard' %}" class="btn btn-sm btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                    <button onclick="window.print()" class="btn btn-sm btn-info ml-2">
+                        <i class="fas fa-print"></i> Print
+                    </button>
+                </form>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card card-danger">
+                    <div class="card-header">
+                        <h3 class="card-title">Total Expenses</h3>
+                    </div>
+                    <div class="card-body">
+                        <h4>KES {{ total_expenses|floatformat:0 }}</h4>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">By Category</h3>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-sm">
+                            {% for row in by_category %}
+                            <tr>
+                                <td>{{ row.category_display }}</td>
+                                <td class="text-right">KES {{ row.total|floatformat:0 }}</td>
+                                <td><span class="badge badge-secondary">{{ row.count }}</span></td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="text-center">No expenses</td></tr>
+                            {% endfor %}
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Expense Details</h3>
+                        <div class="card-tools">
+                            <a href="{% url 'manage_expenses' %}" class="btn btn-sm btn-success">Manage Expenses</a>
+                        </div>
+                    </div>
+                    <div class="card-body table-responsive p-0">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Category</th>
+                                    <th>Description</th>
+                                    <th class="text-right">Amount</th>
+                                    <th>Recorded By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for exp in expenses %}
+                                <tr>
+                                    <td>{{ exp.expense_date|date:"d/m/Y" }}</td>
+                                    <td>{{ exp.get_category_display }}</td>
+                                    <td>{{ exp.description }}</td>
+                                    <td class="text-right">KES {{ exp.amount|floatformat:2 }}</td>
+                                    <td>{{ exp.recorded_by.get_full_name|default:"-" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="5" class="text-center">No expenses recorded.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock content %}
