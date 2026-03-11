@@ -32,7 +32,7 @@ DEBUG = config("DEBUG", default=True, cast=bool)
 # Add your Render domain here for deployment
 ALLOWED_HOSTS = config(
     "ALLOWED_HOSTS",
-    default="127.0.0.1,localhost,schoolmanagementsystem-rr6g.onrender.com"
+    default="127.0.0.1,localhost,schoolmanagementsystem-rr6g.onrender.com,abdimalikduale.com,www.abdimalikduale.com"
 ).split(",")
 
 # -------------------------------
@@ -164,7 +164,7 @@ CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = "Lax"
 
 # Ensure Render domain and localhost are trusted for CSRF
-_default_origins = "https://schoolmanagementsystem-rr6g.onrender.com,http://127.0.0.1:8000,http://localhost:8000"
+_default_origins = "https://schoolmanagementsystem-rr6g.onrender.com,https://abdimalikduale.com,https://www.abdimalikduale.com,http://127.0.0.1:8000,http://localhost:8000"
 CSRF_TRUSTED_ORIGINS = [x.strip() for x in config("CSRF_TRUSTED_ORIGINS", default=_default_origins).split(",") if x.strip()]
 
 SESSION_SAVE_EVERY_REQUEST = True
