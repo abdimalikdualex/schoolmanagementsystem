@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.db import transaction
 from django.db.models import Q, Sum, Count, Avg
 from django.utils import timezone
 
@@ -509,31 +510,32 @@ def knec_enter_marks(request):
         school_class = get_object_or_404(Course, id=class_id, school=school)
         subject = get_object_or_404(Subject, id=subject_id, course=school_class)
 
-        for key, val in request.POST.items():
-            if key.startswith('opener_') or key.startswith('midterm_') or key.startswith('endterm_'):
-                parts = key.split('_')
-                if len(parts) >= 2:
-                    exam_type = parts[0]
-                    sid = parts[1]
-                    try:
-                        student = Student.objects.get(id=sid, admin__school=school)
-                    except (Student.DoesNotExist, ValueError):
-                        continue
-                    try:
-                        v = float(val) if val else 0
-                    except ValueError:
-                        v = 0
-                    result, _ = KNECReportCardResult.objects.get_or_create(
-                        student=student, subject=subject, academic_term=academic_term,
-                        defaults={'opener_marks': 0, 'midterm_marks': 0, 'endterm_marks': 0}
-                    )
-                    if exam_type == 'opener':
-                        result.opener_marks = v
-                    elif exam_type == 'midterm':
-                        result.midterm_marks = v
-                    elif exam_type == 'endterm':
-                        result.endterm_marks = v
-                    result.save()
+        with transaction.atomic():
+            for key, val in request.POST.items():
+                if key.startswith('opener_') or key.startswith('midterm_') or key.startswith('endterm_'):
+                    parts = key.split('_')
+                    if len(parts) >= 2:
+                        exam_type = parts[0]
+                        sid = parts[1]
+                        try:
+                            student = Student.objects.get(id=sid, admin__school=school)
+                        except (Student.DoesNotExist, ValueError):
+                            continue
+                        try:
+                            v = float(val) if val else 0
+                        except ValueError:
+                            v = 0
+                        result, _ = KNECReportCardResult.objects.get_or_create(
+                            student=student, subject=subject, academic_term=academic_term,
+                            defaults={'opener_marks': 0, 'midterm_marks': 0, 'endterm_marks': 0}
+                        )
+                        if exam_type == 'opener':
+                            result.opener_marks = v
+                        elif exam_type == 'midterm':
+                            result.midterm_marks = v
+                        elif exam_type == 'endterm':
+                            result.endterm_marks = v
+                        result.save()
         messages.success(request, "Marks saved successfully.")
         return redirect(reverse('knec_enter_marks') + f'?term={term_id}&course={class_id}&subject={subject_id}')
 

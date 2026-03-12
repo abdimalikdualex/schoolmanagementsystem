@@ -675,23 +675,24 @@ def edit_staff(request, staff_id):
             course = form.cleaned_data.get('course')
             passport = request.FILES.get('profile_pic') or None
             try:
-                user = CustomUser.objects.get(id=staff.admin.id)
-                user.username = username
-                user.email = email
-                if password != None:
-                    user.set_password(password)
-                if passport != None:
-                    fs = FileSystemStorage()
-                    filename = fs.save(passport.name, passport)
-                    passport_url = fs.url(filename)
-                    user.profile_pic = passport_url
-                user.first_name = first_name
-                user.last_name = last_name
-                user.gender = gender
-                user.address = address
-                staff.course = course
-                user.save()
-                staff.save()
+                with transaction.atomic():
+                    user = CustomUser.objects.get(id=staff.admin.id)
+                    user.username = username
+                    user.email = email
+                    if password != None:
+                        user.set_password(password)
+                    if passport != None:
+                        fs = FileSystemStorage()
+                        filename = fs.save(passport.name, passport)
+                        passport_url = fs.url(filename)
+                        user.profile_pic = passport_url
+                    user.first_name = first_name
+                    user.last_name = last_name
+                    user.gender = gender
+                    user.address = address
+                    staff.course = course
+                    user.save()
+                    staff.save()
                 messages.success(request, "Successfully Updated")
                 return redirect(reverse('edit_staff', args=[staff_id]))
             except Exception as e:
@@ -724,25 +725,34 @@ def edit_student(request, student_id):
             course = form.cleaned_data.get('course')
             session = form.cleaned_data.get('session')
             passport = request.FILES.get('profile_pic') or None
+            # Validate course belongs to school
+
+            if course and school:
+                from .safe_update_utils import validate_course_belongs_to_school
+                valid, err = validate_course_belongs_to_school(course, school)
+                if not valid:
+                    messages.error(request, err)
+                    return render(request, "hod_template/edit_student_template.html", context)
             try:
-                user = CustomUser.objects.get(id=student.admin.id)
-                if passport != None:
-                    fs = FileSystemStorage()
-                    filename = fs.save(passport.name, passport)
-                    passport_url = fs.url(filename)
-                    user.profile_pic = passport_url
-                user.username = username
-                user.email = email
-                if password != None:
-                    user.set_password(password)
-                user.first_name = first_name
-                user.last_name = last_name
-                student.session = session
-                user.gender = gender
-                user.address = address
-                student.course = course
-                user.save()
-                student.save()
+                with transaction.atomic():
+                    user = CustomUser.objects.get(id=student.admin.id)
+                    if passport != None:
+                        fs = FileSystemStorage()
+                        filename = fs.save(passport.name, passport)
+                        passport_url = fs.url(filename)
+                        user.profile_pic = passport_url
+                    user.username = username
+                    user.email = email
+                    if password != None:
+                        user.set_password(password)
+                    user.first_name = first_name
+                    user.last_name = last_name
+                    student.session = session
+                    user.gender = gender
+                    user.address = address
+                    student.course = course
+                    user.save()
+                    student.save()
                 messages.success(request, "Successfully Updated")
                 return redirect(reverse('edit_student', args=[student_id]))
             except Exception as e:
@@ -770,11 +780,12 @@ def edit_course(request, course_id):
     if request.method == 'POST':
         if form.is_valid():
             try:
-                course = form.save(commit=False)
-                # Auto-generate name if grade_level and stream are selected
-                if course.grade_level and course.stream:
-                    course.name = f"{course.grade_level.code} {course.stream.name}"
-                course.save()
+                with transaction.atomic():
+                    course = form.save(commit=False)
+                    # Auto-generate name if grade_level and stream are selected
+                    if course.grade_level and course.stream:
+                        course.name = f"{course.grade_level.code} {course.stream.name}"
+                    course.save()
                 messages.success(request, "Class Updated Successfully")
             except Exception as e:
                 messages.error(request, f"Could Not Update: {str(e)}")
@@ -800,15 +811,15 @@ def edit_subject(request, subject_id):
             course = form.cleaned_data.get('course')
             staff = form.cleaned_data.get('staff')
             try:
-                subject = Subject.objects.get(id=subject_id)
-                subject.name = name
-                subject.staff = staff
-                subject.course = course
-                subject.save()
+                with transaction.atomic():
+                    instance.name = name
+                    instance.staff = staff
+                    instance.course = course
+                    instance.save()
                 messages.success(request, "Successfully Updated")
                 return redirect(reverse('edit_subject', args=[subject_id]))
             except Exception as e:
-                messages.error(request, "Could Not Add " + str(e))
+                messages.error(request, "Could Not Update " + str(e))
         else:
             messages.error(request, "Fill Form Properly")
     return render(request, 'hod_template/edit_subject_template.html', context)
@@ -1378,15 +1389,15 @@ def admin_edit_result(request):
             subject = get_object_or_404(subject_qs, id=subject_id)
             
             try:
-                result = StudentResult.objects.get(student=student, subject=subject)
-                result.test = test
-                result.exam = exam
-                result.save()
-                messages.success(request, "Result Updated Successfully")
-            except StudentResult.DoesNotExist:
-                result = StudentResult(student=student, subject=subject, test=test, exam=exam)
-                result.save()
-                messages.success(request, "Result Added Successfully")
+                with transaction.atomic():
+                    result, created = StudentResult.objects.update_or_create(
+                        student=student,
+                        subject=subject,
+                        defaults={'test': test, 'exam': exam}
+                    )
+                messages.success(request, "Result Updated Successfully" if not created else "Result Added Successfully")
+            except Exception as e:
+                messages.error(request, f"Error: {str(e)}")
             
             return redirect(reverse('admin_edit_result'))
         except Exception as e:
@@ -2867,8 +2878,9 @@ def edit_class(request, class_id=None, course_id=None):
         staff_id = request.POST.get('subject_teacher')
         if subj_name and staff_id:
             try:
-                staff = Staff.objects.get(id=staff_id, admin__school=school) if school else Staff.objects.get(id=staff_id)
-                Subject.objects.create(name=subj_name, staff=staff, course=school_class)
+                with transaction.atomic():
+                    staff = Staff.objects.get(id=staff_id, admin__school=school) if school else Staff.objects.get(id=staff_id)
+                    Subject.objects.create(name=subj_name, staff=staff, course=school_class)
                 messages.success(request, f"Subject '{subj_name}' added successfully!")
             except Staff.DoesNotExist:
                 messages.error(request, "Invalid teacher selected.")
@@ -2881,11 +2893,12 @@ def edit_class(request, class_id=None, course_id=None):
     if request.method == 'POST' and request.POST.get('action') != 'add_subject':
         if form.is_valid():
             try:
-                updated_class = form.save(commit=False)
-                # Auto-generate name if grade_level and stream are selected
-                if updated_class.grade_level and updated_class.stream:
-                    updated_class.name = f"{updated_class.grade_level.code} {updated_class.stream.name}"
-                updated_class.save()
+                with transaction.atomic():
+                    updated_class = form.save(commit=False)
+                    # Auto-generate name if grade_level and stream are selected
+                    if updated_class.grade_level and updated_class.stream:
+                        updated_class.name = f"{updated_class.grade_level.code} {updated_class.stream.name}"
+                    updated_class.save()
                 messages.success(request, "Class updated successfully!")
                 return redirect(reverse('manage_classes'))
             except Exception as e:
@@ -4060,28 +4073,29 @@ def fee_collection(request):
             school_settings = get_school_settings(school=getattr(request, 'school', None))
             receipt_number = school_settings.get_next_receipt_number()
 
-            # Create payment record
-            payment = FeePayment.objects.create(
-                student=student,
-                session=session,
-                amount=amount,
-                payment_mode=payment_mode,
-                receipt_number=receipt_number,
-                transaction_ref=transaction_ref,
-                payment_date=timezone.now(),
-                received_by=request.user,
-                paid_by=paid_by,
-                description=description
-            )
-            
-            # Update fee balance
-            fee_balance, created = FeeBalance.objects.get_or_create(
-                student=student,
-                session=session,
-                defaults={'total_fees': 0}
-            )
-            fee_balance.update_balance()
-            
+            with transaction.atomic():
+                # Create payment record
+                payment = FeePayment.objects.create(
+                    student=student,
+                    session=session,
+                    amount=amount,
+                    payment_mode=payment_mode,
+                    receipt_number=receipt_number,
+                    transaction_ref=transaction_ref,
+                    payment_date=timezone.now(),
+                    received_by=request.user,
+                    paid_by=paid_by,
+                    description=description
+                )
+
+                # Update fee balance
+                fee_balance, created = FeeBalance.objects.get_or_create(
+                    student=student,
+                    session=session,
+                    defaults={'total_fees': 0}
+                )
+                fee_balance.update_balance()
+
             # Send receipt SMS
             send_payment_receipt_sms(payment, created_by=request.user)
             
@@ -4888,54 +4902,54 @@ def enter_exam_results(request):
             except TeacherResultSubmission.DoesNotExist:
                 pass
 
-        for key, val in request.POST.items():
-            if key.startswith('opener_') or key.startswith('midterm_') or key.startswith('endterm_'):
-                parts = key.split('_')
-                if len(parts) >= 2:
-                    exam_type = parts[0]
-                    sid = parts[1]
+        with transaction.atomic():
+            for key, val in request.POST.items():
+                if key.startswith('opener_') or key.startswith('midterm_') or key.startswith('endterm_'):
+                    parts = key.split('_')
+                    if len(parts) >= 2:
+                        exam_type = parts[0]
+                        sid = parts[1]
+                        try:
+                            student = Student.objects.get(id=sid, admin__school=school)
+                        except (Student.DoesNotExist, ValueError):
+                            continue
+                        try:
+                            v = min(100, max(0, float(val) if val else 0))
+                        except ValueError:
+                            v = 0
+                        result, _ = KNECReportCardResult.objects.get_or_create(
+                            student=student, subject=subject, academic_term=academic_term,
+                            defaults={'opener_marks': 0, 'midterm_marks': 0, 'endterm_marks': 0}
+                        )
+                        if exam_type == 'opener':
+                            result.opener_marks = v
+                        elif exam_type == 'midterm':
+                            result.midterm_marks = v
+                        elif exam_type == 'endterm':
+                            result.endterm_marks = v
+                        result.save()
+                elif key.startswith('comment_'):
+                    sid = key.replace('comment_', '')
                     try:
                         student = Student.objects.get(id=sid, admin__school=school)
+                        result = KNECReportCardResult.objects.filter(
+                            student=student, subject=subject, academic_term=academic_term
+                        ).first()
+                        if result:
+                            result.teacher_comment_override = request.POST.get(key, '').strip() or None
+                            result.save()
                     except (Student.DoesNotExist, ValueError):
-                        continue
-                    try:
-                        v = min(100, max(0, float(val) if val else 0))
-                    except ValueError:
-                        v = 0
-                    result, _ = KNECReportCardResult.objects.get_or_create(
-                        student=student, subject=subject, academic_term=academic_term,
-                        defaults={'opener_marks': 0, 'midterm_marks': 0, 'endterm_marks': 0}
-                    )
-                    if exam_type == 'opener':
-                        result.opener_marks = v
-                    elif exam_type == 'midterm':
-                        result.midterm_marks = v
-                    elif exam_type == 'endterm':
-                        result.endterm_marks = v
-                    result.save()
-            elif key.startswith('comment_'):
-                sid = key.replace('comment_', '')
-                try:
-                    student = Student.objects.get(id=sid, admin__school=school)
-                    result = KNECReportCardResult.objects.filter(
-                        student=student, subject=subject, academic_term=academic_term
-                    ).first()
-                    if result:
-                        result.teacher_comment_override = request.POST.get(key, '').strip() or None
-                        result.save()
-                except (Student.DoesNotExist, ValueError):
-                    pass
+                        pass
 
-        # Ensure TeacherResultSubmission exists with status='draft' when marks are saved
-        # Use subject's teacher (subject.staff) so submission status tracks the right person
-        if subject:
-            TeacherResultSubmission.objects.get_or_create(
-                staff=subject.staff,
-                subject=subject,
-                academic_term=academic_term,
-                school_class=school_class,
-                defaults={'status': 'draft'}
-            )
+            # Ensure TeacherResultSubmission exists with status='draft' when marks are saved
+            if subject:
+                TeacherResultSubmission.objects.get_or_create(
+                    staff=subject.staff,
+                    subject=subject,
+                    academic_term=academic_term,
+                    school_class=school_class,
+                    defaults={'status': 'draft'}
+                )
 
         messages.success(request, "Marks saved successfully.")
         return redirect(reverse('enter_exam_results') + f'?term={term_id}&course={class_id}&subject={subject_id}')
@@ -5224,7 +5238,8 @@ def admin_unlock_teacher_submission(request):
 
 def enter_cat_marks(request):
     """MVP: Enter Continuous Assessment (CAT) marks"""
-    active_term = AcademicTerm.get_active_term(school=getattr(request, 'school', None))
+    school = getattr(request, 'school', None)
+    active_term = AcademicTerm.get_active_term(school=school)
     if request.method == 'POST':
         if active_term and active_term.is_locked:
             messages.error(request, "Term is closed. CAT marks cannot be edited.")
@@ -5232,25 +5247,28 @@ def enter_cat_marks(request):
         subject_id = request.POST.get('subject')
         assessment_name = request.POST.get('assessment_name', 'CAT 1')
         max_marks = float(request.POST.get('max_marks', 100))
-        subject = get_object_or_404(Subject, id=subject_id)
+        subject_qs = Subject.objects.filter(course__school=school) if school else Subject.objects.all()
+        subject = get_object_or_404(subject_qs, id=subject_id)
         students = Student.objects.filter(course=subject.course)
         saved = 0
-        for student in students:
-            key = f'cat_{student.id}'
-            if key in request.POST and request.POST[key]:
-                marks = float(request.POST[key])
-                ContinuousAssessment.objects.update_or_create(
-                    student=student,
-                    subject=subject,
-                    term=active_term,
-                    assessment_name=assessment_name,
-                    defaults={'marks': marks, 'max_marks': max_marks, 'entered_by': request.user}
-                )  # Multiple CATs per term: CAT 1, CAT 2, etc.
-                saved += 1
+        with transaction.atomic():
+            for student in students:
+                key = f'cat_{student.id}'
+                if key in request.POST and request.POST[key]:
+                    marks = float(request.POST[key])
+                    ContinuousAssessment.objects.update_or_create(
+                        student=student,
+                        subject=subject,
+                        term=active_term,
+                        assessment_name=assessment_name,
+                        defaults={'marks': marks, 'max_marks': max_marks, 'entered_by': request.user}
+                    )  # Multiple CATs per term: CAT 1, CAT 2, etc.
+                    saved += 1
         messages.success(request, f"Saved CAT marks for {saved} students")
         return redirect('enter_cat_marks')
+    subjects_qs = Subject.objects.filter(course__school=school) if school else Subject.objects.all()
     context = {
-        'subjects': Subject.objects.all().select_related('course', 'staff'),
+        'subjects': subjects_qs.select_related('course', 'staff'),
         'active_term': active_term,
         'page_title': 'Enter CAT Marks'
     }
