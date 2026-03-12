@@ -5,6 +5,12 @@
 {% block content %}
 <section class="content">
     <div class="container-fluid">
+        {% if not reportlab_available %}
+        <div class="alert alert-danger alert-dismissible">
+            <button type="button" class="close" data-dismiss="alert">&times;</button>
+            <i class="fas fa-exclamation-triangle"></i> PDF export requires reportlab. Install with: <code>pip install reportlab</code> then restart the server.
+        </div>
+        {% endif %}
         <div class="row">
             <div class="col-md-12">
                 <div class="card">
@@ -42,11 +48,74 @@
                             <button type="submit" class="btn btn-info btn-sm"><i class="fas fa-search"></i> Load</button>
                         </form>
 
+                        {% if class_stats %}
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <div class="card card-primary card-outline">
+                                    <div class="card-header">
+                                        <h4 class="card-title"><i class="fas fa-chart-bar"></i> Class & Term Stats</h4>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-3">
+                                                <div class="info-box bg-info">
+                                                    <span class="info-box-icon"><i class="fas fa-calculator"></i></span>
+                                                    <div class="info-box-content">
+                                                        <span class="info-box-text">Overall Class Avg</span>
+                                                        <span class="info-box-number">{{ class_stats.overall_class_avg }}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="info-box bg-success">
+                                                    <span class="info-box-icon"><i class="fas fa-check"></i></span>
+                                                    <div class="info-box-content">
+                                                        <span class="info-box-text">Passing</span>
+                                                        <span class="info-box-number">{{ class_stats.pass_count }} ({{ class_stats.pass_pct }}%)</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="info-box bg-danger">
+                                                    <span class="info-box-icon"><i class="fas fa-times"></i></span>
+                                                    <div class="info-box-content">
+                                                        <span class="info-box-text">Failing</span>
+                                                        <span class="info-box-number">{{ class_stats.fail_count }} ({{ class_stats.fail_pct }}%)</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="info-box bg-secondary">
+                                                    <span class="info-box-icon"><i class="fas fa-users"></i></span>
+                                                    <div class="info-box-content">
+                                                        <span class="info-box-text">Students w/ Results</span>
+                                                        <span class="info-box-number">{{ class_stats.total_students_with_results }}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% if class_stats.subject_averages %}
+                                        <div class="mt-3">
+                                            <strong>Subject Averages:</strong>
+                                            <div class="d-flex flex-wrap">
+                                                {% for s in class_stats.subject_averages %}
+                                                <span class="badge badge-light mr-2 mb-1">{{ s.subject__name }}: {{ s.avg_marks|floatformat:0 }}</span>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
                         {% if students %}
                         <table class="table table-bordered table-hover">
                             <thead class="thead-dark">
                                 <tr>
                                     <th>#</th>
+                                    <th>Rank</th>
                                     <th>Student Name</th>
                                     <th>Admission No</th>
                                     <th>Has Results</th>
@@ -57,6 +126,7 @@
                                 {% for item in students %}
                                 <tr>
                                     <td>{{ forloop.counter }}</td>
+                                    <td>{{ item.position_in_class|default:"-" }}{% if item.total_in_class %}/{{ item.total_in_class }}{% endif %}</td>
                                     <td>{{ item.student.admin.last_name }}, {{ item.student.admin.first_name }}</td>
                                     <td>{{ item.student.admission_number|default:"-" }}</td>
                                     <td>

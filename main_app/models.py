@@ -1739,21 +1739,18 @@ class ExamResult(models.Model):
         return f"{self.student} - {self.subject} - {self.marks}"
 
     def calculate_grade(self):
-        """Auto-calculate grade based on grading scale"""
-        scale = GradingScale.objects.filter(
-            min_marks__lte=self.marks,
-            max_marks__gte=self.marks,
-            is_active=True
-        ).first()
-        if scale:
-            self.grade = scale.grade
-            self.points = scale.points
-            self.remarks = scale.remarks
+        """Auto-calculate grade based on school's grading scale (or fallback)."""
+        from .grade_utils import get_grade_for_marks
+        school = getattr(self.student.admin, 'school', None) if self.student_id else None
+        g, p, r = get_grade_for_marks(self.marks, school)
+        if g:
+            self.grade = g
+            self.points = p
+            self.remarks = r
         return self.grade
 
     def save(self, *args, **kwargs):
-        if not self.grade:
-            self.calculate_grade()
+        self.calculate_grade()  # Always recalc so grades update when marks change
         super().save(*args, **kwargs)
 
     class Meta:
@@ -1781,6 +1778,7 @@ class StudentTermResult(models.Model):
 
     def calculate_aggregates(self):
         """Calculate total, average, and mean grade"""
+        from .grade_utils import get_mean_grade_from_points_school
         results = ExamResult.objects.filter(
             student=self.student,
             exam_schedule=self.exam_schedule
@@ -1789,14 +1787,9 @@ class StudentTermResult(models.Model):
             self.total_marks = sum(r.marks for r in results)
             self.average_marks = self.total_marks / results.count()
             self.total_points = sum(r.points for r in results)
-            # Calculate mean grade
             mean_points = self.total_points / results.count()
-            scale = GradingScale.objects.filter(
-                points__lte=mean_points,
-                is_active=True
-            ).order_by('-points').first()
-            if scale:
-                self.mean_grade = scale.grade
+            school = getattr(self.student.admin, 'school', None) if self.student_id else None
+            self.mean_grade = get_mean_grade_from_points_school(mean_points, school)
         self.save()
 
     class Meta:
@@ -1866,13 +1859,14 @@ class KNECReportCardResult(models.Model):
         return '-'
 
     def calculate_average_and_grade(self):
-        """Calculate average and KNEC grade from opener, midterm, endterm."""
-        from .knec_utils import get_knec_grade
+        """Calculate average and grade from opener, midterm, endterm. Uses school's GradingScale when configured."""
+        from .grade_utils import get_grade_for_marks
         o = self.opener_marks or 0
         m = self.midterm_marks or 0
         e = self.endterm_marks or 0
-        self.average = round((o + m + e) / 3, 1)  # KCSE: (Opener + Midterm + Endterm) / 3, 1 decimal
-        self.grade, self.points, self.remarks = get_knec_grade(self.average)
+        self.average = round((o + m + e) / 3, 1)  # (Opener + Midterm + Endterm) / 3.
+        school = getattr(self.student.admin, 'school', None) if self.student_id else None
+        self.grade, self.points, self.remarks = get_grade_for_marks(self.average, school)
 
     def save(self, *args, **kwargs):
         self.calculate_average_and_grade()

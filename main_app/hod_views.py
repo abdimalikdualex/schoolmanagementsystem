@@ -112,12 +112,23 @@ def admin_home(request):
         student_attendance_leave_list.append(leave+absent)
         student_name_list.append(student.admin.first_name)
 
+    # Results stats (KNEC report cards)
+    from .models import KNECReportCardResult, AcademicTerm
+    results_count = 0
+    terms_with_results = 0
+    if school:
+        results_count = KNECReportCardResult.objects.filter(student__admin__school=school).count()
+        term_ids = KNECReportCardResult.objects.filter(student__admin__school=school).values_list('academic_term_id', flat=True).distinct()
+        terms_with_results = len(set(term_ids))
+
     # Onboarding: show setup steps when school has no data
     is_new_school = school and total_students == 0 and total_staff == 0 and total_course == 0
     context = {
         'page_title': "Administrative Dashboard",
         'is_new_school': is_new_school,
         'total_students': total_students,
+        'results_count': results_count,
+        'terms_with_results': terms_with_results,
         'total_staff': total_staff,
         'total_course': total_course,
         'total_subject': total_subject,
@@ -4747,6 +4758,33 @@ def manage_result_entry(request):
     return render(request, 'hod_template/manage_result_entry.html', context)
 
 
+def seed_default_grading_scale(request):
+    """Add default 5-grade scale (80-100 A, 70-79 B, 60-69 C, 50-59 D, <50 E) for school."""
+    school = getattr(request, 'school', None)
+    if not school:
+        messages.warning(request, "School context required.")
+        return redirect('manage_grading_scale')
+    existing = GradingScale.objects.filter(school=school, is_active=True).count()
+    if existing > 0:
+        messages.info(request, "You already have grading scale entries. Add or edit manually.")
+        return redirect('manage_grading_scale')
+    defaults = [
+        (80, 100, 'A', 12, 'Excellent'),
+        (70, 79, 'B', 10, 'Very Good'),
+        (60, 69, 'C', 8, 'Good'),
+        (50, 59, 'D', 6, 'Fair'),
+        (0, 49, 'E', 4, 'Needs Improvement'),
+    ]
+    for min_m, max_m, grade, points, remarks in defaults:
+        GradingScale.objects.create(
+            school=school, name='Standard MVP',
+            min_marks=min_m, max_marks=max_m,
+            grade=grade, points=points, remarks=remarks, is_active=True
+        )
+    messages.success(request, "Default grading scale added (A 80-100, B 70-79, C 60-69, D 50-59, E 0-49).")
+    return redirect('manage_grading_scale')
+
+
 def manage_grading_scale(request):
     """Manage grading scale (school-scoped)"""
     school = getattr(request, 'school', None)
@@ -4763,9 +4801,11 @@ def manage_grading_scale(request):
         form = GradingScaleForm()
     
     grading_scales = GradingScale.objects.filter(school=school) if school else GradingScale.objects.all()
+    has_scale = grading_scales.filter(is_active=True).exists()
     context = {
         'form': form,
         'grading_scales': grading_scales,
+        'has_scale': has_scale,
         'page_title': 'Manage Grading Scale'
     }
     return render(request, 'hod_template/manage_grading_scale.html', context)
@@ -5343,15 +5383,12 @@ def print_result_slip(request, student_id, exam_schedule_id):
         total_points += result.points
     
     # Summary row
+    from .grade_utils import get_mean_grade_from_points_school
     mean_grade = '-'
     if total_subjects > 0:
         mean_points = total_points / total_subjects
-        scale = GradingScale.objects.filter(
-            points__lte=mean_points,
-            is_active=True
-        ).order_by('-points').first()
-        if scale:
-            mean_grade = scale.grade
+        school_obj = getattr(request, 'school', None) or (student.admin.school if student.admin_id else None)
+        mean_grade = get_mean_grade_from_points_school(mean_points, school_obj)
     
     results_data.append(['Total', f"{total_marks:.0f}", '', f"{total_points:.1f}", ''])
     results_data.append(['Average', f"{average:.1f}", mean_grade, f"{total_points/total_subjects:.1f}" if total_subjects else '-', ''])

@@ -377,6 +377,7 @@ urlpatterns = [
     path("exams/schedules/", hod_views.manage_exam_schedules, name='manage_exam_schedules'),
     path("exams/result-entry/", hod_views.manage_result_entry, name='manage_result_entry'),
     path("exams/grading-scale/", hod_views.manage_grading_scale, name='manage_grading_scale'),
+    path("exams/grading-scale/seed-default/", hod_views.seed_default_grading_scale, name='seed_default_grading_scale'),
     path("exams/grading-scale/edit/<int:scale_id>/", hod_views.edit_grading_scale, name='edit_grading_scale'),
     path("exams/grading-scale/delete/<int:scale_id>/", hod_views.delete_grading_scale, name='delete_grading_scale'),
     path("exams/results/enter/", hod_views.enter_exam_results, name='enter_exam_results'),

@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.db.models import Q, Sum, Count
+from django.db.models import Q, Sum, Count, Avg
 from django.utils import timezone
 
 from .models import (
@@ -15,6 +15,7 @@ from .models import (
     SchoolSettings, School
 )
 from .knec_utils import get_knec_grade, get_mean_grade_from_points
+from .grade_utils import get_grade_for_marks, get_mean_grade_from_points_school
 from .sms_service import get_school_settings
 
 try:
@@ -79,6 +80,21 @@ def report_card_list(request):
             enrollments = enrollments.filter(
                 Q(term=selected_term) | Q(academic_year__academic_year=selected_term.academic_year)
             )
+        # Compute rankings (position in class by total points)
+        student_ids = [e.student_id for e in enrollments]
+        rank_data = list(
+            KNECReportCardResult.objects.filter(
+                student_id__in=student_ids,
+                academic_term=selected_term
+            ).values('student_id')
+            .annotate(total_points=Sum('points'))
+        )
+        rank_map = {sid: 0 for sid in student_ids}
+        for r in rank_data:
+            rank_map[r['student_id']] = r['total_points'] or 0
+        sorted_students = sorted(rank_map.items(), key=lambda x: x[1], reverse=True)
+        position_map = {sid: i + 1 for i, (sid, _) in enumerate(sorted_students)}
+
         for enr in enrollments:
             results = KNECReportCardResult.objects.filter(
                 student=enr.student, academic_term=selected_term
@@ -88,7 +104,15 @@ def report_card_list(request):
                 'student': enr.student,
                 'has_results': results > 0,
                 'result_count': results,
+                'position_in_class': position_map.get(enr.student_id),
+                'total_in_class': len(enrollments),
             })
+
+        # Class & term averages, pass/fail stats
+        class_stats = _compute_class_term_stats(selected_class, selected_term, school, enrollments)
+
+    else:
+        class_stats = None
 
     context = {
         'page_title': 'Report Cards',
@@ -99,8 +123,64 @@ def report_card_list(request):
         'selected_class': selected_class,
         'term_id': term_id,
         'class_id': class_id,
+        'class_stats': class_stats,
+        'reportlab_available': REPORTLAB_AVAILABLE,
     }
     return render(request, 'hod_template/report_card_list.html', context)
+
+
+def _compute_class_term_stats(school_class, academic_term, school, enrollments):
+    """Compute class averages, subject averages, and pass/fail percentages."""
+    student_ids = [e.student_id for e in enrollments]
+    results_qs = KNECReportCardResult.objects.filter(
+        student_id__in=student_ids,
+        academic_term=academic_term
+    ).select_related('subject')
+
+    # Per-subject class average
+    subject_avgs = list(
+        results_qs.values('subject__name', 'subject_id')
+        .annotate(avg_marks=Avg('average'))
+        .order_by('subject__name')
+    )
+
+    # Per-student total average (for pass/fail)
+    student_totals = {}
+    for r in results_qs:
+        sid = r.student_id
+        if sid not in student_totals:
+            student_totals[sid] = []
+        student_totals[sid].append(r.average or 0)
+
+    pass_count = 0
+    fail_count = 0
+    total_avg_sum = 0
+    student_count_with_results = 0
+    for sid, avgs in student_totals.items():
+        if not avgs:
+            continue
+        mean = sum(avgs) / len(avgs)
+        total_avg_sum += mean
+        student_count_with_results += 1
+        if mean >= 50:
+            pass_count += 1
+        else:
+            fail_count += 1
+
+    overall_class_avg = round(total_avg_sum / student_count_with_results, 1) if student_count_with_results else 0
+    total_students = pass_count + fail_count
+    pass_pct = round(100 * pass_count / total_students, 1) if total_students else 0
+    fail_pct = round(100 * fail_count / total_students, 1) if total_students else 0
+
+    return {
+        'overall_class_avg': overall_class_avg,
+        'subject_averages': subject_avgs,
+        'pass_count': pass_count,
+        'fail_count': fail_count,
+        'pass_pct': pass_pct,
+        'fail_pct': fail_pct,
+        'total_students_with_results': total_students,
+    }
 
 
 def _build_report_card_context(student, academic_term, school):
@@ -116,9 +196,9 @@ def _build_report_card_context(student, academic_term, school):
     results = []
     total_opener = total_midterm = total_endterm = total_avg = 0
     for r in results_qs:
-        og, _, _ = get_knec_grade(r.opener_marks or 0)
-        mg, _, _ = get_knec_grade(r.midterm_marks or 0)
-        eg, _, _ = get_knec_grade(r.endterm_marks or 0)
+        og, _, _ = get_grade_for_marks(r.opener_marks or 0, school)
+        mg, _, _ = get_grade_for_marks(r.midterm_marks or 0, school)
+        eg, _, _ = get_grade_for_marks(r.endterm_marks or 0, school)
         results.append({
             'subject': r.subject,
             'opener_marks': r.opener_marks or 0,
@@ -139,14 +219,14 @@ def _build_report_card_context(student, academic_term, school):
 
     total_subjects = len(results)
     mean_score = round((sum(r['average'] for r in results) / total_subjects), 2) if total_subjects else 0
-    total_points = sum(get_knec_grade(r['average'])[1] for r in results) if results else 0
-    mean_grade = get_mean_grade_from_points(total_points / total_subjects) if total_subjects else 'E'
+    total_points = sum(get_grade_for_marks(r['average'], school)[1] for r in results) if results else 0
+    mean_grade = get_mean_grade_from_points_school(total_points / total_subjects, school) if total_subjects else 'E'
     avg_opener = round(total_opener / total_subjects, 2) if total_subjects else 0
     avg_midterm = round(total_midterm / total_subjects, 2) if total_subjects else 0
     avg_endterm = round(total_endterm / total_subjects, 2) if total_subjects else 0
-    avg_opener_grade = get_knec_grade(avg_opener)[0] or '-'
-    avg_midterm_grade = get_knec_grade(avg_midterm)[0] or '-'
-    avg_endterm_grade = get_knec_grade(avg_endterm)[0] or '-'
+    avg_opener_grade = get_grade_for_marks(avg_opener, school)[0] or '-'
+    avg_midterm_grade = get_grade_for_marks(avg_midterm, school)[0] or '-'
+    avg_endterm_grade = get_grade_for_marks(avg_endterm, school)[0] or '-'
 
     # Position in class
     school_class = student.get_class_info() or student.current_class
@@ -304,10 +384,13 @@ def _generate_report_card_pdf_response(student, academic_term, school):
     story.append(Paragraph("Assessment Report", ParagraphStyle('ReportTitle', parent=styles['Heading2'], alignment=TA_CENTER, fontSize=14)))
     story.append(Spacer(1, 0.15*inch))
 
-    # Student info: NAME, Adm No, TERM, YEAR
+    # Student info: NAME, Adm No, CLASS, STREAM, TERM, YEAR
     student_name = f"{student.admin.first_name} {student.admin.last_name}"
-    story.append(Paragraph(f"<b>NAME:</b> {student_name}  <b>Adm No</b> {student.admission_number or '-'}", styles['Normal']))
-    story.append(Paragraph(f"<b>TERM:</b> {academic_term.academic_year} {academic_term.term_name}  <b>YEAR:</b> {academic_term.academic_year}  <b>House</b>", styles['Normal']))
+    school_class = context.get('school_class')
+    class_name = school_class.name if school_class else '-'
+    stream_name = school_class.stream.name if school_class and school_class.stream else '-'
+    story.append(Paragraph(f"<b>NAME:</b> {student_name}  <b>Adm No:</b> {student.admission_number or '-'}  <b>CLASS:</b> {class_name}  <b>STREAM:</b> {stream_name}", styles['Normal']))
+    story.append(Paragraph(f"<b>TERM:</b> {academic_term.academic_year} {academic_term.term_name}  <b>SESSION:</b> {academic_term.academic_year}", styles['Normal']))
     story.append(Spacer(1, 0.2*inch))
 
     # Results table: #, SUBJECT, OPENER (%, Grade), MID TERM (%, Grade), END TERM (%, Grade), AVERAGE (%, Grade), COMMENTS, TEACHER'S INITIALS
@@ -321,7 +404,7 @@ def _generate_report_card_pdf_response(student, academic_term, school):
             str(int(r['midterm_marks'])), str(r['midterm_grade']),
             str(int(r['endterm_marks'])), str(r['endterm_grade']),
             str(int(r['average'])), str(r['grade']),
-            r['remarks'], r.get('teacher_initials', '')
+            r.get('remarks', ''), r.get('teacher_initials', '')
         ])
     if not context['results']:
         data.append(['', 'No results entered. Please enter marks first.', '', '', '', '', '', '', '', '', '', ''])
