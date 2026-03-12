@@ -11,11 +11,13 @@ from datetime import timedelta
 from django.utils import timezone
 
 from django.db import connection, transaction
+from django.db.utils import OperationalError
+from django.core.management import call_command
 
 from django.db.models import Sum
 from decimal import Decimal
 
-from .models import School, Student, Staff, SubscriptionPlan, CustomUser, SchoolSettings, SchoolSubscription, FeePayment
+from .models import School, Student, Staff, SubscriptionPlan, CustomUser, SchoolSettings, SchoolSubscription, FeePayment, Expense
 from .email_service import send_school_approval_email
 
 
@@ -276,9 +278,7 @@ def super_admin_delete_school(request, school_id):
     """Delete a school and all related data. Only platform owner. Requires confirmation."""
     school = get_object_or_404(School, id=school_id)
     school_name = school.name
-    try:
-        # SQLite: disable FK checks during delete to avoid constraint order issues
-        # PRAGMA must be set when no transaction is active
+    def _do_delete():
         if connection.vendor == 'sqlite':
             with connection.cursor() as cursor:
                 cursor.execute("PRAGMA foreign_keys = OFF")
@@ -288,11 +288,28 @@ def super_admin_delete_school(request, school_id):
                 school.subscription_plan = None
                 school.save(update_fields=['subscription_plan'])
                 school.delete()
-            messages.success(request, f"School '{school_name}' and all related data have been permanently deleted.")
+            return True
         finally:
             if connection.vendor == 'sqlite':
                 with connection.cursor() as cursor:
                     cursor.execute("PRAGMA foreign_keys = ON")
+
+    try:
+        if _do_delete():
+            messages.success(request, f"School '{school_name}' and all related data have been permanently deleted.")
+    except OperationalError as e:
+        err = str(e).lower()
+        if 'main_app_expense' in err and 'no such table' in err:
+            # Expense table missing - run migrations then retry
+            try:
+                call_command('migrate', '--no-input')
+                school = get_object_or_404(School, id=school_id)
+                if _do_delete():
+                    messages.success(request, f"School '{school_name}' and all related data have been permanently deleted.")
+            except Exception as e2:
+                messages.error(request, f"Could not delete school: {str(e2)}. Run 'python manage.py migrate' on the server.")
+        else:
+            messages.error(request, f"Could not delete school: {str(e)}")
     except Exception as e:
         messages.error(request, f"Could not delete school: {str(e)}")
     return redirect('super_admin_dashboard')
