@@ -1,0 +1,50 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">{{ page_title }}</h3>
+                        <a href="{% url 'admission_dashboard' %}" class="btn btn-sm btn-secondary float-right">Back to Dashboard</a>
+                    </div>
+                    <div class="card-body table-responsive p-0">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Admission No.</th>
+                                    <th>Class</th>
+                                    <th>Documents</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in students %}
+                                <tr>
+                                    <td>{{ student.admin.last_name }}, {{ student.admin.first_name }}</td>
+                                    <td>{{ student.admission_number|default:"-" }}</td>
+                                    <td>{{ student.current_class|default:"-" }}</td>
+                                    <td>{{ student.documents.count }}</td>
+                                    <td>
+                                        <a href="{% url 'admission_student_documents' student.id %}" class="btn btn-sm btn-info">
+                                            <i class="fas fa-folder-open"></i> Manage
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="5" class="text-center">No students found</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

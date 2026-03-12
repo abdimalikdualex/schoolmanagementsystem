@@ -1,0 +1,49 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header bg-info">
+                        <h3 class="card-title">{{ page_title }}</h3>
+                        <div class="card-tools">
+                            <a href="{% url 'add_admission_officer' %}" class="btn btn-light btn-sm">
+                                <i class="fas fa-plus"></i> Add Admission Officer
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-bordered table-hover">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for o in officers %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ o.first_name }} {{ o.last_name }}</td>
+                                    <td>{{ o.email }}</td>
+                                    <td>{{ o.phone_number|default:"-" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center">No Admission Officers. <a href="{% url 'add_admission_officer' %}">Add one</a></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

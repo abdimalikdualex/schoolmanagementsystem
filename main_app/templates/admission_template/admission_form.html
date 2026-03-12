@@ -1,0 +1,97 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+{% block custom_css %}
+<style>
+    .invalid { font-style: italic; font-weight: bold; color: red; }
+    .valid { font-style: italic; font-weight: bold; color: green; }
+    #fee-preview { font-size: 1.1rem; font-weight: bold; }
+</style>
+{% endblock custom_css %}
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card card-dark">
+                    <div class="card-header">
+                        <h3 class="card-title">{{ page_title }}</h3>
+                        <a href="{% url 'admission_dashboard' %}" class="btn btn-sm btn-secondary float-right">Back to Dashboard</a>
+                    </div>
+                    {% if not active_term %}
+                    <div class="card-body">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> No active academic term. Please activate a term before adding students.
+                        </div>
+                    </div>
+                    {% endif %}
+                    <form role="form" method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="card-body">
+                            {% for field in form %}
+                            <div class="form-group">
+                                {{ field.errors }}
+                                {{ field.label_tag }}
+                                {{ field }}
+                            </div>
+                            {% endfor %}
+                            <div class="form-group" id="fee-preview-container" style="display:none;">
+                                <label>Estimated Fee (Class + Session)</label>
+                                <p id="fee-preview" class="text-success">-</p>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-success">Add Student</button>
+                            <a href="{% url 'admission_dashboard' %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}
+{% block custom_js %}
+<script>
+function validateEmail(email) {
+    const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    return re.test(String(email).toLowerCase());
+}
+$(document).ready(function(){
+    $("#id_email").keyup(function(){
+        var email = $(this).val();
+        if (validateEmail(email)){
+            $.ajax({
+                url: "{% url 'check_email_availability' %}",
+                type: 'POST',
+                data: {email: email, csrfmiddlewaretoken: '{{ csrf_token }}'},
+                dataType: 'json'
+            }).done(function(data){
+                if (!data.available){
+                    $(".email_error").remove();
+                    $("<span class='invalid email_error'>Email Address Already Exist</span>").insertAfter("#id_email");
+                } else {
+                    $(".email_error").remove();
+                    $("<span class='valid email_error'>Email Address Available</span>").insertAfter("#id_email");
+                }
+            });
+        }
+    });
+    // Fee preview when class selected
+    $("#id_course").on("change", function(){
+        var classId = $(this).val();
+        if (!classId) { $("#fee-preview-container").hide(); return; }
+        $.ajax({
+            url: "{% url 'admission_new_student' %}",
+            type: 'GET',
+            data: {class_id: classId},
+            headers: {'X-Requested-With': 'XMLHttpRequest'},
+            dataType: 'json'
+        }).done(function(data){
+            $("#fee-preview").text(data.currency + " " + data.total_fee);
+            $("#fee-preview-container").show();
+        });
+    });
+});
+</script>
+{% endblock custom_js %}

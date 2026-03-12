@@ -12,6 +12,11 @@
                     <div class="card-header">
                         <h3 class="card-title">{{page_title}}</h3>
                     </div>
+                    <div class="alert alert-info m-3 mb-0">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Tip:</strong> Only <strong>Name</strong> and <strong>Stage</strong> are required. 
+                        <strong>Code</strong> and <strong>Order Index</strong> are auto-generated if left empty.
+                    </div>
                     {% include "main_app/form_template.html" with messages=messages form=form button_text="Add Grade Level"%}
                 </div>
             </div>

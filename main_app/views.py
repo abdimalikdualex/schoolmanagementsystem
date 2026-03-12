@@ -150,6 +150,8 @@ def login_page(request):
             return redirect(reverse("parent_home"))
         elif user_type == '5':
             return redirect(reverse("finance_dashboard"))
+        elif user_type == '6':
+            return redirect(reverse("admission_dashboard"))
         else:
             return redirect(reverse("student_home"))
     from django.conf import settings
@@ -218,6 +220,8 @@ def doLogin(request, **kwargs):
                 return redirect(reverse("parent_home"))
             elif user_type == '5':
                 return redirect(reverse("finance_dashboard"))
+            elif user_type == '6':
+                return redirect(reverse("admission_dashboard"))
             else:
                 return redirect(reverse("student_home"))
         else:

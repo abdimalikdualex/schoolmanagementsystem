@@ -1,0 +1,118 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row mb-3">
+            <div class="col-12">
+                <a href="{% url 'admission_new_student' %}" class="btn btn-success">
+                    <i class="fas fa-user-plus"></i> New Student Admission
+                </a>
+                <a href="{% url 'admission_bulk' %}" class="btn btn-primary">
+                    <i class="fas fa-file-upload"></i> Bulk Admission
+                </a>
+                <a href="{% url 'admission_class_allocation' %}" class="btn btn-info">
+                    <i class="fas fa-users-cog"></i> Class Allocation
+                </a>
+                <a href="{% url 'admission_student_documents_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-file-alt"></i> Student Documents
+                </a>
+                <a href="{% url 'admission_reports' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-chart-bar"></i> Reports
+                </a>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="row">
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-info">
+                    <div class="inner">
+                        <h3>{{ students_today }}</h3>
+                        <p>Students Today</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-user-plus"></i></div>
+                    <a href="{% url 'admission_new_student' %}" class="small-box-footer">New Admission <i class="fas fa-arrow-circle-right"></i></a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-success">
+                    <div class="inner">
+                        <h3>{{ students_this_term }}</h3>
+                        <p>This Term</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-user-graduate"></i></div>
+                    <a href="{% url 'admission_reports' %}" class="small-box-footer">View Reports <i class="fas fa-arrow-circle-right"></i></a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-warning">
+                    <div class="inner">
+                        <h3>{{ pending }}</h3>
+                        <p>Pending</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-clock"></i></div>
+                    <a href="{% url 'admission_class_allocation' %}" class="small-box-footer">Allocate <i class="fas fa-arrow-circle-right"></i></a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-secondary">
+                    <div class="inner">
+                        <h3>{{ classes_with_seats|length }}</h3>
+                        <p>Classes</p>
+                    </div>
+                    <div class="icon"><i class="fas fa-school"></i></div>
+                    <a href="{% url 'admission_class_allocation' %}" class="small-box-footer">Class Allocation <i class="fas fa-arrow-circle-right"></i></a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Classes with Seats -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Classes with Available Seats</h3>
+                    </div>
+                    <div class="card-body table-responsive p-0">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Class</th>
+                                    <th class="text-right">Enrolled</th>
+                                    <th class="text-right">Capacity</th>
+                                    <th class="text-right">Available</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in classes_with_seats %}
+                                <tr>
+                                    <td>{{ item.class.name }}</td>
+                                    <td class="text-right">{{ item.enrolled }}</td>
+                                    <td class="text-right">{{ item.capacity }}</td>
+                                    <td class="text-right">
+                                        <span class="badge {% if item.available > 0 %}badge-success{% else %}badge-danger{% endif %}">
+                                            {{ item.available }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="4" class="text-center">No classes found</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if not active_term %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i> No active academic term. Contact admin to activate a term.
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock content %}

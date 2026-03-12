@@ -310,6 +310,13 @@
                         <p>Search Students</p>
                     </a>
                 </li>
+                <li class="nav-item">
+                    {% url 'manage_admission_officers' as manage_admission_officers %}
+                    <a href="{{manage_admission_officers}}" class="nav-link {% if manage_admission_officers == request.path %} active {% endif %}">
+                        <i class="nav-icon fas fa-user-tie"></i>
+                        <p>Admission Officers</p>
+                    </a>
+                </li>
 
                 <li class="nav-item">
                     {% url 'add_parent' as add_parent %}
@@ -882,6 +889,69 @@
                                     <p>Logout</p>
                                 </a>
                             </li>
+
+                            {% elif request.user.user_type == '6' %}
+                            <!-- Admission Officer Panel -->
+                            <a href="{% url 'admission_dashboard' %}" class="brand-link">
+                                <img src="{% static 'dist/img/cmsl.png' %}" alt="Logo" class="brand-image img-circle elevation-3">
+                                <span class="brand-text font-weight-light">Admission Panel</span>
+                            </a>
+                            <div class="sidebar">
+                                <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+                                    <div class="image">
+                                        <img src="{{ request.user.profile_pic|default:'/static/dist/img/avatar.png' }}" class="img-circle elevation-2" alt="User Image">
+                                    </div>
+                                    <div class="info">
+                                        <a href="#" class="d-block">{{ user }}</a>
+                                    </div>
+                                </div>
+                                <nav class="mt-2">
+                                    <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+                                        <li class="nav-item">
+                                            <a href="{% url 'admission_dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'admission_dashboard' %}active{% endif %}">
+                                                <i class="nav-icon fas fa-home"></i>
+                                                <p>Dashboard</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a href="{% url 'admission_new_student' %}" class="nav-link {% if request.resolver_match.url_name == 'admission_new_student' %}active{% endif %}">
+                                                <i class="nav-icon fas fa-user-plus"></i>
+                                                <p>New Student</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a href="{% url 'admission_bulk' %}" class="nav-link {% if request.resolver_match.url_name == 'admission_bulk' %}active{% endif %}">
+                                                <i class="nav-icon fas fa-file-upload"></i>
+                                                <p>Bulk Admission</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a href="{% url 'admission_class_allocation' %}" class="nav-link {% if request.resolver_match.url_name == 'admission_class_allocation' %}active{% endif %}">
+                                                <i class="nav-icon fas fa-users-cog"></i>
+                                                <p>Class Allocation</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a href="{% url 'admission_student_documents_list' %}" class="nav-link {% if 'admission_student_documents' in request.resolver_match.url_name %}active{% endif %}">
+                                                <i class="nav-icon fas fa-file-alt"></i>
+                                                <p>Documents</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a href="{% url 'admission_reports' %}" class="nav-link {% if request.resolver_match.url_name == 'admission_reports' %}active{% endif %}">
+                                                <i class="nav-icon fas fa-chart-bar"></i>
+                                                <p>Reports</p>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a href="{% url 'user_logout' %}" onclick="return confirm('Your session would be terminated.\n\nProceed?')" class="nav-link">
+                                                <i class="nav-icon fas fa-power-off"></i>
+                                                <p>Logout</p>
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            </div>
 
                             {% elif request.user.user_type == '5' %}
                             <!-- Finance Officer Panel - Full control of all finance activities -->

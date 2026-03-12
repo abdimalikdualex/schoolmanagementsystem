@@ -149,6 +149,8 @@
                                         <li class="breadcrumb-item"><a href="{% url 'parent_home' %}">Home</a></li>
                                     {% elif user.user_type == '5' %}
                                         <li class="breadcrumb-item"><a href="{% url 'finance_dashboard' %}">Finance</a></li>
+                                    {% elif user.user_type == '6' %}
+                                        <li class="breadcrumb-item"><a href="{% url 'admission_dashboard' %}">Admission</a></li>
                                     {% else %}
                                         <li class="breadcrumb-item"><a href="{% url 'login_page' %}">Home</a></li>
                                     {% endif %}

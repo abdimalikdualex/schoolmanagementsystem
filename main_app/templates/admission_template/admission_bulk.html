@@ -1,0 +1,70 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card card-dark">
+                    <div class="card-header">
+                        <h3 class="card-title">{{ page_title }}</h3>
+                        <a href="{% url 'admission_dashboard' %}" class="btn btn-sm btn-secondary float-right">Back to Dashboard</a>
+                    </div>
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                Upload a CSV or Excel file with columns: <strong>first_name</strong>, <strong>last_name</strong>, <strong>email</strong>, <strong>gender</strong>, <strong>guardian_name</strong>, <strong>guardian_phone</strong>
+                            </div>
+                            {% if not openpyxl_available %}
+                            <div class="alert alert-warning">
+                                Excel support requires <code>pip install openpyxl</code>. CSV works without it.
+                            </div>
+                            {% endif %}
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>File <span class="text-danger">*</span></label>
+                                        <input type="file" name="file" class="form-control" accept=".csv,.xlsx,.xls" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>Session <span class="text-danger">*</span></label>
+                                        <select name="session_id" class="form-control" required>
+                                            <option value="">Select Session</option>
+                                            {% for s in sessions %}
+                                            <option value="{{ s.id }}">{{ s }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>Class <span class="text-danger">*</span></label>
+                                        <select name="class_id" class="form-control" required>
+                                            <option value="">Select Class</option>
+                                            {% for c in classes %}
+                                            <option value="{{ c.id }}">{{ c.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-upload"></i> Upload & Process
+                            </button>
+                            <a href="{% url 'admission_dashboard' %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

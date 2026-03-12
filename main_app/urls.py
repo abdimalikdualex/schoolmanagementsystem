@@ -17,7 +17,7 @@ from django.urls import path
 
 from main_app.EditResultView import EditResultView
 
-from . import hod_views, staff_views, student_views, parent_views, views, finance_views, super_admin_views, report_card_views
+from . import hod_views, staff_views, student_views, parent_views, views, finance_views, super_admin_views, report_card_views, admission_views
 
 urlpatterns = [
     path("", views.login_page, name='login_page'),
@@ -352,6 +352,8 @@ urlpatterns = [
     path("fees/dashboard/", hod_views.finance_dashboard, name='finance_dashboard'),
     path("finance/officers/add/", hod_views.add_finance_officer, name='add_finance_officer'),
     path("finance/officers/manage/", hod_views.manage_finance_officers, name='manage_finance_officers'),
+    path("admission/officers/add/", hod_views.add_admission_officer, name='add_admission_officer'),
+    path("admission/officers/manage/", hod_views.manage_admission_officers, name='manage_admission_officers'),
     path("finance/profile/", finance_views.finance_profile, name='finance_profile'),
     path("finance/students/billing/", finance_views.finance_student_billing, name='finance_student_billing'),
     path("finance/defaulters/", finance_views.finance_defaulters, name='finance_defaulters'),
@@ -435,5 +437,17 @@ urlpatterns = [
     path("students/detail/<int:student_id>/guardian/add/", hod_views.student_add_guardian, name='student_add_guardian'),
     path("students/detail/<int:student_id>/guardian/edit/<int:guardian_id>/", hod_views.student_edit_guardian, name='student_edit_guardian'),
     path("students/detail/<int:student_id>/guardian/delete/<int:guardian_id>/", hod_views.student_delete_guardian, name='student_delete_guardian'),
+
+    # ============================================================
+    # ADMISSION OFFICER (user_type='6')
+    # ============================================================
+    path("admission/", admission_views.admission_dashboard, name='admission_dashboard'),
+    path("admission/new/", admission_views.new_student_admission, name='admission_new_student'),
+    path("admission/bulk/", admission_views.bulk_admission, name='admission_bulk'),
+    path("admission/class-allocation/", admission_views.class_allocation, name='admission_class_allocation'),
+    path("admission/documents/", admission_views.student_documents, name='admission_student_documents_list'),
+    path("admission/documents/<int:student_id>/", admission_views.student_documents, name='admission_student_documents'),
+    path("admission/documents/delete/<int:document_id>/", admission_views.admission_document_delete, name='admission_document_delete'),
+    path("admission/reports/", admission_views.admission_reports, name='admission_reports'),
 
 ]

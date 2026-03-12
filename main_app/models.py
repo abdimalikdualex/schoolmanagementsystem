@@ -320,17 +320,52 @@ class GradeLevel(models.Model):
         related_name='grade_levels',
         help_text="Null for legacy data; required for multi-tenant"
     )
-    code = models.CharField(max_length=10, help_text="e.g., PP1, G1-G6, F1-F4")
+    code = models.CharField(max_length=10, blank=True, null=True, help_text="Auto-generated from name if empty (e.g., Grade 1 → G1)")
     name = models.CharField(max_length=50, help_text="e.g., Grade 1, Form 1")
     stage = models.CharField(max_length=20, choices=STAGE_CHOICES)
-    order_index = models.PositiveIntegerField(help_text="For promotion sequence")
+    order_index = models.PositiveIntegerField(null=True, blank=True, help_text="Auto-assigned next number if empty")
     description = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def _generate_code_from_name(self, name):
+        """Generate code from grade name, e.g. 'Grade 1' → 'G1', 'Form 2' → 'F2'"""
+        import re
+        name = (name or '').strip()
+        if not name:
+            return ''
+        m = re.search(r'Grade\s*(\d+)', name, re.I)
+        if m:
+            return f"G{m.group(1)}"
+        m = re.search(r'Form\s*(\d+)', name, re.I)
+        if m:
+            return f"F{m.group(1)}"
+        m = re.search(r'(?:Pre[- ]?Primary|PP)\s*(\d+)', name, re.I)
+        if m:
+            return f"PP{m.group(1)}"
+        m = re.search(r'Junior\s*Secondary\s*(\d+)', name, re.I)
+        if m:
+            return f"JS{m.group(1)}"
+        m = re.search(r'Senior\s*Secondary\s*(\d+)', name, re.I)
+        if m:
+            return f"SS{m.group(1)}"
+        s = re.sub(r'[^A-Za-z0-9]', '', name)[:3].upper()
+        return s or 'GL'
+
+    def save(self, *args, **kwargs):
+        if not (self.code or '').strip():
+            self.code = self._generate_code_from_name(self.name)
+        if self.order_index is None:
+            qs = GradeLevel.objects.filter(school=self.school)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            max_idx = qs.aggregate(models.Max('order_index'))['order_index__max']
+            self.order_index = (max_idx or 0) + 1
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.code} - {self.name}"
+        return f"{self.code or '-'} - {self.name}"
 
     def get_next_grade(self, school=None):
         """Get the next grade level for promotion"""
@@ -358,6 +393,7 @@ class CustomUser(AbstractUser):
         (3, "Student"),
         (4, "Parent"),
         (5, "Finance Officer"),
+        (6, "Admission Officer"),
     )
     GENDER = [("M", "Male"), ("F", "Female")]
 
@@ -541,6 +577,7 @@ class AdmissionSetting(models.Model):
 class Student(models.Model):
     STATUS_CHOICES = [
         ('active', 'Active'),
+        ('pending', 'Pending'),
         ('completed', 'Completed'),
         ('transferred', 'Transferred'),
         ('withdrawn', 'Withdrawn'),
@@ -784,6 +821,35 @@ class Guardian(models.Model):
         ordering = ['-is_primary', 'name']
         verbose_name = "Guardian"
         verbose_name_plural = "Guardians"
+
+
+class StudentDocument(models.Model):
+    """Admission documents uploaded for students (birth certificate, transfer letter, etc.)"""
+    DOCUMENT_TYPE_CHOICES = [
+        ('birth_certificate', 'Birth Certificate'),
+        ('transfer_letter', 'Transfer Letter'),
+        ('report_card', 'Report Card'),
+        ('id_copy', 'ID Copy'),
+        ('photo', 'Photo'),
+        ('other', 'Other'),
+    ]
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name='documents'
+    )
+    document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPE_CHOICES, default='other')
+    file = models.FileField(upload_to='student_documents/%Y/%m/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    notes = models.CharField(max_length=255, blank=True, null=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+        verbose_name = "Student Document"
+        verbose_name_plural = "Student Documents"
+
+    def __str__(self):
+        return f"{self.student} - {self.get_document_type_display()}"
 
 
 class Subject(models.Model):

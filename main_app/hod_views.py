@@ -235,6 +235,53 @@ def manage_finance_officers(request):
     return render(request, 'hod_template/manage_finance_officers.html', context)
 
 
+def add_admission_officer(request):
+    """Admin: Create Admission Officer account (user_type='6')"""
+    from .forms import AdmissionOfficerForm
+    form = AdmissionOfficerForm(request.POST or None, request.FILES or None)
+    context = {'form': form, 'page_title': 'Add Admission Officer'}
+    if request.method == 'POST':
+        if form.is_valid():
+            first_name = form.cleaned_data.get('first_name').strip()
+            last_name = form.cleaned_data.get('last_name').strip()
+            email = form.cleaned_data.get('email').strip().lower()
+            gender = form.cleaned_data.get('gender')
+            password = form.cleaned_data.get('password')
+            address = form.cleaned_data.get('address') or 'N/A'
+            phone_number = form.cleaned_data.get('phone_number') or ''
+            passport = request.FILES.get('profile_pic')
+            try:
+                passport_url = ''
+                if passport:
+                    fs = FileSystemStorage()
+                    filename = fs.save(passport.name, passport)
+                    passport_url = fs.url(filename)
+                user = CustomUser.objects.create_user(
+                    email=email, password=password, user_type='6',
+                    first_name=first_name, last_name=last_name, profile_pic=passport_url
+                )
+                user.gender = gender
+                user.address = address
+                user.phone_number = phone_number
+                user.school = getattr(request, 'school', None)
+                user.save()
+                messages.success(request, f"Admission Officer {first_name} {last_name} added successfully.")
+                return redirect(reverse('add_admission_officer'))
+            except Exception as e:
+                messages.error(request, f"Could Not Add: {str(e)}")
+        else:
+            messages.error(request, "Please fulfil all requirements")
+    return render(request, 'hod_template/add_admission_officer_template.html', context)
+
+
+def manage_admission_officers(request):
+    """Admin: List Admission Officers"""
+    school = getattr(request, 'school', None)
+    officers = CustomUser.objects.filter(user_type='6', school=school).order_by('last_name') if school else CustomUser.objects.filter(user_type='6').order_by('last_name')
+    context = {'officers': officers, 'page_title': 'Manage Admission Officers'}
+    return render(request, 'hod_template/manage_admission_officers.html', context)
+
+
 def _generate_admission_number():
     """MVP: Auto-generate admission number format 2026-001, 2026-002, etc. (Kenyan school best practice)."""
     year = timezone.now().year
@@ -2579,9 +2626,9 @@ def delete_announcement(request, announcement_id):
 
 # Grade Level Management
 def manage_grade_levels(request):
-    """View all Kenya CBC grade levels"""
+    """View all Kenya CBC grade levels - always ordered by Order Index ascending"""
     school = getattr(request, 'school', None)
-    grade_levels = GradeLevel.objects.filter(school=school) if school else GradeLevel.objects.all()
+    grade_levels = (GradeLevel.objects.filter(school=school) if school else GradeLevel.objects.all()).order_by('order_index')
     context = {
         'grade_levels': grade_levels,
         'page_title': 'Manage Grade Levels (Kenya CBC)'
@@ -2590,10 +2637,10 @@ def manage_grade_levels(request):
 
 
 def add_grade_level(request):
-    """Add a new grade level"""
+    """Add a new grade level - Code and Order Index auto-generated if empty"""
     from .forms import GradeLevelForm
     school = getattr(request, 'school', None)
-    form = GradeLevelForm(request.POST or None)
+    form = GradeLevelForm(request.POST or None, school=school)
     context = {'form': form, 'page_title': 'Add Grade Level'}
     
     if request.method == 'POST':
@@ -2619,7 +2666,7 @@ def edit_grade_level(request, grade_level_id):
     school = getattr(request, 'school', None)
     qs = GradeLevel.objects.filter(school=school) if school else GradeLevel.objects.all()
     grade_level = get_object_or_404(qs, id=grade_level_id)
-    form = GradeLevelForm(request.POST or None, instance=grade_level)
+    form = GradeLevelForm(request.POST or None, instance=grade_level, school=school or grade_level.school)
     context = {'form': form, 'grade_level_id': grade_level_id, 'page_title': 'Edit Grade Level'}
     
     if request.method == 'POST':

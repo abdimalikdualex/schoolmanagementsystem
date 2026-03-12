@@ -193,13 +193,63 @@ class FinanceOfficerForm(forms.Form):
         return email
 
 
-class GradeLevelForm(FormSettings):
+class AdmissionOfficerForm(forms.Form):
+    """Add Admission Officer - same structure as Finance Officer."""
+    first_name = forms.CharField(required=True)
+    last_name = forms.CharField(required=True)
+    email = forms.EmailField(required=True)
+    gender = forms.ChoiceField(choices=[('M', 'Male'), ('F', 'Female')], required=True)
+    phone_number = forms.CharField(max_length=15, required=False)
+    address = forms.CharField(widget=forms.Textarea, required=True)
+    password = forms.CharField(widget=forms.PasswordInput, required=True)
+    profile_pic = forms.ImageField(required=False)
+
     def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.visible_fields():
+            field.field.widget.attrs['class'] = 'form-control'
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email', '').lower()
+        if CustomUser.objects.filter(email=email).exists():
+            raise forms.ValidationError("This email is already registered")
+        return email
+
+
+class GradeLevelForm(FormSettings):
+    """MVP: Name & Stage required; Code & Order Index optional (auto-generated)"""
+    def __init__(self, *args, **kwargs):
+        self._school = kwargs.pop('school', None)
         super(GradeLevelForm, self).__init__(*args, **kwargs)
+        self.fields['code'].required = False
+        self.fields['code'].help_text = "Optional – auto-generated from name if empty (e.g., Grade 1 → G1)"
+        self.fields['code'].widget.attrs['placeholder'] = 'Leave empty to auto-generate'
+        self.fields['order_index'].required = False
+        self.fields['order_index'].help_text = "Optional – auto-assigned next number if empty"
+        self.fields['order_index'].widget.attrs['placeholder'] = 'Leave empty to auto-assign'
+        self.fields['name'].required = True
+        self.fields['stage'].required = True
+
+    def clean_name(self):
+        name = (self.cleaned_data.get('name') or '').strip()
+        stage = self.cleaned_data.get('stage')
+        school = getattr(self.instance, 'school', None) if self.instance.pk else self._school
+        if not name or not stage:
+            return name
+        qs = GradeLevel.objects.filter(name__iexact=name, stage=stage)
+        if school is not None:
+            qs = qs.filter(school=school)
+        else:
+            qs = qs.filter(school__isnull=True)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError(f"A grade level with name '{name}' already exists in this stage.")
+        return name
 
     class Meta:
         model = GradeLevel
-        fields = ['code', 'name', 'stage', 'order_index', 'description', 'is_active']
+        fields = ['name', 'stage', 'code', 'order_index', 'description', 'is_active']
 
 
 class StreamForm(FormSettings):

@@ -52,6 +52,15 @@ class LoginCheckMiddleWare(MiddlewareMixin):
                 if url_name not in FINANCE_OFFICER_ALLOWED_URL_NAMES:
                     return HttpResponseForbidden("Insufficient Permissions")
                 return None  # Allow - continue to view
+            # Admission Officer (user_type='6') - ONLY admission URLs allowed
+            if str(user.user_type) == '6':
+                if request.path.startswith('/static/') or request.path.startswith('/media/'):
+                    return None
+                from main_app.admission_urls import ADMISSION_OFFICER_ALLOWED_URL_NAMES
+                url_name = request.resolver_match.url_name if request.resolver_match else None
+                if url_name not in ADMISSION_OFFICER_ALLOWED_URL_NAMES:
+                    return HttpResponseForbidden("Insufficient Permissions")
+                return None
             if user.user_type == '1': # Is it the HOD/Admin
                 if modulename == 'main_app.student_views' or modulename == 'main_app.parent_views':
                     return redirect(reverse('admin_home'))

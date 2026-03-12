@@ -1,0 +1,89 @@
+{% extends 'main_app/base.html' %}
+{% load static %}
+{% block page_title %}{{ page_title }}{% endblock page_title %}
+
+{% block content %}
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card card-dark">
+                    <div class="card-header">
+                        <h3 class="card-title">{{ page_title }}</h3>
+                        <a href="{% url 'admission_dashboard' %}" class="btn btn-sm btn-secondary float-right">Back to Dashboard</a>
+                    </div>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>Session <span class="text-danger">*</span></label>
+                                        <select name="session_id" class="form-control" required>
+                                            <option value="">Select Session</option>
+                                            {% for s in sessions %}
+                                            <option value="{{ s.id }}">{{ s }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label>Target Class <span class="text-danger">*</span></label>
+                                        <select name="class_id" class="form-control" required>
+                                            <option value="">Select Class</option>
+                                            {% for item in classes_with_seats %}
+                                            <option value="{{ item.class.id }}" {% if item.available <= 0 %}disabled{% endif %}>
+                                                {{ item.class.name }} ({{ item.available }} seats)
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Select Students to Allocate</label>
+                                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                    <table class="table table-bordered table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th><input type="checkbox" id="selectAll"></th>
+                                                <th>Student</th>
+                                                <th>Admission No.</th>
+                                                <th>Current Class</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for student in unallocated %}
+                                            <tr>
+                                                <td><input type="checkbox" name="student_ids" value="{{ student.id }}"></td>
+                                                <td>{{ student.admin.last_name }}, {{ student.admin.first_name }}</td>
+                                                <td>{{ student.admission_number|default:"-" }}</td>
+                                                <td>{{ student.current_class|default:"-" }}</td>
+                                            </tr>
+                                            {% empty %}
+                                            <tr><td colspan="4" class="text-center">No unallocated students</td></tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button type="submit" class="btn btn-success">Allocate Selected</button>
+                            <a href="{% url 'admission_dashboard' %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+<script>
+$(document).ready(function() {
+    $('#selectAll').on('change', function() {
+        $('input[name="student_ids"]').prop('checked', this.checked);
+    });
+});
+</script>
+{% endblock content %}
