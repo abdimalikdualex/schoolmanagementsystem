@@ -32,9 +32,19 @@ class CustomUserForm(FormSettings):
             instance = kwargs.get('instance').admin.__dict__
             self.fields['password'].required = False
             for field in CustomUserForm.Meta.fields:
-                self.fields[field].initial = instance.get(field)
+                val = instance.get(field)
+                # Never show email/username in phone_number field (prevents credential leak)
+                if field == 'phone_number' and val and ('@' in str(val) or not any(c.isdigit() for c in str(val))):
+                    val = ''
+                self.fields[field].initial = val
             if self.instance.pk is not None:
                 self.fields['password'].widget.attrs['placeholder'] = "Fill this only if you wish to update password"
+
+    def clean_phone_number(self):
+        val = (self.cleaned_data.get('phone_number') or '').strip()
+        if val and ('@' in val or not any(c.isdigit() for c in val)):
+            return ''  # Reject email/username mistakenly in phone field
+        return val or None
 
     def clean_email(self, *args, **kwargs):
         formEmail = self.cleaned_data['email'].lower()
